@@ -79,8 +79,12 @@ export function MemberRow({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [name, setName] = useState(member.name);
+  const [email, setEmail] = useState(member.email);
   const [selected, setSelected] = useState<string[]>(member.roles);
   const [error, setError] = useState<string | null>(null);
+  const [issued, setIssued] = useState<string | null>(null); // 再招待で発行した初期パスワード
 
   async function save() {
     setError(null);
@@ -98,16 +102,92 @@ export function MemberRow({
     }
   }
 
+  async function saveProfile() {
+    setError(null);
+    const res = await fetch(`/api/v1/company/members/${member.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email }),
+    });
+    if (res.ok) {
+      setEditingProfile(false);
+      router.refresh();
+    } else {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "更新に失敗しました");
+    }
+  }
+
   async function suspend() {
     if (!window.confirm(`${member.name} を停止しますか？（全セッションが失効します）`)) return;
     const res = await fetch(`/api/v1/company/members/${member.id}/suspend`, { method: "POST" });
     if (res.ok) router.refresh();
   }
 
+  async function reinvite() {
+    if (
+      !window.confirm(
+        `${member.name} に招待メールを再送しますか？（初期パスワードが再発行され、以前のパスワード・セッションは無効になります）`
+      )
+    )
+      return;
+    setError(null);
+    const res = await fetch(`/api/v1/company/members/${member.id}/reinvite`, { method: "POST" });
+    if (res.ok) {
+      const b = await res.json();
+      setIssued(b.initialPassword);
+      router.refresh();
+    } else {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "再招待に失敗しました");
+    }
+  }
+
+  async function remove() {
+    if (!window.confirm(`${member.name} を削除しますか？（アカウントごと削除され、元に戻せません）`)) return;
+    setError(null);
+    const res = await fetch(`/api/v1/company/members/${member.id}`, { method: "DELETE" });
+    if (res.ok) {
+      router.refresh();
+    } else {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "削除に失敗しました");
+    }
+  }
+
   return (
     <tr className="border-t border-slate-100">
-      <td className="px-4 py-3 font-medium">{member.name}</td>
-      <td className="px-4 py-3">{member.email}</td>
+      <td className="px-4 py-3 font-medium">
+        {editingProfile ? (
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full rounded border border-slate-300 px-2 py-1"
+          />
+        ) : (
+          member.name
+        )}
+      </td>
+      <td className="px-4 py-3">
+        {editingProfile ? (
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full rounded border border-slate-300 px-2 py-1"
+          />
+        ) : (
+          <>
+            {member.email}
+            {issued && (
+              <p className="mt-1 rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-800">
+                再招待しました。初期パスワード（この画面でのみ表示）:{" "}
+                <code className="rounded bg-white px-1">{issued}</code>
+              </p>
+            )}
+          </>
+        )}
+      </td>
       <td className="px-4 py-3">
         {editing ? (
           <div className="flex flex-wrap gap-x-3 gap-y-1">
@@ -137,9 +217,24 @@ export function MemberRow({
       </td>
       <td className="px-4 py-3">{member.status === "ACTIVE" ? "有効" : member.status === "RETIRED" ? "停止" : member.status}</td>
       <td className="px-4 py-3 text-right text-xs">
-        {!member.isOwner && member.status === "ACTIVE" && (
-          <div className="flex justify-end gap-2">
-            {editing ? (
+        {!member.isOwner && (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {error && !editing && <span className="text-red-600">{error}</span>}
+            {editingProfile ? (
+              <>
+                <button onClick={saveProfile} className="rounded bg-blue-600 px-2 py-1 text-white">保存</button>
+                <button
+                  onClick={() => {
+                    setEditingProfile(false);
+                    setName(member.name);
+                    setEmail(member.email);
+                  }}
+                  className="rounded border border-slate-300 px-2 py-1"
+                >
+                  取消
+                </button>
+              </>
+            ) : editing ? (
               <>
                 <button onClick={save} className="rounded bg-blue-600 px-2 py-1 text-white">保存</button>
                 <button onClick={() => setEditing(false)} className="rounded border border-slate-300 px-2 py-1">
@@ -148,11 +243,25 @@ export function MemberRow({
               </>
             ) : (
               <>
+                <button
+                  onClick={() => setEditingProfile(true)}
+                  className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50"
+                >
+                  編集
+                </button>
                 <button onClick={() => setEditing(true)} className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50">
                   ロール変更
                 </button>
-                <button onClick={suspend} className="rounded border border-red-300 px-2 py-1 text-red-600 hover:bg-red-50">
-                  停止
+                <button onClick={reinvite} className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50">
+                  再招待
+                </button>
+                {member.status === "ACTIVE" && (
+                  <button onClick={suspend} className="rounded border border-red-300 px-2 py-1 text-red-600 hover:bg-red-50">
+                    停止
+                  </button>
+                )}
+                <button onClick={remove} className="rounded border border-red-300 px-2 py-1 text-red-600 hover:bg-red-50">
+                  削除
                 </button>
               </>
             )}
