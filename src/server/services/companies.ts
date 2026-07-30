@@ -382,7 +382,7 @@ export async function importCompanies(rows: CompanyImportRow[]) {
     }
 
     // 同名企業が既にある場合は、新規作成せず既存企業へ担当者として追加する
-    // （同一 CSV 内で同じ企業の担当者が複数行あるケース）。取込担当者は全員オーナー・管理者権限。
+    // （同一 CSV 内で同じ企業の担当者が複数行あるケース）。取込担当者は全員企業管理者（ADMIN）権限。
     // 追加先が審査待ちなら承認時に、承認済みなら再招待で初期パスワードを発行する
     const sameName = await prisma.company.findFirst({ where: { name: row.companyName } });
     if (sameName) {
@@ -394,11 +394,8 @@ export async function importCompanies(rows: CompanyImportRow[]) {
           const member = await tx.companyMember.create({
             data: { companyId: sameName.id, userAccountId: account.id },
           });
-          await tx.companyMemberRole.createMany({
-            data: [
-              { memberId: member.id, role: "OWNER" },
-              { memberId: member.id, role: "ADMIN" },
-            ],
+          await tx.companyMemberRole.create({
+            data: { memberId: member.id, role: "ADMIN" },
           });
         });
       } catch {
@@ -438,11 +435,8 @@ export async function importCompanies(rows: CompanyImportRow[]) {
         const member = await tx.companyMember.create({
           data: { companyId: company.id, userAccountId: account.id },
         });
-        await tx.companyMemberRole.createMany({
-          data: [
-            { memberId: member.id, role: "OWNER" },
-            { memberId: member.id, role: "ADMIN" },
-          ],
+        await tx.companyMemberRole.create({
+          data: { memberId: member.id, role: "ADMIN" },
         });
         return company;
       });

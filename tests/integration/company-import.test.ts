@@ -51,7 +51,7 @@ describe("importCompanies", () => {
       where: { companyId: company!.id },
       include: { roles: true, userAccount: true },
     });
-    expect(owner?.roles.map((x) => x.role).sort()).toEqual(["ADMIN", "OWNER"]);
+    expect(owner?.roles.map((x) => x.role)).toEqual(["ADMIN"]); // 初期ロールは企業管理者のみ
     expect(owner?.userAccount.email).toBe("import-a@test.example");
     // 取込時点ではパスワード未発行
     const accounts = await prisma.userAccount.findMany({
@@ -174,7 +174,7 @@ describe("importCompanies（行単位の検証）", () => {
     expect(company?.corporateNumber).toBeNull();
   });
 
-  it("同名企業の2人目以降は新規作成せず既存企業へ追加する（全員オーナー・管理者権限）", async () => {
+  it("同名企業の2人目以降は新規作成せず既存企業へ追加する（全員企業管理者権限）", async () => {
     const r = await doImport([
       {
         companyName: "株式会社キャリアビート",
@@ -203,8 +203,8 @@ describe("importCompanies（行単位の検証）", () => {
       orderBy: { createdAt: "asc" },
     });
     expect(members).toHaveLength(2);
-    expect(members[0].roles.map((x) => x.role).sort()).toEqual(["ADMIN", "OWNER"]);
-    expect(members[1].roles.map((x) => x.role).sort()).toEqual(["ADMIN", "OWNER"]);
+    expect(members[0].roles.map((x) => x.role)).toEqual(["ADMIN"]);
+    expect(members[1].roles.map((x) => x.role)).toEqual(["ADMIN"]);
     expect(members[1].userAccount.name).toBe("亀山 蓮");
   });
 
@@ -332,7 +332,7 @@ describe("運営の担当者管理", () => {
     if ("error" in list) throw new Error("list failed");
     expect(list.items).toHaveLength(1);
     const member = list.items[0];
-    expect(member.roles.sort()).toEqual(["ADMIN", "OWNER"]);
+    expect(member.roles).toEqual(["ADMIN"]); // 初期ロールは企業管理者のみ
     expect(member.passwordIssued).toBe(false); // 初期パスワードは承認時まで未発行
 
     // 修正（オーナーでも可）
