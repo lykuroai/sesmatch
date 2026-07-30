@@ -15,11 +15,16 @@ export async function sendMail(input: {
   subject: string;
   body: string;
 }): Promise<void> {
-  const from = process.env.MAIL_FROM;
-  if (!from) {
+  const address = process.env.MAIL_FROM;
+  if (!address) {
     console.info(`[mail:mock] to=${input.to} subject=${input.subject}`);
     return;
   }
+  // FROM_NAME があれば表示名付き（例: =?UTF-8?B?...?= <noreply@example.com>）
+  const name = process.env.FROM_NAME;
+  const from = name
+    ? `=?UTF-8?B?${Buffer.from(name).toString("base64")}?= <${address}>`
+    : address;
   try {
     client ??= new SESv2Client({
       region: process.env.AWS_REGION || "ap-northeast-1",
