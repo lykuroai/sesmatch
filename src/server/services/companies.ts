@@ -151,12 +151,21 @@ export type CompanyImportRow = {
 };
 
 export async function importCompanies(rows: CompanyImportRow[]) {
-  const results: { row: number; companyName: string; ok: boolean; message?: string }[] = [];
+  const results: {
+    row: number;
+    companyName: string;
+    ok: boolean;
+    skipped?: boolean;
+    message?: string;
+  }[] = [];
   let created = 0; // 新規に開通した企業数（既存企業への担当者追加は含めない）
   for (const [i, row] of rows.entries()) {
     const rowNo = i + 1;
     const fail = (message: string) =>
       results.push({ row: rowNo, companyName: row.companyName, ok: false, message });
+    // 重複などの既登録データはエラーにせず読み飛ばす
+    const skip = (message: string) =>
+      results.push({ row: rowNo, companyName: row.companyName, ok: true, skipped: true, message });
 
     if (!row.companyName || !row.ownerName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
       fail("企業名・担当者名・メールアドレスは必須です");
@@ -169,7 +178,7 @@ export async function importCompanies(rows: CompanyImportRow[]) {
     }
     const existing = await prisma.userAccount.findUnique({ where: { email: row.email } });
     if (existing) {
-      fail("このメールアドレスは登録済みです");
+      skip("スキップ: このメールアドレスは登録済みです");
       continue;
     }
 
@@ -196,7 +205,7 @@ export async function importCompanies(rows: CompanyImportRow[]) {
           });
         });
       } catch {
-        fail("登録に失敗しました（メールアドレスの重複など）");
+        skip("スキップ: 重複データ");
         continue;
       }
       await audit({
@@ -253,8 +262,8 @@ ${sameName.name} のメンバーとして招待されました。
         return company;
       });
     } catch {
-      // 一意制約違反（同一メールの重複行など）は行エラーとして継続
-      fail("登録に失敗しました（メールアドレスの重複など）");
+      // 一意制約違反（同一メールの重複行など）は読み飛ばして継続
+      skip("スキップ: 重複データ");
       continue;
     }
     await audit({

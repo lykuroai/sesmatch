@@ -117,7 +117,7 @@ describe("importCompanies", () => {
     expect(members[1].userAccount.name).toBe("亀山 蓮");
   });
 
-  it("登録済み・重複メールの行はエラーとして報告する", async () => {
+  it("登録済み・重複メールの行はエラーにせずスキップする", async () => {
     const first = await importCompanies([
       {
         companyName: "先行社",
@@ -136,8 +136,33 @@ describe("importCompanies", () => {
       },
     ]);
     expect(r.created).toBe(0);
-    expect(r.results[0].ok).toBe(false);
+    expect(r.results[0].ok).toBe(true); // エラーではなくスキップ
+    expect(r.results[0].skipped).toBe(true);
     expect(await prisma.company.count()).toBe(1);
+  });
+
+  it("同じリストを再取込しても全行スキップで正常終了する（冪等）", async () => {
+    const list = [
+      {
+        companyName: "再取込社",
+        companyType: "CORPORATION" as const,
+        ownerName: "一郎",
+        email: "reimport-1@test.example",
+      },
+      {
+        companyName: "再取込社",
+        companyType: "CORPORATION" as const,
+        ownerName: "二郎",
+        email: "reimport-2@test.example",
+      },
+    ];
+    const first = await importCompanies(list);
+    expect(first.created).toBe(1);
+    const second = await importCompanies(list);
+    expect(second.created).toBe(0);
+    expect(second.results.every((x) => x.ok && x.skipped)).toBe(true);
+    expect(await prisma.company.count({ where: { name: "再取込社" } })).toBe(1);
+    expect(await prisma.userAccount.count({ where: { email: { startsWith: "reimport-" } } })).toBe(2);
   });
 });
 
@@ -179,7 +204,7 @@ describe("updateCompanyByOperations", () => {
       companyType: "CORPORATION",
       corporateNumber: "123",
     });
-    expect("error" in bad && bad.error.code).toBe("VALIDATION_ERROR");
+    expect("error" in bad && bad.error?.code).toBe("VALIDATION_ERROR");
 
     const clear = await updateCompanyByOperations(company.id, {
       name: "検証社",
@@ -197,6 +222,6 @@ describe("updateCompanyByOperations", () => {
       name: "x",
       companyType: "CORPORATION",
     });
-    expect("error" in r && r.error.code).toBe("NOT_FOUND");
+    expect("error" in r && r.error?.code).toBe("NOT_FOUND");
   });
 });

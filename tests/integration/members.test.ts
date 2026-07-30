@@ -34,7 +34,7 @@ describe("updateMemberProfile", () => {
       name: target.userName,
       email: owner.email, // オーナーの既存メール
     });
-    expect("error" in r && r.error.code).toBe("DUPLICATE_ENTRY");
+    expect("error" in r && r.error?.code).toBe("DUPLICATE_ENTRY");
   });
 
   it("オーナーは変更できない", async () => {
@@ -43,7 +43,7 @@ describe("updateMemberProfile", () => {
       name: "x",
       email: "x@test.example",
     });
-    expect("error" in r && r.error.code).toBe("FORBIDDEN");
+    expect("error" in r && r.error?.code).toBe("FORBIDDEN");
   });
 
   it("他テナントの担当者は 404（存在推測防止）", async () => {
@@ -54,7 +54,7 @@ describe("updateMemberProfile", () => {
       name: "x",
       email: "x@test.example",
     });
-    expect("error" in r && r.error.code).toBe("NOT_FOUND");
+    expect("error" in r && r.error?.code).toBe("NOT_FOUND");
   });
 });
 
@@ -74,7 +74,7 @@ describe("reinviteMember", () => {
     });
 
     const r = await reinviteMember(owner, target.memberId);
-    if ("error" in r) throw new Error(`reinvite failed: ${r.error.code}`);
+    if ("error" in r) throw new Error(`reinvite failed: ${r.error?.code}`);
     expect(r.initialPassword).toBeTruthy();
 
     const after = await prisma.userAccount.findUniqueOrThrow({ where: { id: target.userAccountId } });
@@ -88,10 +88,10 @@ describe("reinviteMember", () => {
   it("オーナー・自分自身は再招待できない", async () => {
     const owner = await makeCompany("A社");
     const rOwner = await reinviteMember(owner, owner.memberId);
-    expect("error" in rOwner && rOwner.error.code).toBe("FORBIDDEN");
+    expect("error" in rOwner && rOwner.error?.code).toBe("FORBIDDEN");
     const target = await addMemberWithRoles(owner, ["ADMIN"]);
     const rSelf = await reinviteMember(target, target.memberId);
-    expect("error" in rSelf && rSelf.error.code).toBe("FORBIDDEN");
+    expect("error" in rSelf && rSelf.error?.code).toBe("FORBIDDEN");
   });
 
   it("他テナントの担当者は 404", async () => {
@@ -99,7 +99,7 @@ describe("reinviteMember", () => {
     const targetA = await addMemberWithRoles(ownerA, ["SALES"]);
     const ownerB = await makeCompany("B社");
     const r = await reinviteMember(ownerB, targetA.memberId);
-    expect("error" in r && r.error.code).toBe("NOT_FOUND");
+    expect("error" in r && r.error?.code).toBe("NOT_FOUND");
   });
 });
 
@@ -122,10 +122,10 @@ describe("deleteMember", () => {
   it("オーナー・自分自身は削除できない", async () => {
     const owner = await makeCompany("A社");
     const rOwner = await deleteMember(owner, owner.memberId);
-    expect("error" in rOwner && rOwner.error.code).toBe("FORBIDDEN");
+    expect("error" in rOwner && rOwner.error?.code).toBe("FORBIDDEN");
     const target = await addMemberWithRoles(owner, ["ADMIN"]);
     const rSelf = await deleteMember(target, target.memberId);
-    expect("error" in rSelf && rSelf.error.code).toBe("FORBIDDEN");
+    expect("error" in rSelf && rSelf.error?.code).toBe("FORBIDDEN");
   });
 
   it("他テナントの担当者は 404", async () => {
@@ -133,6 +133,6 @@ describe("deleteMember", () => {
     const targetA = await addMemberWithRoles(ownerA, ["SALES"]);
     const ownerB = await makeCompany("B社");
     const r = await deleteMember(ownerB, targetA.memberId);
-    expect("error" in r && r.error.code).toBe("NOT_FOUND");
+    expect("error" in r && r.error?.code).toBe("NOT_FOUND");
   });
 });

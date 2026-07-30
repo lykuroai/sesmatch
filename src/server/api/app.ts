@@ -165,12 +165,11 @@ app.post("/operations/companies/:id/approve", requireAdminToken, async (c) => {
 // 企業リスト（CSV）一括取込。ヘッダ行の列名で判定（3列: 企業名, 担当者名, メールアドレス も可）
 app.post("/operations/companies/import", requireAdminToken, async (c) => {
   const parsed = z
-    .object({ csv: z.string().min(1).max(1_000_000) })
+    .object({ csv: z.string().min(1).max(20_000_000) })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
   const rows = csvToCompanyRows(parseCsv(parsed.data.csv));
   if (rows.length === 0) return c.json(err("VALIDATION_ERROR", "データ行がありません"), 400);
-  if (rows.length > 500) return c.json(err("VALIDATION_ERROR", "一度に取込できるのは500行までです"), 400);
   return c.json(await importCompanies(rows));
 });
 

@@ -24,7 +24,7 @@ type AdminCompany = {
 
 type ImportResult = {
   created: number;
-  results: { row: number; companyName: string; ok: boolean; message?: string }[];
+  results: { row: number; companyName: string; ok: boolean; skipped?: boolean; message?: string }[];
 };
 
 type AdminReport = {
@@ -230,12 +230,14 @@ export default function AdminPage() {
             <div className="mt-3 rounded border border-slate-100 bg-slate-50 p-3 text-sm">
               <p className="font-medium">
                 {importResult.created} 社を登録しました
+                {importResult.results.some((r) => r.skipped) &&
+                  ` ／ スキップ ${importResult.results.filter((r) => r.skipped).length} 行`}
                 {importResult.results.some((r) => !r.ok) &&
-                  `（失敗 ${importResult.results.filter((r) => !r.ok).length} 行）`}
+                  ` ／ 失敗 ${importResult.results.filter((r) => !r.ok).length} 行`}
               </p>
               <ul className="mt-1 space-y-0.5 text-xs">
                 {importResult.results.map((r) => (
-                  <li key={r.row} className={r.ok ? "text-emerald-700" : "text-red-600"}>
+                  <li key={r.row} className={!r.ok ? "text-red-600" : r.skipped ? "text-slate-400" : "text-emerald-700"}>
                     {r.row}行目 {r.companyName || "（企業名なし）"}: {r.ok ? (r.message ?? "登録済み") : r.message}
                   </li>
                 ))}
