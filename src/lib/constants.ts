@@ -1,0 +1,143 @@
+// 仕様書に基づく共通定数・表示ラベル
+
+export const ROLE_LABELS: Record<string, string> = {
+  OWNER: "企業オーナー",
+  ADMIN: "企業管理者",
+  SALES: "営業担当",
+  HR_MANAGER: "人材管理担当",
+  PROJECT_MANAGER: "案件管理担当",
+  CONTRACT: "契約担当",
+  ACCOUNTING: "経理担当",
+  PRIVACY_OFFICER: "個人情報管理者",
+  AUDITOR: "監査担当",
+  VIEWER: "閲覧者",
+};
+
+export const AFFILIATION_LABELS: Record<string, string> = {
+  EMPLOYEE: "自社社員",
+  AFFILIATED: "自社所属",
+  FREELANCER: "個人事業主",
+  SUBTIER1: "一社下",
+};
+
+// 所属信頼加点の上限（§19.2）。最大5点、能力評価を逆転させない。
+export const AFFILIATION_TRUST_POINTS: Record<string, number> = {
+  EMPLOYEE: 5,
+  AFFILIATED: 4,
+  FREELANCER: 4,
+  SUBTIER1: 2,
+};
+
+export const REMOTE_LEVEL_LABELS: Record<string, string> = {
+  R0: "常駐・週5出社",
+  R1: "週4出社",
+  R2: "週2〜3出社",
+  R3: "週1以下",
+  R4: "フルリモート（緊急出社あり）",
+  R5: "完全遠隔",
+};
+
+// RemoteLevel を出社頻度の序列に変換（R0が最も出社が多い）
+export const REMOTE_LEVEL_ORDER: Record<string, number> = {
+  R0: 0,
+  R1: 1,
+  R2: 2,
+  R3: 3,
+  R4: 4,
+  R5: 5,
+};
+
+export const PUBLISH_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "下書き",
+  PUBLISHED: "公開中",
+  SUSPENDED: "停止中",
+  CLOSED: "終了",
+};
+
+export const INGESTION_STATUS_LABELS: Record<string, string> = {
+  RECEIVED: "受領",
+  MASKING: "匿名化中",
+  EXTRACTING: "抽出中",
+  REVIEW_REQUIRED: "人手確認待ち",
+  CONFIRMED: "確定済み",
+  FAILED: "失敗",
+};
+
+export const SKILL_CATEGORY_LABELS: Record<string, string> = {
+  LANGUAGE: "言語",
+  FRAMEWORK: "FW",
+  DATABASE: "DB",
+  CLOUD: "クラウド",
+  OS: "OS",
+  TOOL: "ツール",
+  CERTIFICATION: "資格",
+};
+
+export const ENTRY_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "下書き",
+  SUBMITTED: "提出済み",
+  SUPPLY_APPROVED: "供給側承認済み",
+  DEMAND_APPROVED: "需要側承認済み",
+  MUTUALLY_APPROVED: "双方承認済み",
+  INTERVIEW: "面談",
+  CONDITIONS: "条件調整",
+  CONTRACTING: "契約手続中",
+  CONTRACTED: "成約",
+  DECLINED: "見送り",
+  WITHDRAWN: "辞退",
+  ON_HOLD: "保留",
+};
+
+export const ENTRY_TYPE_LABELS: Record<string, string> = {
+  PROPOSAL: "提案",
+  SCOUT: "スカウト",
+};
+
+export const RELATIONSHIP_TYPE_LABELS: Record<string, string> = {
+  PARTNER: "取引先",
+  SUBTIER: "一社下",
+  SALES_DELEGATION: "営業委任",
+};
+
+export const REPORT_CATEGORIES = [
+  "再転載",
+  "無承認再仲介",
+  "直接取引誘引",
+  "所属偽装",
+  "その他",
+];
+
+export const CONTRACT_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "下書き",
+  SIGNED_SUPPLY: "供給側署名済み",
+  SIGNED_DEMAND: "需要側署名済み",
+  EXECUTED: "相互締結完了（成約）",
+  ACTIVE: "稼働中",
+  CANCELLED: "稼働前キャンセル",
+  TERMINATED: "終了",
+  COMPLETED: "完了",
+};
+
+export const FEE_STATUS_LABELS: Record<string, string> = {
+  CHARGED: "課金",
+  FREE: "無料（13稼働月目以降）",
+  REFUNDED: "返金済み",
+};
+
+export const PRIVACY_STATUS_LABELS: Record<string, string> = {
+  RECEIVED: "受付済み（判断待ち）",
+  APPROVED: "承認済み（論理削除）",
+  REJECTED: "却下",
+  COMPLETED: "物理削除実行済み",
+};
+
+// 単価の公開帯: 10万円幅（§10 Level 1）
+export function rateBand(rateYen: number): string {
+  const lower = Math.floor(rateYen / 100_000) * 10;
+  return `${lower}〜${lower + 10}万円`;
+}
+
+// 5歳刻み年代表示（§10 Level 1）
+export function ageBandLabel(ageBand: number): string {
+  return `${ageBand}〜${ageBand + 4}歳`;
+}

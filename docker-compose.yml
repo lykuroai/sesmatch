@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: sesmatch-db
+    environment:
+      POSTGRES_USER: sesmatch
+      POSTGRES_PASSWORD: sesmatch
+      POSTGRES_DB: sesmatch
+    ports:
+      - "5433:5432"
+    volumes:
+      - sesmatch-pgdata:/var/lib/postgresql/data
+
+volumes:
+  sesmatch-pgdata:

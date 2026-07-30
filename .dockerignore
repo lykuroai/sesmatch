@@ -1,0 +1,8 @@
+node_modules
+.next
+storage
+.env
+.env.production
+docker-compose*.yml
+tests
+*.md

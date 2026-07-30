@@ -1,0 +1,53 @@
+# EC2 本番用 compose。イメージはローカルでビルドし scripts/release-ec2.sh で転送する（build しない）。
+# 起動: IMAGE_TAG=<tag> docker compose -f docker-compose.ec2.yml --env-file .env.production up -d
+# IMAGE_TAG 未指定時は latest（リリーススクリプトが最新版に latest を付け直す）
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:-sesmatch}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?} -d ${POSTGRES_DB:-sesmatch}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    image: sesmatch-migrate:${IMAGE_TAG:-latest}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@db:5432/${POSTGRES_DB:-sesmatch}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    image: sesmatch-app:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000" # リバースプロキシ（HTTPS終端）経由で公開すること
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@db:5432/${POSTGRES_DB:-sesmatch}
+      SESSION_SECRET: ${SESSION_SECRET:?}
+      PLATFORM_ADMIN_TOKEN: ${PLATFORM_ADMIN_TOKEN:?}
+      STORAGE_DIR: /data/storage
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - storage:/data/storage # 原本ファイル（§9.2）
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+  storage:

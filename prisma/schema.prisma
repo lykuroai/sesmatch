@@ -1,0 +1,677 @@
+// SESマッチングプラットフォーム Phase 1 MVP スキーマ
+// 仕様書 §27 の主要テーブルのうち Phase 1 対象を実装。
+// 全業務データに tenant_company_id を付与しテナント分離する（§6.1, §31）。
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---- 企業・担当者 (§6, §7) ----
+
+enum CompanyType {
+  CORPORATION
+  SOLE_PROPRIETOR
+}
+
+enum CompanyStatus {
+  APPLIED
+  ACTIVE
+  SUSPENDED
+}
+
+model Company {
+  id              String        @id @default(cuid())
+  name            String
+  companyType     CompanyType
+  corporateNumber String?
+  status          CompanyStatus @default(APPLIED)
+  createdAt       DateTime      @default(now())
+
+  members   CompanyMember[]
+  engineers Engineer[]
+  projects  Project[]
+
+  @@map("companies")
+}
+
+model UserAccount {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+
+  memberships CompanyMember[]
+  sessions    Session[]
+
+  @@map("user_accounts")
+}
+
+enum MemberStatus {
+  ACTIVE
+  SUSPENDED
+  RETIRED
+}
+
+model CompanyMember {
+  id            String       @id @default(cuid())
+  companyId     String
+  userAccountId String
+  status        MemberStatus @default(ACTIVE)
+  createdAt     DateTime     @default(now())
+
+  company     Company             @relation(fields: [companyId], references: [id])
+  userAccount UserAccount         @relation(fields: [userAccountId], references: [id])
+  roles       CompanyMemberRole[]
+
+  @@unique([companyId, userAccountId])
+  @@map("company_members")
+}
+
+// 標準ロール (§7.2)
+enum RoleCode {
+  OWNER // 企業オーナー
+  ADMIN // 企業管理者
+  SALES // 営業担当
+  HR_MANAGER // 人材管理担当
+  PROJECT_MANAGER // 案件管理担当
+  CONTRACT // 契約担当
+  ACCOUNTING // 経理担当
+  PRIVACY_OFFICER // 個人情報管理者
+  AUDITOR // 監査担当
+  VIEWER // 閲覧者
+}
+
+model CompanyMemberRole {
+  id       String   @id @default(cuid())
+  memberId String
+  role     RoleCode
+
+  member CompanyMember @relation(fields: [memberId], references: [id])
+
+  @@unique([memberId, role])
+  @@map("company_member_roles")
+}
+
+model Session {
+  id            String   @id @default(cuid())
+  token         String   @unique
+  userAccountId String
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  userAccount UserAccount @relation(fields: [userAccountId], references: [id])
+
+  @@map("sessions")
+}
+
+// ---- 人材 (§12, §16) ----
+
+enum AffiliationType {
+  EMPLOYEE // 自社社員
+  AFFILIATED // 自社所属
+  FREELANCER // 個人事業主
+  SUBTIER1 // 一社下
+}
+
+enum RemoteLevel {
+  R0 // 常駐・週5出社
+  R1 // 週4出社
+  R2 // 週2〜3出社
+  R3 // 週1以下
+  R4 // フルリモート・緊急出社あり
+  R5 // 完全遠隔
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  SUSPENDED
+  CLOSED
+}
+
+enum WorkAuthStatus {
+  NOT_REQUIRED // 確認不要（日本国籍等の申告）
+  UNVERIFIED // 未確認
+  VERIFIED // 確認済み
+  EXPIRED // 期限切れ
+}
+
+model Engineer {
+  id              String @id @default(cuid())
+  tenantCompanyId String
+  code            String // 表示用人材ID（例: E-0001）
+
+  // PII: engineer.read.pii 権限保持者のみ参照可（§10 Level 2 相当）
+  name String
+
+  ageBand              Int // 5歳刻み年代の下限（例: 25 = 20代後半）
+  affiliationType      AffiliationType
+  residenceCity        String? // 市区町村まで（番地は保持しない §13）
+  nearestStation       String?
+  availableFrom        DateTime?
+  availabilityRate     Int             @default(100) // 稼働率%
+  desiredRateYen       Int // 希望月額単価（実額は Level 2。公開は10万円幅帯）
+  commuteMaxMinutes    Int? // 片道許容時間
+  maxOnsiteDaysPerWeek Int? // 最大出社日数/週
+  remotePreference     RemoteLevel     @default(R0) // 許容できる最低出社条件
+  travelOk             Boolean         @default(false)
+  workAuthStatus       WorkAuthStatus  @default(NOT_REQUIRED)
+  workAuthExpiry       DateTime?
+  status               PublishStatus   @default(DRAFT)
+  deletedAt            DateTime? // 論理削除（本人削除請求 §26）。全クエリで除外すること
+  summary              String          @default("") // 匿名化済み概要
+  processes            String[] // 要件定義/設計/開発/テスト/運用
+  roles                String[] // PM/PMO/リーダー等
+  industries           String[]
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  tenantCompany Company         @relation(fields: [tenantCompanyId], references: [id])
+  skills        EngineerSkill[]
+  consents      PersonConsent[]
+  entries       Entry[]
+
+  @@unique([tenantCompanyId, code])
+  @@map("engineers")
+}
+
+enum SkillCategory {
+  LANGUAGE
+  FRAMEWORK
+  DATABASE
+  CLOUD
+  OS
+  TOOL
+  CERTIFICATION
+}
+
+model EngineerSkill {
+  id         String        @id @default(cuid())
+  engineerId String
+  category   SkillCategory
+  name       String
+  months     Int // 経験月数
+  lastUsedAt DateTime?
+
+  engineer Engineer @relation(fields: [engineerId], references: [id])
+
+  @@unique([engineerId, name])
+  @@map("engineer_skills")
+}
+
+// 本人同意 (§11.3): 有効な同意がない人材は公開できない
+model PersonConsent {
+  id              String    @id @default(cuid())
+  engineerId      String
+  consentedAt     DateTime
+  method          String // 書面/メール/Web 等
+  documentVersion String
+  purposes        String[]
+  validUntil      DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  engineer Engineer @relation(fields: [engineerId], references: [id])
+
+  @@map("person_consents")
+}
+
+// ---- 案件 (§17) ----
+
+model Project {
+  id              String @id @default(cuid())
+  tenantCompanyId String
+  code            String // 表示用案件ID（例: P-0001）
+
+  name              String
+  anonymousSummary  String // 匿名化済み概要（エンド企業名は抽象カテゴリ）
+  industry          String?
+  headcount         Int               @default(1)
+  startDate         DateTime
+  endDate           DateTime?
+  longTerm          Boolean           @default(false)
+  locationCity      String?
+  nearestStation    String?
+  onsiteDaysPerWeek Int               @default(5)
+  remoteLevel       RemoteLevel       @default(R0)
+  rateMinYen        Int?
+  rateMaxYen        Int // 月額上限（ハードフィルター対象）
+  contractType      String? // 準委任/請負 等
+  allowSubtier      Boolean           @default(false) // 一社下可（最大商流1 §12.4）
+  acceptedTypes     AffiliationType[] // 受入所属区分
+  interviewCount    Int               @default(1)
+  processes         String[]
+  status            PublishStatus     @default(DRAFT)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  tenantCompany Company        @relation(fields: [tenantCompanyId], references: [id])
+  skills        ProjectSkill[]
+  entries       Entry[]
+
+  @@unique([tenantCompanyId, code])
+  @@map("projects")
+}
+
+model ProjectSkill {
+  id        String  @id @default(cuid())
+  projectId String
+  name      String
+  required  Boolean @default(true) // true=必須 / false=尚可
+  minMonths Int?
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, name])
+  @@map("project_skills")
+}
+
+// ---- マッチング (§19) ----
+
+model MatchingResult {
+  id                String   @id @default(cuid())
+  tenantCompanyId   String // 実行した企業
+  direction         String // PROJECT_TO_ENGINEERS / ENGINEER_TO_PROJECTS
+  projectId         String
+  engineerId        String
+  passed            Boolean // ハードフィルター通過
+  score             Int
+  breakdown         Json // 配点内訳
+  matchedConditions String[]
+  missingConditions String[]
+  warnings          String[]
+  createdAt         DateTime @default(now())
+
+  @@map("matching_results")
+}
+
+// ---- 取込 (§9) ----
+
+enum DocumentKind {
+  ENGINEER_SHEET
+  PROJECT_DESCRIPTION
+  UNKNOWN
+}
+
+enum IngestionStatus {
+  RECEIVED
+  MASKING
+  EXTRACTING
+  REVIEW_REQUIRED // 人手確認待ち（§9.2）
+  CONFIRMED
+  FAILED
+}
+
+model SourceDocument {
+  id                 String       @id @default(cuid())
+  tenantCompanyId    String
+  kind               DocumentKind @default(UNKNOWN)
+  filename           String
+  storagePath        String
+  mimeType           String
+  size               Int
+  uploadedByMemberId String?
+  createdAt          DateTime     @default(now())
+
+  ingestionJobs IngestionJob[]
+  piiTokens     PiiTokenMap[]
+
+  @@map("source_documents")
+}
+
+model IngestionJob {
+  id               String          @id @default(cuid())
+  tenantCompanyId  String
+  sourceDocumentId String
+  status           IngestionStatus @default(RECEIVED)
+  error            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  sourceDocument SourceDocument    @relation(fields: [sourceDocumentId], references: [id])
+  extraction     ExtractionResult?
+
+  @@map("ingestion_jobs")
+}
+
+// 原文・LLM抽出値・確定値を分離保存（§9.2）
+model ExtractionResult {
+  id                  String    @id @default(cuid())
+  ingestionJobId      String    @unique
+  maskedText          String // 匿名化済みテキスト（LLMに送信したもの）
+  extractedJson       Json // LLM抽出値
+  confirmedJson       Json? // 人が確認した確定値
+  confirmedByMemberId String?
+  confirmedAt         DateTime?
+
+  ingestionJob IngestionJob @relation(fields: [ingestionJobId], references: [id])
+
+  @@map("extraction_results")
+}
+
+// PII置換表。本番では別ストア・別鍵で保持し LLM へ送らない（§25.3, §31）。
+// MVP では同一DB内の別テーブルとし、アプリ層でアクセスを PRIVACY_OFFICER に限定する。
+model PiiTokenMap {
+  id               String   @id @default(cuid())
+  sourceDocumentId String
+  token            String // 例: [PII_EMAIL_1]
+  originalValue    String
+  kind             String // EMAIL / PHONE / URL / NAME 等
+  createdAt        DateTime @default(now())
+
+  sourceDocument SourceDocument @relation(fields: [sourceDocumentId], references: [id])
+
+  @@map("pii_token_maps")
+}
+
+// ---- エントリー・開示 (§20) ----
+
+enum EntryType {
+  PROPOSAL // 自社人材を他社案件へ提案
+  SCOUT // 他社人材を自社案件へスカウト
+}
+
+// 状態遷移（§20.2）: DRAFT → SUBMITTED → SUPPLY_APPROVED/DEMAND_APPROVED
+// → MUTUALLY_APPROVED → INTERVIEW → CONDITIONS → CONTRACTING → CONTRACTED
+// 見送り・辞退・保留は別状態として保持
+enum EntryStatus {
+  DRAFT
+  SUBMITTED
+  SUPPLY_APPROVED
+  DEMAND_APPROVED
+  MUTUALLY_APPROVED
+  INTERVIEW
+  CONDITIONS
+  CONTRACTING
+  CONTRACTED
+  DECLINED // 見送り（相手側）
+  WITHDRAWN // 辞退（申請側）
+  ON_HOLD // 保留
+}
+
+model Entry {
+  id                 String      @id @default(cuid())
+  type               EntryType
+  status             EntryStatus @default(SUBMITTED)
+  projectId          String
+  engineerId         String
+  demandCompanyId    String // 需要側 = 案件保有企業（§6.3）
+  supplyCompanyId    String // 供給側 = 人材提案企業
+  createdByCompanyId String
+  createdByMemberId  String
+  note               String?
+  subtierApproved    Boolean     @default(false) // 案件単位の一社下企業承認（§12.4）
+  supplyApprovedAt   DateTime?
+  demandApprovedAt   DateTime?
+  declinedReason     String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  project    Project        @relation(fields: [projectId], references: [id])
+  engineer   Engineer       @relation(fields: [engineerId], references: [id])
+  messages   EntryMessage[]
+  interviews Interview[]
+  disclosure Disclosure?
+  contract   Contract?
+
+  // 同一人物×同一案件の重複応募をブロック（§18, §19.1）
+  @@unique([projectId, engineerId])
+  @@map("entries")
+}
+
+// Level 2 開示レコード（§20.3）: 双方承認と同一トランザクションで作成する。
+// 片側承認だけでは作成してはならない。
+model Disclosure {
+  id        String   @id @default(cuid())
+  entryId   String   @unique
+  level     Int      @default(2)
+  payload   Json // 開示時点のスナップショット（氏名・実額単価・双方企業名）
+  createdAt DateTime @default(now())
+
+  entry Entry @relation(fields: [entryId], references: [id])
+
+  @@map("disclosures")
+}
+
+// メッセージ（§21）: 相互承認前は連絡先等を検出した場合、保存せず修正要求とする
+model EntryMessage {
+  id              String   @id @default(cuid())
+  entryId         String
+  senderCompanyId String
+  senderMemberId  String
+  senderName      String // 表示用（承認前は企業名を出さないため担当者名のみ）
+  body            String
+  createdAt       DateTime @default(now())
+
+  entry Entry @relation(fields: [entryId], references: [id])
+
+  @@map("entry_messages")
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  DONE
+  CANCELLED
+}
+
+model Interview {
+  id          String          @id @default(cuid())
+  entryId     String
+  scheduledAt DateTime
+  method      String // オンライン / 対面
+  note        String?
+  status      InterviewStatus @default(SCHEDULED)
+  createdAt   DateTime        @default(now())
+
+  entry Entry @relation(fields: [entryId], references: [id])
+
+  @@map("interviews")
+}
+
+// ---- 契約・稼働 (§22) ----
+
+enum ContractStatus {
+  DRAFT
+  SIGNED_SUPPLY // 供給側署名済み
+  SIGNED_DEMAND // 需要側署名済み
+  EXECUTED // 相互締結完了 = 成約（§22）
+  ACTIVE // 稼働中（実稼働開始日以降）
+  CANCELLED // 稼働前キャンセル（手数料0円 §23）
+  TERMINATED // 稼働後終了
+  COMPLETED
+}
+
+model Contract {
+  id                 String         @id @default(cuid())
+  entryId            String         @unique
+  projectId          String
+  engineerId         String
+  demandCompanyId    String
+  supplyCompanyId    String
+  contractType       String // 準委任 / 請負
+  monthlyRateYen     Int // 月額契約金額（税抜）
+  startDate          DateTime
+  endDate            DateTime?
+  // 指揮命令・検収等の確認事項（§22）: 業務指示責任者、勤怠管理主体、配置決定主体、検収方法、再委託承認
+  commandChecklist   Json
+  status             ContractStatus @default(DRAFT)
+  supplySignedAt     DateTime?
+  supplySignedBy     String?
+  demandSignedAt     DateTime?
+  demandSignedBy     String?
+  workStartedAt      DateTime? // 実稼働開始日（課金起点 §22）
+  terminatedAt       DateTime?
+  terminationReason  String?
+  createdByCompanyId String
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  entry      Entry       @relation(fields: [entryId], references: [id])
+  workMonths WorkMonth[]
+
+  @@map("contracts")
+}
+
+// 月次稼働確認（§23）: 需要側が対象月の確定契約金額を確認する
+enum WorkMonthStatus {
+  PENDING
+  CONFIRMED
+}
+
+model WorkMonth {
+  id                 String          @id @default(cuid())
+  contractId         String
+  month              String // "YYYY-MM"
+  confirmedAmountYen Int // 確定契約金額（月途中は日割り確定額 §23）
+  status             WorkMonthStatus @default(CONFIRMED)
+  confirmedByMemberId String?
+  confirmedAt        DateTime        @default(now())
+
+  contract Contract     @relation(fields: [contractId], references: [id])
+  fee      PlatformFee?
+
+  @@unique([contractId, month])
+  @@map("work_months")
+}
+
+// 成約手数料（§23）: 需要側負担 3%、実稼働開始から最大12稼働月。
+// 12か月上限は (案件, 人材, 需要側企業) の組合せで集計し、更新契約でリセットしない。
+enum FeeStatus {
+  CHARGED
+  FREE // 13稼働月目以降
+  REFUNDED // 開始後14日以内離脱の全額返金（§23）
+}
+
+model PlatformFee {
+  id                   String    @id @default(cuid())
+  workMonthId          String    @unique
+  contractId           String
+  demandCompanyId      String
+  projectId            String
+  engineerId           String
+  month                String
+  baseAmountYen        Int
+  feeExTaxYen          Int // floor(base × 3 / 100)
+  chargeableMonthIndex Int // 何稼働月目か（1〜）
+  status               FeeStatus
+  invoiceId            String?
+  createdAt            DateTime  @default(now())
+
+  workMonth WorkMonth @relation(fields: [workMonthId], references: [id])
+
+  @@index([projectId, engineerId, demandCompanyId])
+  @@map("platform_fees")
+}
+
+enum InvoiceStatus {
+  ISSUED
+  PAID
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  demandCompanyId String
+  month           String
+  feeExTaxYen     Int
+  taxYen          Int
+  totalYen        Int
+  status          InvoiceStatus @default(ISSUED)
+  issuedAt        DateTime      @default(now())
+  paidAt          DateTime?
+
+  @@unique([demandCompanyId, month])
+  @@map("invoices")
+}
+
+// ---- 本人同意・訂正・削除 (§26) ----
+
+enum PrivacyRequestKind {
+  CORRECTION
+  DELETION
+}
+
+enum PrivacyRequestStatus {
+  RECEIVED // 受付（削除請求は即時非公開 §26）
+  APPROVED // 処理判断済み（論理削除、30日後物理削除）
+  REJECTED
+  COMPLETED // 物理削除実行済み
+}
+
+model PrivacyRequest {
+  id                String               @id @default(cuid())
+  tenantCompanyId   String
+  engineerId        String
+  kind              PrivacyRequestKind
+  reason            String?
+  status            PrivacyRequestStatus @default(RECEIVED)
+  requestedAt       DateTime             @default(now())
+  decisionDeadline  DateTime // 受付から14日以内に処理判断（§26）
+  decidedAt         DateTime?
+  decidedByMemberId String?
+  scheduledPurgeAt  DateTime? // 論理削除の30日後
+  completedAt       DateTime?
+
+  @@map("privacy_requests")
+}
+
+// ---- 企業間関係 (§8.2, §12.4): 取引先・一社下・営業委任 ----
+
+enum RelationshipType {
+  PARTNER // 取引先
+  SUBTIER // 一社下（直接契約必須）
+  SALES_DELEGATION // 営業委任
+}
+
+model CompanyRelationship {
+  id                String           @id @default(cuid())
+  companyId         String // 登録企業（テナント）
+  partnerName       String
+  type              RelationshipType
+  contractConfirmed Boolean          @default(false) // 直接契約の確認（§12.4）
+  note              String?
+  createdAt         DateTime         @default(now())
+
+  @@map("company_relationships")
+}
+
+// ---- 通報・異議申立て (§24, Phase 2) ----
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+}
+
+model Report {
+  id              String       @id @default(cuid())
+  tenantCompanyId String // 通報者企業
+  category        String // 再転載 / 無承認再仲介 / 直接取引誘引 / 所属偽装 / その他
+  targetRef       String? // 対象（エントリーID・企業名等の参照情報）
+  body            String
+  status          ReportStatus @default(OPEN)
+  createdAt       DateTime     @default(now())
+
+  @@map("reports")
+}
+
+// ---- 監査 (§31, §32): 追記型。更新・削除パスを実装しないこと ----
+
+model AuditEvent {
+  id              String   @id @default(cuid())
+  tenantCompanyId String?
+  actorUserId     String?
+  action          String
+  targetType      String?
+  targetId        String?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  @@index([tenantCompanyId, createdAt])
+  @@map("audit_events")
+}

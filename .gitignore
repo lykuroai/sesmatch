@@ -1,0 +1,9 @@
+node_modules/
+.next/
+storage/
+*.tsbuildinfo
+next-env.d.ts
+.env.local
+.env
+.env.production
+scripts/release-ec2.env

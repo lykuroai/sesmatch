@@ -1,0 +1,201 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { AFFILIATION_LABELS, REMOTE_LEVEL_LABELS } from "@/lib/constants";
+
+const input = "w-full rounded border border-slate-300 px-3 py-2 text-sm";
+const label = "mb-1 block text-sm font-medium";
+
+export type EngineerFormInitial = {
+  name?: string; // PII権限がない場合は undefined
+  ageBand: number;
+  affiliationType: string;
+  residenceCity?: string | null;
+  availableFrom?: string | null; // YYYY-MM-DD
+  desiredRateMan?: number; // 万円
+  maxOnsiteDaysPerWeek?: number | null;
+  remotePreference: string;
+  processes: string[];
+  industries: string[];
+  skills: { name: string; category: string; months: number }[];
+  summary?: string;
+};
+
+export function EngineerForm({
+  engineerId,
+  initial,
+}: {
+  engineerId?: string; // 指定時は編集モード（PUT）
+  initial?: EngineerFormInitial;
+}) {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const isEdit = !!engineerId;
+
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    const f = new FormData(e.currentTarget);
+    const skills = String(f.get("skills") ?? "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        // 形式: 名称,分類,経験月数（例: Java,LANGUAGE,60）
+        const [name, category = "LANGUAGE", months = "12"] = line.split(",").map((s) => s.trim());
+        return { name, category, months: parseInt(months) || 0 };
+      });
+
+    const name = String(f.get("name") ?? "").trim();
+    const payload = {
+      ...(name ? { name } : {}),
+      ageBand: parseInt(String(f.get("ageBand"))),
+      affiliationType: f.get("affiliationType"),
+      residenceCity: f.get("residenceCity") || undefined,
+      availableFrom: f.get("availableFrom") || undefined,
+      desiredRateYen: parseInt(String(f.get("desiredRateYen"))) * 10_000,
+      maxOnsiteDaysPerWeek: f.get("maxOnsiteDaysPerWeek")
+        ? parseInt(String(f.get("maxOnsiteDaysPerWeek")))
+        : undefined,
+      remotePreference: f.get("remotePreference"),
+      summary: f.get("summary") || undefined,
+      processes: String(f.get("processes") ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      industries: String(f.get("industries") ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      skills,
+    };
+
+    const res = await fetch(isEdit ? `/api/v1/engineers/${engineerId}` : "/api/v1/engineers", {
+      method: isEdit ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    setLoading(false);
+    if (res.ok) {
+      const saved = await res.json();
+      router.push(`/engineers/${saved.id}`);
+      router.refresh();
+    } else {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "保存に失敗しました");
+    }
+  }
+
+  const skillLines = initial?.skills
+    ?.map((s) => `${s.name},${s.category},${s.months}`)
+    .join("\n");
+
+  return (
+    <form onSubmit={submit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      {error && <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={label}>氏名（PII・Level 2まで非開示）</label>
+          <input
+            name="name"
+            required={!isEdit}
+            defaultValue={initial?.name ?? ""}
+            className={input}
+            placeholder={isEdit && initial?.name === undefined ? "（PII権限がないため変更不可）" : ""}
+            disabled={isEdit && initial?.name === undefined}
+          />
+        </div>
+        <div>
+          <label className={label}>年代（5歳刻み下限）</label>
+          <select name="ageBand" className={input} defaultValue={String(initial?.ageBand ?? 30)}>
+            {[20, 25, 30, 35, 40, 45, 50, 55, 60].map((a) => (
+              <option key={a} value={a}>{a}〜{a + 4}歳</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={label}>所属区分</label>
+          <select name="affiliationType" className={input} defaultValue={initial?.affiliationType ?? "EMPLOYEE"}>
+            {Object.entries(AFFILIATION_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={label}>居住市区町村</label>
+          <input name="residenceCity" defaultValue={initial?.residenceCity ?? ""} className={input} placeholder="例: 川崎市" />
+        </div>
+        <div>
+          <label className={label}>稼働可能日</label>
+          <input type="date" name="availableFrom" defaultValue={initial?.availableFrom ?? ""} className={input} />
+        </div>
+        <div>
+          <label className={label}>希望単価（万円/月）</label>
+          <input
+            type="number"
+            name="desiredRateYen"
+            required
+            min={10}
+            defaultValue={initial?.desiredRateMan ?? ""}
+            className={input}
+            placeholder="65"
+          />
+        </div>
+        <div>
+          <label className={label}>最大出社日数/週</label>
+          <input
+            type="number"
+            name="maxOnsiteDaysPerWeek"
+            min={0}
+            max={5}
+            defaultValue={initial?.maxOnsiteDaysPerWeek ?? ""}
+            className={input}
+          />
+        </div>
+        <div>
+          <label className={label}>許容出社条件</label>
+          <select name="remotePreference" className={input} defaultValue={initial?.remotePreference ?? "R0"}>
+            {Object.entries(REMOTE_LEVEL_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{k}: {v}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className={label}>工程（カンマ区切り）</label>
+        <input name="processes" defaultValue={initial?.processes.join(", ") ?? ""} className={input} placeholder="基本設計, 開発, テスト" />
+      </div>
+      <div>
+        <label className={label}>業種経験（カンマ区切り）</label>
+        <input name="industries" defaultValue={initial?.industries.join(", ") ?? ""} className={input} placeholder="金融, 通信" />
+      </div>
+      <div>
+        <label className={label}>スキル（1行1件: 名称,分類,経験月数）</label>
+        <textarea
+          name="skills"
+          rows={5}
+          defaultValue={skillLines ?? ""}
+          className={input}
+          placeholder={"Java,LANGUAGE,60\nSpring Boot,FRAMEWORK,36\nAWS,CLOUD,24"}
+        />
+        <p className="mt-1 text-xs text-slate-400">
+          分類: LANGUAGE / FRAMEWORK / DATABASE / CLOUD / OS / TOOL / CERTIFICATION（経験不明は 0）
+        </p>
+      </div>
+      <div>
+        <label className={label}>匿名概要（企業名・氏名を含めないこと）</label>
+        <textarea name="summary" rows={3} defaultValue={initial?.summary ?? ""} className={input} />
+      </div>
+      <button
+        type="submit"
+        disabled={loading}
+        className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+      >
+        {loading ? "保存中..." : isEdit ? "更新する" : "登録する"}
+      </button>
+    </form>
+  );
+}
