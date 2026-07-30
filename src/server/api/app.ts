@@ -73,14 +73,16 @@ import {
   deleteMember,
   importCompanies,
   inviteMember,
+  listAllCompanies,
   listPendingCompanies,
   reinviteMember,
   suspendMember,
+  updateCompanyByOperations,
   updateMemberProfile,
   updateMemberRoles,
 } from "@/server/services/companies";
 import { startIngestion } from "@/server/pipeline/ingest";
-import { parseCsv } from "@/lib/csv";
+import { csvToCompanyRows, parseCsv } from "@/lib/csv";
 import { engineerDraftSchema, projectDraftSchema } from "@/server/pipeline/llm";
 
 type Env = { Variables: { auth: AuthContext } };
@@ -160,27 +162,36 @@ app.post("/operations/companies/:id/approve", requireAdminToken, async (c) => {
   return c.json(result);
 });
 
-// 企業リスト（CSV）一括取込。列: 企業名, 種別(法人/個人), 法人番号, オーナー名, メールアドレス
+// 企業リスト（CSV）一括取込。ヘッダ行の列名で判定（3列: 企業名, 担当者名, メールアドレス も可）
 app.post("/operations/companies/import", requireAdminToken, async (c) => {
   const parsed = z
     .object({ csv: z.string().min(1).max(1_000_000) })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
-  const lines = parseCsv(parsed.data.csv);
-  // ヘッダ行（「企業名」等を含む行）は読み飛ばす
-  const body = lines[0]?.some((col) => /企業名|会社名|company/i.test(col)) ? lines.slice(1) : lines;
-  if (body.length === 0) return c.json(err("VALIDATION_ERROR", "データ行がありません"), 400);
-  if (body.length > 500) return c.json(err("VALIDATION_ERROR", "一度に取込できるのは500行までです"), 400);
-  const rows = body.map((cols) => ({
-    companyName: (cols[0] ?? "").trim(),
-    companyType: /個人|SOLE/i.test(cols[1] ?? "")
-      ? ("SOLE_PROPRIETOR" as const)
-      : ("CORPORATION" as const),
-    corporateNumber: (cols[2] ?? "").replace(/\D/g, "") || undefined,
-    ownerName: (cols[3] ?? "").trim(),
-    email: (cols[4] ?? "").trim(),
-  }));
+  const rows = csvToCompanyRows(parseCsv(parsed.data.csv));
+  if (rows.length === 0) return c.json(err("VALIDATION_ERROR", "データ行がありません"), 400);
+  if (rows.length > 500) return c.json(err("VALIDATION_ERROR", "一度に取込できるのは500行までです"), 400);
   return c.json(await importCompanies(rows));
+});
+
+// 全企業一覧と企業情報の修正（取込した不完全データの補完）
+app.get("/operations/companies/all", requireAdminToken, async (c) =>
+  c.json({ items: await listAllCompanies() })
+);
+
+app.put("/operations/companies/:id", requireAdminToken, async (c) => {
+  const parsed = z
+    .object({
+      name: z.string().min(1),
+      companyType: z.enum(["CORPORATION", "SOLE_PROPRIETOR"]),
+      corporateNumber: z.string().optional(),
+    })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await updateCompanyByOperations(c.req.param("id"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
 });
 
 // 通報の運営対応（§24）: 全テナントの通報を横断で参照・ステータス更新

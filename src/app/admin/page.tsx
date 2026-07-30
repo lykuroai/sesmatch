@@ -12,6 +12,16 @@ type PendingCompany = {
   createdAt: string;
 };
 
+type AdminCompany = {
+  id: string;
+  name: string;
+  companyType: string;
+  corporateNumber: string | null;
+  status: string;
+  createdAt: string;
+  _count: { members: number };
+};
+
 type ImportResult = {
   created: number;
   results: { row: number; companyName: string; ok: boolean; message?: string }[];
@@ -33,19 +43,24 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [companies, setCompanies] = useState<PendingCompany[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
+  const [allCompanies, setAllCompanies] = useState<AdminCompany[]>([]);
+  const [editCompanyId, setEditCompanyId] = useState<string | null>(null);
+  const [editCo, setEditCo] = useState({ name: "", companyType: "CORPORATION", corporateNumber: "" });
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   const load = useCallback(async (t: string) => {
     const headers = { "X-Admin-Token": t };
-    const [cRes, rRes] = await Promise.all([
+    const [cRes, rRes, aRes] = await Promise.all([
       fetch("/api/v1/operations/companies", { headers }),
       fetch("/api/v1/operations/reports", { headers }),
+      fetch("/api/v1/operations/companies/all", { headers }),
     ]);
-    if (!cRes.ok || !rRes.ok) throw new Error("認証エラー");
+    if (!cRes.ok || !rRes.ok || !aRes.ok) throw new Error("認証エラー");
     setCompanies((await cRes.json()).items);
     setReports((await rRes.json()).items);
+    setAllCompanies((await aRes.json()).items);
   }, []);
 
   useEffect(() => {
@@ -67,6 +82,22 @@ export default function AdminPage() {
       setAuthed(true);
     } catch {
       setError("運営トークンが違います");
+    }
+  }
+
+  async function saveCompany(id: string) {
+    setError(null);
+    const res = await fetch(`/api/v1/operations/companies/${id}`, {
+      method: "PUT",
+      headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+      body: JSON.stringify(editCo),
+    });
+    if (res.ok) {
+      setEditCompanyId(null);
+      await load(token);
+    } else {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "企業情報の更新に失敗しました");
     }
   }
 
@@ -175,8 +206,10 @@ export default function AdminPage() {
         <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-1 font-bold">企業リスト取込（CSV アップロード）</h2>
           <p className="mb-3 text-xs text-slate-500">
-            列順: 企業名, 種別（法人/個人）, 法人番号, オーナー名, メールアドレス（ヘッダ行は自動で読み飛ばし）。
-            取込した企業は審査済みとして即時開通し、オーナーへ初期パスワードを記載した招待メールを送ります。
+            ヘッダ行の列名で自動判定します。3列（企業名, 担当者名, メールアドレス）の不完全なリストも取込可能で、
+            種別・法人番号は下の企業一覧から後で修正できます。5列（企業名, 種別, 法人番号, オーナー名, メールアドレス）にも対応。
+            取込した企業は審査済みとして即時開通し、担当者へ初期パスワードを記載した招待メールを送ります。
+            同名の企業が既にある場合は、新規作成せずその企業へ営業担当として追加します。
           </p>
           <div className="flex items-center gap-3">
             <input
@@ -203,12 +236,101 @@ export default function AdminPage() {
               <ul className="mt-1 space-y-0.5 text-xs">
                 {importResult.results.map((r) => (
                   <li key={r.row} className={r.ok ? "text-emerald-700" : "text-red-600"}>
-                    {r.row}行目 {r.companyName || "（企業名なし）"}: {r.ok ? "登録済み" : r.message}
+                    {r.row}行目 {r.companyName || "（企業名なし）"}: {r.ok ? (r.message ?? "登録済み") : r.message}
                   </li>
                 ))}
               </ul>
             </div>
           )}
+        </section>
+
+        <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="mb-1 font-bold">企業一覧（{allCompanies.length}社）</h2>
+          <p className="mb-3 text-xs text-slate-500">
+            取込した不完全なデータ（種別・法人番号など）はここで修正できます。
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-left text-xs text-slate-500">
+                <tr>
+                  <th className="px-3 py-2">企業名</th>
+                  <th className="px-3 py-2">種別</th>
+                  <th className="px-3 py-2">法人番号</th>
+                  <th className="px-3 py-2">状態</th>
+                  <th className="px-3 py-2">担当者数</th>
+                  <th className="px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {allCompanies.map((co) =>
+                  editCompanyId === co.id ? (
+                    <tr key={co.id} className="border-t border-slate-100 bg-slate-50">
+                      <td className="px-3 py-2">
+                        <input
+                          value={editCo.name}
+                          onChange={(e) => setEditCo({ ...editCo, name: e.target.value })}
+                          className="w-full rounded border border-slate-300 px-2 py-1"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={editCo.companyType}
+                          onChange={(e) => setEditCo({ ...editCo, companyType: e.target.value })}
+                          className="rounded border border-slate-300 px-2 py-1"
+                        >
+                          <option value="CORPORATION">法人</option>
+                          <option value="SOLE_PROPRIETOR">個人事業者</option>
+                        </select>
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          value={editCo.corporateNumber}
+                          onChange={(e) => setEditCo({ ...editCo, corporateNumber: e.target.value })}
+                          placeholder="13桁（任意）"
+                          className="w-36 rounded border border-slate-300 px-2 py-1"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-xs">{co.status === "ACTIVE" ? "開通" : co.status === "APPLIED" ? "審査待ち" : "停止"}</td>
+                      <td className="px-3 py-2 text-xs">{co._count.members}</td>
+                      <td className="px-3 py-2 text-right text-xs">
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => saveCompany(co.id)} className="rounded bg-blue-600 px-2 py-1 text-white">
+                            保存
+                          </button>
+                          <button onClick={() => setEditCompanyId(null)} className="rounded border border-slate-300 px-2 py-1">
+                            取消
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={co.id} className="border-t border-slate-100">
+                      <td className="px-3 py-2 font-medium">{co.name}</td>
+                      <td className="px-3 py-2 text-xs">{co.companyType === "CORPORATION" ? "法人" : "個人事業者"}</td>
+                      <td className="px-3 py-2 text-xs">{co.corporateNumber ?? <span className="text-amber-600">未登録</span>}</td>
+                      <td className="px-3 py-2 text-xs">{co.status === "ACTIVE" ? "開通" : co.status === "APPLIED" ? "審査待ち" : "停止"}</td>
+                      <td className="px-3 py-2 text-xs">{co._count.members}</td>
+                      <td className="px-3 py-2 text-right text-xs">
+                        <button
+                          onClick={() => {
+                            setEditCompanyId(co.id);
+                            setEditCo({
+                              name: co.name,
+                              companyType: co.companyType,
+                              corporateNumber: co.corporateNumber ?? "",
+                            });
+                          }}
+                          className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50"
+                        >
+                          修正
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

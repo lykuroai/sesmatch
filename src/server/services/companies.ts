@@ -104,6 +104,42 @@ export async function listPendingCompanies() {
   });
 }
 
+// 運営: 全企業の一覧（企業修正画面用）
+export async function listAllCompanies() {
+  return prisma.company.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 500,
+    include: { _count: { select: { members: true } } },
+  });
+}
+
+// 運営: 企業情報の修正（取込した不完全データの補完。名称・種別・法人番号）
+export async function updateCompanyByOperations(
+  companyId: string,
+  input: { name: string; companyType: "CORPORATION" | "SOLE_PROPRIETOR"; corporateNumber?: string }
+) {
+  const company = await prisma.company.findUnique({ where: { id: companyId } });
+  if (!company) return { error: { code: "NOT_FOUND" as const } };
+  const corporateNumber = (input.corporateNumber ?? "").replace(/\D/g, "");
+  if (corporateNumber && !/^\d{13}$/.test(corporateNumber))
+    return { error: { code: "VALIDATION_ERROR" as const, message: "法人番号は13桁で入力してください" } };
+  await prisma.company.update({
+    where: { id: companyId },
+    data: {
+      name: input.name,
+      companyType: input.companyType,
+      corporateNumber: corporateNumber || null,
+    },
+  });
+  await audit({
+    tenantCompanyId: companyId,
+    action: "CompanyUpdatedByOperations",
+    targetType: "Company",
+    targetId: companyId,
+  });
+  return { ok: true as const };
+}
+
 // 運営: 企業リスト（CSV）の一括取込。運営による登録のため審査済み＝即時開通（ACTIVE）とし、
 // オーナーへ初期パスワードを招待メールで送る。行単位で成否を返し、失敗行はスキップする。
 export type CompanyImportRow = {
@@ -116,17 +152,19 @@ export type CompanyImportRow = {
 
 export async function importCompanies(rows: CompanyImportRow[]) {
   const results: { row: number; companyName: string; ok: boolean; message?: string }[] = [];
+  let created = 0; // 新規に開通した企業数（既存企業への担当者追加は含めない）
   for (const [i, row] of rows.entries()) {
     const rowNo = i + 1;
     const fail = (message: string) =>
       results.push({ row: rowNo, companyName: row.companyName, ok: false, message });
 
     if (!row.companyName || !row.ownerName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
-      fail("企業名・オーナー名・メールアドレスは必須です");
+      fail("企業名・担当者名・メールアドレスは必須です");
       continue;
     }
-    if (row.companyType === "CORPORATION" && !/^\d{13}$/.test(row.corporateNumber ?? "")) {
-      fail("法人番号（13桁）を入力してください");
+    // 法人番号は任意（不完全なリストを許容し、後から企業修正で補完する）。指定時のみ形式を検査
+    if (row.corporateNumber && !/^\d{13}$/.test(row.corporateNumber)) {
+      fail("法人番号は13桁で入力してください");
       continue;
     }
     const existing = await prisma.userAccount.findUnique({ where: { email: row.email } });
@@ -137,6 +175,53 @@ export async function importCompanies(rows: CompanyImportRow[]) {
 
     const initialPassword = randomBytes(9).toString("base64url");
     const passwordHash = await hashPassword(initialPassword);
+
+    // 同名企業が既にある場合は、新規作成せず既存企業へ営業担当として追加する
+    // （同一 CSV 内で同じ企業の担当者が複数行あるケース）
+    const sameName = await prisma.company.findFirst({ where: { name: row.companyName } });
+    if (sameName) {
+      try {
+        await prisma.$transaction(async (tx) => {
+          const account = await tx.userAccount.create({
+            data: { email: row.email, passwordHash, name: row.ownerName },
+          });
+          const member = await tx.companyMember.create({
+            data: { companyId: sameName.id, userAccountId: account.id },
+          });
+          await tx.companyMemberRole.create({ data: { memberId: member.id, role: "SALES" } });
+        });
+      } catch {
+        fail("登録に失敗しました（メールアドレスの重複など）");
+        continue;
+      }
+      await audit({
+        tenantCompanyId: sameName.id,
+        action: "CompanyImportMemberAdded",
+        targetType: "Company",
+        targetId: sameName.id,
+        metadata: { row: rowNo },
+      });
+      await sendMail({
+        to: row.email,
+        subject: "【SESマッチング】メンバー招待のお知らせ",
+        body: `${row.ownerName} 様
+
+${sameName.name} のメンバーとして招待されました。
+以下の URL から次の初期パスワードでログインし、パスワードを変更してください。
+
+ログイン: ${appBaseUrl()}/login
+メールアドレス: ${row.email}
+初期パスワード: ${initialPassword}`,
+      });
+      results.push({
+        row: rowNo,
+        companyName: row.companyName,
+        ok: true,
+        message: "既存企業に担当者を追加しました",
+      });
+      continue;
+    }
+
     let company;
     try {
       company = await prisma.$transaction(async (tx) => {
@@ -181,9 +266,10 @@ ${row.companyName} の企業アカウントを開設しました。
 メールアドレス: ${row.email}
 初期パスワード: ${initialPassword}`,
     });
+    created++;
     results.push({ row: rowNo, companyName: row.companyName, ok: true });
   }
-  return { created: results.filter((r) => r.ok).length, results };
+  return { created, results };
 }
 
 const ASSIGNABLE_ROLES = [
