@@ -41,7 +41,8 @@ echo "==> 3/5 設定を同期し、イメージを転送（数分かかります
 scp -i "$SSH_KEY" "$APP_DIR/docker-compose.ec2.yml" "$EC2_HOST:$REMOTE_DIR/docker-compose.ec2.yml"
 # .env.production はリリースごとに EC2 へ同期（EC2 側はバックアップを残し、直近10世代保持）
 if [ -f "$APP_DIR/.env.production" ]; then
-  "${SSH[@]}" "cp -p '$REMOTE_DIR/.env.production' '$REMOTE_DIR/.env.production.bak.\$(date +%Y%m%d-%H%M%S)'
+  BAK_TS="$(date +%Y%m%d-%H%M%S)"
+  "${SSH[@]}" "cp -p '$REMOTE_DIR/.env.production' '$REMOTE_DIR/.env.production.bak.$BAK_TS'
     ls -1t '$REMOTE_DIR'/.env.production.bak.* 2>/dev/null | tail -n +11 | xargs -r rm -f"
   scp -i "$SSH_KEY" "$APP_DIR/.env.production" "$EC2_HOST:$REMOTE_DIR/.env.production"
   "${SSH[@]}" "chmod 600 '$REMOTE_DIR/.env.production'"
