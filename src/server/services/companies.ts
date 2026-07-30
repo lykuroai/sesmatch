@@ -104,6 +104,88 @@ export async function listPendingCompanies() {
   });
 }
 
+// 運営: 企業リスト（CSV）の一括取込。運営による登録のため審査済み＝即時開通（ACTIVE）とし、
+// オーナーへ初期パスワードを招待メールで送る。行単位で成否を返し、失敗行はスキップする。
+export type CompanyImportRow = {
+  companyName: string;
+  companyType: "CORPORATION" | "SOLE_PROPRIETOR";
+  corporateNumber?: string;
+  ownerName: string;
+  email: string;
+};
+
+export async function importCompanies(rows: CompanyImportRow[]) {
+  const results: { row: number; companyName: string; ok: boolean; message?: string }[] = [];
+  for (const [i, row] of rows.entries()) {
+    const rowNo = i + 1;
+    const fail = (message: string) =>
+      results.push({ row: rowNo, companyName: row.companyName, ok: false, message });
+
+    if (!row.companyName || !row.ownerName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
+      fail("企業名・オーナー名・メールアドレスは必須です");
+      continue;
+    }
+    if (row.companyType === "CORPORATION" && !/^\d{13}$/.test(row.corporateNumber ?? "")) {
+      fail("法人番号（13桁）を入力してください");
+      continue;
+    }
+    const existing = await prisma.userAccount.findUnique({ where: { email: row.email } });
+    if (existing) {
+      fail("このメールアドレスは登録済みです");
+      continue;
+    }
+
+    const initialPassword = randomBytes(9).toString("base64url");
+    const passwordHash = await hashPassword(initialPassword);
+    let company;
+    try {
+      company = await prisma.$transaction(async (tx) => {
+        const company = await tx.company.create({
+          data: {
+            name: row.companyName,
+            companyType: row.companyType,
+            corporateNumber: row.corporateNumber || undefined,
+            status: "ACTIVE",
+          },
+        });
+        const account = await tx.userAccount.create({
+          data: { email: row.email, passwordHash, name: row.ownerName },
+        });
+        const member = await tx.companyMember.create({
+          data: { companyId: company.id, userAccountId: account.id },
+        });
+        await tx.companyMemberRole.create({ data: { memberId: member.id, role: "OWNER" } });
+        return company;
+      });
+    } catch {
+      // 一意制約違反（同一メールの重複行など）は行エラーとして継続
+      fail("登録に失敗しました（メールアドレスの重複など）");
+      continue;
+    }
+    await audit({
+      tenantCompanyId: company.id,
+      action: "CompanyImported",
+      targetType: "Company",
+      targetId: company.id,
+      metadata: { companyType: row.companyType, row: rowNo },
+    });
+    await sendMail({
+      to: row.email,
+      subject: "【SESマッチング】企業アカウント開設のお知らせ",
+      body: `${row.ownerName} 様
+
+${row.companyName} の企業アカウントを開設しました。
+以下の URL から次の初期パスワードでログインし、パスワードを変更してください。
+
+ログイン: ${appBaseUrl()}/login
+メールアドレス: ${row.email}
+初期パスワード: ${initialPassword}`,
+    });
+    results.push({ row: rowNo, companyName: row.companyName, ok: true });
+  }
+  return { created: results.filter((r) => r.ok).length, results };
+}
+
 const ASSIGNABLE_ROLES = [
   "ADMIN",
   "SALES",
@@ -229,6 +311,117 @@ export async function suspendMember(auth: AuthContext, memberId: string) {
     action: "MemberSuspended",
     targetType: "CompanyMember",
     targetId: memberId,
+  });
+  return { ok: true as const };
+}
+
+// 担当者情報の修正（氏名・メールアドレス）。オーナーは対象外。
+export async function updateMemberProfile(
+  auth: AuthContext,
+  memberId: string,
+  input: { name: string; email: string }
+) {
+  const member = await prisma.companyMember.findFirst({
+    where: { id: memberId, companyId: auth.companyId }, // テナント分離
+    include: { roles: true, userAccount: true },
+  });
+  if (!member) return { error: { code: "NOT_FOUND" as const } };
+  if (member.roles.some((r) => r.role === "OWNER"))
+    return { error: { code: "FORBIDDEN" as const, message: "企業オーナーの情報は変更できません" } };
+  if (input.email !== member.userAccount.email) {
+    const dup = await prisma.userAccount.findUnique({ where: { email: input.email } });
+    if (dup)
+      return { error: { code: "DUPLICATE_ENTRY" as const, message: "このメールアドレスは登録済みです" } };
+  }
+  await prisma.userAccount.update({
+    where: { id: member.userAccountId },
+    data: { name: input.name, email: input.email },
+  });
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "MemberProfileUpdated",
+    targetType: "CompanyMember",
+    targetId: memberId,
+    metadata: { emailChanged: input.email !== member.userAccount.email }, // 監査ログに PII は含めない
+  });
+  return { ok: true as const };
+}
+
+// 再招待: 初期パスワードを再発行して招待メールを再送する（§6.4）。
+// 旧パスワード・旧セッションは失効し、停止（RETIRED）中の担当者は有効に戻す。
+export async function reinviteMember(auth: AuthContext, memberId: string) {
+  const member = await prisma.companyMember.findFirst({
+    where: { id: memberId, companyId: auth.companyId }, // テナント分離
+    include: { roles: true, userAccount: true },
+  });
+  if (!member) return { error: { code: "NOT_FOUND" as const } };
+  if (member.roles.some((r) => r.role === "OWNER"))
+    return { error: { code: "FORBIDDEN" as const, message: "企業オーナーは再招待できません" } };
+  if (member.id === auth.memberId)
+    return { error: { code: "FORBIDDEN" as const, message: "自分自身は再招待できません" } };
+
+  const initialPassword = randomBytes(9).toString("base64url");
+  const passwordHash = await hashPassword(initialPassword);
+  await prisma.$transaction([
+    prisma.userAccount.update({ where: { id: member.userAccountId }, data: { passwordHash } }),
+    prisma.companyMember.update({ where: { id: memberId }, data: { status: "ACTIVE" } }),
+    prisma.session.deleteMany({ where: { userAccountId: member.userAccountId } }), // 全端末ログアウト
+  ]);
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "MemberReinvited",
+    targetType: "CompanyMember",
+    targetId: memberId,
+  });
+  const company = await prisma.company.findUnique({ where: { id: auth.companyId } });
+  await sendMail({
+    to: member.userAccount.email,
+    subject: "【SESマッチング】メンバー招待のお知らせ（再送）",
+    body: `${member.userAccount.name} 様
+
+${company?.name ?? ""} のメンバーとして招待されました。
+以下の URL から次の初期パスワードでログインし、パスワードを変更してください。
+（以前の招待のパスワードは無効になりました）
+
+ログイン: ${appBaseUrl()}/login
+メールアドレス: ${member.userAccount.email}
+初期パスワード: ${initialPassword}`,
+  });
+  return { memberId: member.id, initialPassword };
+}
+
+// 担当者の削除（アカウント物理削除）。オーナー・自分自身は削除不可。
+export async function deleteMember(auth: AuthContext, memberId: string) {
+  const member = await prisma.companyMember.findFirst({
+    where: { id: memberId, companyId: auth.companyId }, // テナント分離
+    include: { roles: true },
+  });
+  if (!member) return { error: { code: "NOT_FOUND" as const } };
+  if (member.roles.some((r) => r.role === "OWNER"))
+    return { error: { code: "FORBIDDEN" as const, message: "企業オーナーは削除できません" } };
+  if (member.id === auth.memberId)
+    return { error: { code: "FORBIDDEN" as const, message: "自分自身は削除できません" } };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.companyMemberRole.deleteMany({ where: { memberId } });
+    await tx.companyMember.delete({ where: { id: memberId } });
+    // 他企業への所属が残っていない場合のみアカウント本体とセッションを削除
+    const remaining = await tx.companyMember.count({
+      where: { userAccountId: member.userAccountId },
+    });
+    if (remaining === 0) {
+      await tx.session.deleteMany({ where: { userAccountId: member.userAccountId } });
+      await tx.userAccount.delete({ where: { id: member.userAccountId } });
+    }
+  });
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "MemberDeleted",
+    targetType: "CompanyMember",
+    targetId: memberId, // 監査ログに氏名・メール等の PII は含めない
   });
   return { ok: true as const };
 }
