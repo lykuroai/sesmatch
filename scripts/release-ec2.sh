@@ -37,8 +37,16 @@ echo "==> 2/5 EC2 側の前提を確認（$REMOTE_DIR / .env.production / docker
   docker compose version >/dev/null || { echo 'docker compose v2 がありません' >&2; exit 1; }
   test -f '$REMOTE_DIR/.env.production' || { echo '$REMOTE_DIR/.env.production がありません。RELEASE-EC2.md の初回セットアップを実施してください' >&2; exit 1; }"
 
-echo "==> 3/5 compose ファイルを配置し、イメージを転送（数分かかります）"
+echo "==> 3/5 設定を同期し、イメージを転送（数分かかります）"
 scp -i "$SSH_KEY" "$APP_DIR/docker-compose.ec2.yml" "$EC2_HOST:$REMOTE_DIR/docker-compose.ec2.yml"
+# .env.production はリリースごとに EC2 へ同期（EC2 側はバックアップを残し、直近10世代保持）
+if [ -f "$APP_DIR/.env.production" ]; then
+  "${SSH[@]}" "cp -p '$REMOTE_DIR/.env.production' '$REMOTE_DIR/.env.production.bak.\$(date +%Y%m%d-%H%M%S)'
+    ls -1t '$REMOTE_DIR'/.env.production.bak.* 2>/dev/null | tail -n +11 | xargs -r rm -f"
+  scp -i "$SSH_KEY" "$APP_DIR/.env.production" "$EC2_HOST:$REMOTE_DIR/.env.production"
+  "${SSH[@]}" "chmod 600 '$REMOTE_DIR/.env.production'"
+  echo "    .env.production を同期しました（バックアップ済み）"
+fi
 docker save "sesmatch-migrate:$TAG" "sesmatch-app:$TAG" | gzip | "${SSH[@]}" "gunzip | docker load"
 
 echo "==> 4/5 EC2 で起動（migrate → app）"
