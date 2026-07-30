@@ -452,6 +452,8 @@ export default function AdminPage() {
           </div>
         </section>
 
+        <MailBroadcastSection token={token} />
+
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">通報対応（§24）</h2>
           {reports.length === 0 && <p className="text-sm text-slate-400">通報はありません</p>}
@@ -499,6 +501,198 @@ export default function AdminPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+type BroadcastMember = {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  companyId: string;
+  companyName: string;
+  companyStatus: string;
+};
+
+// メール配信（営業PR・お知らせ）: 宛先を選択して一斉送信。200名ずつ分割して送信する
+function MailBroadcastSection({ token }: { token: string }) {
+  const [members, setMembers] = useState<BroadcastMember[]>([]);
+  const [filter, setFilter] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/v1/operations/members/all", { headers: { "X-Admin-Token": token } })
+      .then(async (res) => {
+        if (res.ok) setMembers((await res.json()).items);
+        else setError("宛先一覧の取得に失敗しました");
+      })
+      .catch(() => setError("宛先一覧の取得に失敗しました"));
+  }, [token]);
+
+  const q = filter.trim().toLowerCase();
+  const visible = q
+    ? members.filter((m) =>
+        [m.name, m.email, m.companyName].some((v) => v.toLowerCase().includes(q))
+      )
+    : members;
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectVisible(on: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const m of visible) {
+        if (on) next.add(m.id);
+        else next.delete(m.id);
+      }
+      return next;
+    });
+  }
+
+  async function send() {
+    const ids = [...selected];
+    if (ids.length === 0 || !subject.trim() || !body.trim()) return;
+    if (
+      !window.confirm(
+        `選択した ${ids.length} 名にメールを配信しますか？\n件名: ${subject.trim()}\nこの操作は取り消せません。`
+      )
+    )
+      return;
+    setError(null);
+    setResult(null);
+    setSending(true);
+    setProgress(0);
+    let sent = 0;
+    try {
+      for (let i = 0; i < ids.length; i += 200) {
+        const res = await fetch("/api/v1/operations/mail/broadcast", {
+          method: "POST",
+          headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            memberIds: ids.slice(i, i + 200),
+            subject: subject.trim(),
+            body: body.trim(),
+          }),
+        });
+        const b = await res.json().catch(() => null);
+        if (!res.ok) {
+          setError(`${b?.error?.message ?? "配信に失敗しました"}（${sent} 名まで配信済み）`);
+          return;
+        }
+        sent += b.sent;
+        setProgress(Math.min(i + 200, ids.length));
+      }
+      setResult(`${sent} 名に配信しました`);
+      setSelected(new Set());
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 className="mb-1 font-bold">メール配信（営業PR・お知らせ）</h2>
+      <p className="mb-3 text-xs text-slate-500">
+        宛先に選択した担当者へ同じ内容のメールを一斉送信します。複数企業に所属する同一アカウントへは1通のみ送ります。
+      </p>
+      {error && <p className="mb-2 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+      {result && <p className="mb-2 rounded bg-emerald-50 p-2 text-sm text-emerald-700">{result}</p>}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="絞り込み（氏名・メール・企業名）"
+          className="w-72 rounded border border-slate-300 px-2 py-1.5 text-sm"
+        />
+        <button
+          onClick={() => selectVisible(true)}
+          className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50"
+        >
+          表示中を全選択
+        </button>
+        <button
+          onClick={() => selectVisible(false)}
+          className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50"
+        >
+          表示中を解除
+        </button>
+        <span className="text-xs text-slate-500">
+          選択 {selected.size} 名 ／ 表示 {visible.length} 名 ／ 全 {members.length} 名
+        </span>
+      </div>
+      <div className="mb-3 max-h-64 overflow-y-auto rounded border border-slate-100">
+        <table className="w-full text-sm">
+          <tbody>
+            {visible.map((m) => (
+              <tr key={m.id} className="border-t border-slate-100 first:border-t-0 hover:bg-slate-50">
+                <td className="w-8 px-2 py-1.5">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(m.id)}
+                    onChange={() => toggle(m.id)}
+                  />
+                </td>
+                <td className="px-2 py-1.5 font-medium">{m.name}</td>
+                <td className="px-2 py-1.5 text-slate-500">{m.email}</td>
+                <td className="px-2 py-1.5 text-xs text-slate-500">{m.companyName}</td>
+                <td className="px-2 py-1.5 text-xs">
+                  {m.companyStatus !== "ACTIVE" && (
+                    <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700">未開通</span>
+                  )}
+                  {m.status !== "ACTIVE" && (
+                    <span className="ml-1 rounded bg-slate-100 px-1.5 py-0.5">停止中</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {visible.length === 0 && (
+              <tr>
+                <td className="px-3 py-3 text-xs text-slate-400">該当する担当者がいません</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div className="space-y-2">
+        <input
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="件名"
+          maxLength={200}
+          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+        />
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="本文（テキストメール）"
+          rows={8}
+          maxLength={20000}
+          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+        />
+        <button
+          onClick={send}
+          disabled={sending || selected.size === 0 || !subject.trim() || !body.trim()}
+          className="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40"
+        >
+          {sending
+            ? `配信中... (${progress}/${selected.size})`
+            : `選択した ${selected.size} 名に配信する`}
+        </button>
+      </div>
+    </section>
   );
 }
 

@@ -76,8 +76,10 @@ import {
   importCompanies,
   inviteMember,
   listAllCompanies,
+  listAllMembersByOperations,
   listCompanyMembersByOperations,
   listPendingCompanies,
+  sendBroadcastMailByOperations,
   reinviteMember,
   reinviteMemberByOperations,
   suspendMember,
@@ -246,6 +248,27 @@ app.delete("/operations/members/:id", requireAdminToken, async (c) => {
 
 app.post("/operations/members/:id/reinvite", requireAdminToken, async (c) => {
   const result = await reinviteMemberByOperations(c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+// 運営: メール配信（営業PR・お知らせ）。宛先一覧と一斉送信。
+// 1リクエストの宛先は200名まで（UI側で分割送信する）
+app.get("/operations/members/all", requireAdminToken, async (c) =>
+  c.json(await listAllMembersByOperations())
+);
+
+app.post("/operations/mail/broadcast", requireAdminToken, async (c) => {
+  const parsed = z
+    .object({
+      memberIds: z.array(z.string()).min(1).max(200),
+      subject: z.string().min(1).max(200),
+      body: z.string().min(1).max(20000),
+    })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await sendBroadcastMailByOperations(parsed.data);
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);

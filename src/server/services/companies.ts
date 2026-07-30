@@ -464,6 +464,59 @@ export async function importCompanies(rows: CompanyImportRow[]) {
   return { created, results };
 }
 
+// 運営: 全担当者の一覧（メール配信の宛先選択用）
+export async function listAllMembersByOperations() {
+  const members = await prisma.companyMember.findMany({
+    include: { userAccount: true, company: true },
+    orderBy: [{ company: { name: "asc" } }, { createdAt: "asc" }],
+    take: 5000,
+  });
+  return {
+    items: members.map((m) => ({
+      id: m.id,
+      name: m.userAccount.name,
+      email: m.userAccount.email,
+      status: m.status,
+      companyId: m.companyId,
+      companyName: m.company.name,
+      companyStatus: m.company.status,
+    })),
+  };
+}
+
+// 運営: 選択した担当者への一斉メール配信（営業PR・お知らせ）。
+// 実行は運営者の明示操作を前提とする。複数企業に所属するアカウントへの重複配信は除外。
+// 監査ログには件名・件数のみ記録し、宛先の氏名・メールアドレス（PII）は含めない。
+export async function sendBroadcastMailByOperations(input: {
+  memberIds: string[];
+  subject: string;
+  body: string;
+}) {
+  const memberIds = [...new Set(input.memberIds)];
+  if (memberIds.length === 0)
+    return { error: { code: "VALIDATION_ERROR" as const, message: "宛先を選択してください" } };
+  const members = await prisma.companyMember.findMany({
+    where: { id: { in: memberIds } },
+    include: { userAccount: true },
+  });
+  if (members.length === 0)
+    return { error: { code: "NOT_FOUND" as const, message: "宛先が見つかりません" } };
+  const seen = new Set<string>();
+  let sent = 0;
+  for (const m of members) {
+    if (seen.has(m.userAccount.email)) continue;
+    seen.add(m.userAccount.email);
+    await sendMail({ to: m.userAccount.email, subject: input.subject, body: input.body });
+    sent++;
+  }
+  await audit({
+    action: "OperationsBroadcastMailSent",
+    targetType: "CompanyMember",
+    metadata: { subject: input.subject, requested: memberIds.length, sent },
+  });
+  return { sent, notFound: memberIds.length - members.length };
+}
+
 const ASSIGNABLE_ROLES = [
   "ADMIN",
   "SALES",
