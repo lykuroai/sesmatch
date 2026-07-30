@@ -65,19 +65,57 @@ ${input.companyName} の企業登録申込を受け付けました。
   return { companyId: company.id };
 }
 
-// 運営審査: 承認して企業コンソールを開通する（運営トークンで保護）
-export async function approveCompany(companyId: string) {
+// 運営審査: 承認して企業コンソールを開通する（運営トークンで保護）。
+// パスワード未発行（CSV取込直後）の担当者がいる企業は、承認のこのタイミングで初めて
+// 初期パスワードを設定し、初期パスワード付きの招待メールを送る（取込時点では配信しない）。
+// initialPassword 指定時は統一パスワード、未指定なら企業ごとに自動生成。
+export async function approveCompany(companyId: string, initialPassword?: string) {
+  const unified = initialPassword?.trim();
+  if (unified && unified.length < 8)
+    return {
+      error: { code: "VALIDATION_ERROR" as const, message: "初期パスワードは8文字以上にしてください" },
+    };
   const company = await prisma.company.findUnique({ where: { id: companyId } });
   if (!company) return { error: { code: "NOT_FOUND" as const } };
   if (company.status !== "APPLIED")
     return { error: { code: "VERSION_CONFLICT" as const, message: "審査待ちの企業ではありません" } };
+  const members = await prisma.companyMember.findMany({
+    where: { companyId },
+    include: { userAccount: true },
+  });
+  const pending = members.filter((m) => m.userAccount.passwordHash === "");
   await prisma.company.update({ where: { id: companyId }, data: { status: "ACTIVE" } });
   await audit({
     tenantCompanyId: companyId,
     action: "CompanyApproved",
     targetType: "Company",
     targetId: companyId,
+    metadata: { invited: pending.length },
   });
+  if (pending.length > 0) {
+    const password = unified || randomBytes(9).toString("base64url");
+    const passwordHash = await hashPassword(password);
+    await prisma.userAccount.updateMany({
+      where: { id: { in: pending.map((m) => m.userAccountId) } },
+      data: { passwordHash },
+    });
+    for (const m of pending) {
+      await sendMail({
+        to: m.userAccount.email,
+        subject: "【SESマッチング】企業アカウント開設のお知らせ",
+        body: `${m.userAccount.name} 様
+
+${company.name} の企業登録が承認され、アカウントが有効になりました。
+以下の URL から次の初期パスワードでログインし、パスワードを変更してください。
+
+ログイン: ${appBaseUrl()}/login
+メールアドレス: ${m.userAccount.email}
+初期パスワード: ${password}`,
+      });
+    }
+    return { ok: true as const, invited: pending.length, initialPassword: password };
+  }
+  // 申込フロー（本人がパスワード設定済み）はオーナーへの承認通知のみ
   const owner = await prisma.companyMember.findFirst({
     where: { companyId, roles: { some: { role: "OWNER" } } },
     include: { userAccount: true },
@@ -298,9 +336,11 @@ ${member.company.name} のメンバーとして招待されました。
   return { memberId: member.id, initialPassword };
 }
 
-// 運営: 企業リスト（CSV）の一括取込。運営による登録のため審査済み＝即時開通（ACTIVE）とする。
-// 1行ごとにパスワードは生成せず、統一の初期パスワード（未指定なら自動生成）を全員に設定して
-// 招待メールを送る（ハッシュ計算は1回だけ）。行単位で成否を返し、失敗行はスキップする。
+// 運営: 企業リスト（CSV）の一括取込。取込した企業は審査待ち（APPLIED）で登録し、
+// 運営が企業審査で承認するまで有効化しない（ログイン不可）。担当者はパスワード未発行
+// （passwordHash 空）で作成し、初期パスワードの設定と招待メールの配信は承認時
+// （approveCompany）に行う。取込時点ではメールを一切送らない。
+// 行単位で成否を返し、失敗行はスキップする。
 export type CompanyImportRow = {
   companyName: string;
   companyType: "CORPORATION" | "SOLE_PROPRIETOR";
@@ -309,13 +349,7 @@ export type CompanyImportRow = {
   email: string;
 };
 
-export async function importCompanies(rows: CompanyImportRow[], initialPassword?: string) {
-  const password = initialPassword?.trim() || randomBytes(9).toString("base64url");
-  if (password.length < 8)
-    return {
-      error: { code: "VALIDATION_ERROR" as const, message: "初期パスワードは8文字以上にしてください" },
-    };
-  const passwordHash = await hashPassword(password); // 全行で共通（1回だけ計算）
+export async function importCompanies(rows: CompanyImportRow[]) {
   const results: {
     row: number;
     companyName: string;
@@ -348,13 +382,14 @@ export async function importCompanies(rows: CompanyImportRow[], initialPassword?
     }
 
     // 同名企業が既にある場合は、新規作成せず既存企業へ担当者として追加する
-    // （同一 CSV 内で同じ企業の担当者が複数行あるケース）。取込担当者は全員オーナー・管理者権限
+    // （同一 CSV 内で同じ企業の担当者が複数行あるケース）。取込担当者は全員オーナー・管理者権限。
+    // 追加先が審査待ちなら承認時に、承認済みなら再招待で初期パスワードを発行する
     const sameName = await prisma.company.findFirst({ where: { name: row.companyName } });
     if (sameName) {
       try {
         await prisma.$transaction(async (tx) => {
           const account = await tx.userAccount.create({
-            data: { email: row.email, passwordHash, name: row.ownerName },
+            data: { email: row.email, passwordHash: "", name: row.ownerName },
           });
           const member = await tx.companyMember.create({
             data: { companyId: sameName.id, userAccountId: account.id },
@@ -377,18 +412,6 @@ export async function importCompanies(rows: CompanyImportRow[], initialPassword?
         targetId: sameName.id,
         metadata: { row: rowNo },
       });
-      await sendMail({
-        to: row.email,
-        subject: "【SESマッチング】メンバー招待のお知らせ",
-        body: `${row.ownerName} 様
-
-${sameName.name} のメンバーとして招待されました。
-以下の URL から次の初期パスワードでログインし、パスワードを変更してください。
-
-ログイン: ${appBaseUrl()}/login
-メールアドレス: ${row.email}
-初期パスワード: ${password}`,
-      });
       results.push({
         row: rowNo,
         companyName: row.companyName,
@@ -406,11 +429,11 @@ ${sameName.name} のメンバーとして招待されました。
             name: row.companyName,
             companyType: row.companyType,
             corporateNumber: row.corporateNumber || undefined,
-            status: "ACTIVE",
+            status: "APPLIED", // 運営の承認（企業審査）で開通するまで無効
           },
         });
         const account = await tx.userAccount.create({
-          data: { email: row.email, passwordHash, name: row.ownerName },
+          data: { email: row.email, passwordHash: "", name: row.ownerName },
         });
         const member = await tx.companyMember.create({
           data: { companyId: company.id, userAccountId: account.id },
@@ -435,22 +458,10 @@ ${sameName.name} のメンバーとして招待されました。
       targetId: company.id,
       metadata: { companyType: row.companyType, row: rowNo },
     });
-    await sendMail({
-      to: row.email,
-      subject: "【SESマッチング】企業アカウント開設のお知らせ",
-      body: `${row.ownerName} 様
-
-${row.companyName} の企業アカウントを開設しました。
-以下の URL から次の初期パスワードでログインし、パスワードを変更してください。
-
-ログイン: ${appBaseUrl()}/login
-メールアドレス: ${row.email}
-初期パスワード: ${password}`,
-    });
     created++;
     results.push({ row: rowNo, companyName: row.companyName, ok: true });
   }
-  return { created, results, initialPassword: password };
+  return { created, results };
 }
 
 const ASSIGNABLE_ROLES = [

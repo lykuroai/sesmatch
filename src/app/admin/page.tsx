@@ -24,7 +24,6 @@ type AdminCompany = {
 
 type ImportResult = {
   created: number;
-  initialPassword: string;
   results: { row: number; companyName: string; ok: boolean; skipped?: boolean; message?: string }[];
 };
 
@@ -60,7 +59,9 @@ export default function AdminPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const [importPassword, setImportPassword] = useState("");
+  const [approvePassword, setApprovePassword] = useState("");
+  const [bulkApproving, setBulkApproving] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState(0);
 
   const load = useCallback(async (t: string) => {
     const headers = { "X-Admin-Token": t };
@@ -143,9 +144,7 @@ export default function AdminPage() {
       const res = await fetch("/api/v1/operations/companies/import", {
         method: "POST",
         headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
-        body: JSON.stringify(
-          importPassword.trim() ? { csv, password: importPassword.trim() } : { csv }
-        ),
+        body: JSON.stringify({ csv }),
       });
       const body = await res.json().catch(() => null);
       if (res.ok) {
@@ -157,6 +156,40 @@ export default function AdminPage() {
       }
     } finally {
       setImporting(false);
+    }
+  }
+
+  function approveBody() {
+    return approvePassword.trim() ? { initialPassword: approvePassword.trim() } : {};
+  }
+
+  async function approveAll() {
+    if (
+      !window.confirm(
+        `審査待ち ${companies.length} 社をすべて承認して開通しますか？\n承認した企業の担当者全員に初期パスワード付きの招待メールが送信されます。`
+      )
+    )
+      return;
+    setError(null);
+    setBulkApproving(true);
+    setBulkProgress(0);
+    try {
+      for (const [i, co] of companies.entries()) {
+        const res = await fetch(`/api/v1/operations/companies/${co.id}/approve`, {
+          method: "POST",
+          headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+          body: JSON.stringify(approveBody()),
+        });
+        if (!res.ok) {
+          const b = await res.json().catch(() => null);
+          setError(`${co.name}: ${b?.error?.message ?? "承認に失敗しました"}（${i} 社まで承認済み）`);
+          break;
+        }
+        setBulkProgress(i + 1);
+      }
+      await load(token);
+    } finally {
+      setBulkApproving(false);
     }
   }
 
@@ -213,6 +246,28 @@ export default function AdminPage() {
         <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">企業審査（審査待ち {companies.length}件）</h2>
           {companies.length === 0 && <p className="text-sm text-slate-400">審査待ちの企業はありません</p>}
+          {companies.length > 0 && (
+            <div className="mb-3 flex flex-wrap items-center gap-3 rounded border border-slate-100 bg-slate-50 p-3">
+              <p className="w-full text-xs text-slate-500">
+                承認すると企業が有効になり、パスワード未発行の担当者（CSV取込分）へ初期パスワード付きの
+                招待メールが送信されます。統一初期パスワード（8文字以上）を指定しない場合は企業ごとに自動生成します。
+              </p>
+              <input
+                type="text"
+                value={approvePassword}
+                onChange={(e) => setApprovePassword(e.target.value)}
+                placeholder="統一初期パスワード（空欄で自動生成）"
+                className="w-72 rounded border border-slate-300 px-2 py-1.5 text-sm"
+              />
+              <button
+                onClick={approveAll}
+                disabled={bulkApproving}
+                className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-40"
+              >
+                {bulkApproving ? `全件承認中... (${bulkProgress}/${companies.length})` : "全件承認"}
+              </button>
+            </div>
+          )}
           <div className="space-y-2">
             {companies.map((co) => (
               <div key={co.id} className="flex items-center justify-between rounded border border-slate-100 p-3">
@@ -225,8 +280,12 @@ export default function AdminPage() {
                 </div>
                 <button
                   onClick={() => {
-                    if (window.confirm(`${co.name} を承認して開通しますか？`))
-                      post(`/api/v1/operations/companies/${co.id}/approve`);
+                    if (
+                      window.confirm(
+                        `${co.name} を承認して開通しますか？\nパスワード未発行の担当者には初期パスワード付きの招待メールが送信されます。`
+                      )
+                    )
+                      post(`/api/v1/operations/companies/${co.id}/approve`, approveBody());
                   }}
                   className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
                 >
@@ -242,8 +301,8 @@ export default function AdminPage() {
           <p className="mb-3 text-xs text-slate-500">
             ヘッダ行の列名で自動判定します。3列（企業名, 担当者名, メールアドレス）の不完全なリストも取込可能で、
             種別・法人番号は下の企業一覧から後で修正できます。5列（企業名, 種別, 法人番号, オーナー名, メールアドレス）にも対応。
-            取込した企業は審査済みとして即時開通し、全員に統一の初期パスワード（下の入力欄。空欄なら自動生成）を
-            設定して、初期パスワードを記載した招待メールを送ります。
+            取込した企業は<span className="font-medium">審査待ち</span>として登録され、上の企業審査で承認するまで
+            有効になりません（この時点ではメールも送信されません）。承認時に初期パスワードを発行して招待メールを送ります。
             取込した担当者は全員オーナー・管理者権限になり、同名の企業が既にある場合は新規作成せずその企業へ追加します。
           </p>
           <div className="flex flex-wrap items-center gap-3">
@@ -252,12 +311,6 @@ export default function AdminPage() {
               accept=".csv,text/csv"
               onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
               className="text-sm"
-            />
-            <input
-              value={importPassword}
-              onChange={(e) => setImportPassword(e.target.value)}
-              placeholder="統一初期パスワード（空欄で自動生成）"
-              className="w-72 rounded border border-slate-300 px-2 py-1.5 text-sm"
             />
             <button
               onClick={importCsv}
@@ -270,8 +323,7 @@ export default function AdminPage() {
           {importResult && (
             <div className="mt-3 rounded border border-slate-100 bg-slate-50 p-3 text-sm">
               <p className="font-medium">
-                {importResult.created} 社を登録しました（統一初期パスワード:{" "}
-                <code className="rounded bg-white px-1">{importResult.initialPassword}</code> ／ この画面でのみ表示）
+                {importResult.created} 社を審査待ちで登録しました（企業審査から承認すると有効になります）
                 {importResult.results.some((r) => r.skipped) &&
                   ` ／ スキップ ${importResult.results.filter((r) => r.skipped).length} 行`}
                 {importResult.results.some((r) => !r.ok) &&

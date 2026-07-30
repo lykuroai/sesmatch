@@ -160,22 +160,31 @@ app.get("/operations/companies", requireAdminToken, async (c) =>
   c.json({ items: await listPendingCompanies() })
 );
 
+// 承認して開通。取込企業（パスワード未発行の担当者あり）は承認時に初期パスワードを
+// 発行して招待メールを送る。initialPassword 指定時は統一パスワードにする
 app.post("/operations/companies/:id/approve", requireAdminToken, async (c) => {
-  const result = await approveCompany(c.req.param("id"));
+  const parsed = z
+    .object({ initialPassword: z.string().optional() })
+    .safeParse(await c.req.json().catch(() => ({})));
+  const result = await approveCompany(
+    c.req.param("id"),
+    parsed.success ? parsed.data.initialPassword : undefined
+  );
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);
 });
 
-// 企業リスト（CSV）一括取込。ヘッダ行の列名で判定（3列: 企業名, 担当者名, メールアドレス も可）
+// 企業リスト（CSV）一括取込。ヘッダ行の列名で判定（3列: 企業名, 担当者名, メールアドレス も可）。
+// 取込企業は審査待ちで登録され、承認まで無効・メール配信なし
 app.post("/operations/companies/import", requireAdminToken, async (c) => {
   const parsed = z
-    .object({ csv: z.string().min(1).max(20_000_000), password: z.string().optional() })
+    .object({ csv: z.string().min(1).max(20_000_000) })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
   const rows = csvToCompanyRows(parseCsv(parsed.data.csv));
   if (rows.length === 0) return c.json(err("VALIDATION_ERROR", "データ行がありません"), 400);
-  const result = await importCompanies(rows, parsed.data.password);
+  const result = await importCompanies(rows);
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);

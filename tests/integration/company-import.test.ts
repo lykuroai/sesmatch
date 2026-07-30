@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/server/db";
 import {
+  approveCompany,
   deleteCompanyByOperations,
   deleteMemberByOperations,
   importCompanies,
@@ -18,48 +19,81 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-// 統一パスワードのバリデーションエラー以外を扱うテスト用ヘルパー
-async function doImport(rows: CompanyImportRow[], password?: string) {
-  const r = await importCompanies(rows, password);
-  if ("error" in r) throw new Error(`import failed: ${r.error?.message}`);
+async function doImport(rows: CompanyImportRow[]) {
+  const r = await importCompanies(rows);
+  if ("error" in r) throw new Error(`import failed`);
   return r;
 }
 
 describe("importCompanies", () => {
-  it("企業を ACTIVE で開通し、全員に統一初期パスワードを設定する", async () => {
-    const r = await doImport(
-      [
-        {
-          companyName: "取込A社",
-          companyType: "CORPORATION",
-          corporateNumber: "1234567890123",
-          ownerName: "山田 太郎",
-          email: "import-a@test.example",
-        },
-        {
-          companyName: "取込B（個人）",
-          companyType: "SOLE_PROPRIETOR",
-          ownerName: "佐藤 花子",
-          email: "import-b@test.example",
-        },
-      ],
-      "unified-pass-123"
-    );
+  it("企業を審査待ち（APPLIED）・パスワード未発行で登録し、承認まで有効化しない", async () => {
+    const r = await doImport([
+      {
+        companyName: "取込A社",
+        companyType: "CORPORATION",
+        corporateNumber: "1234567890123",
+        ownerName: "山田 太郎",
+        email: "import-a@test.example",
+      },
+      {
+        companyName: "取込B（個人）",
+        companyType: "SOLE_PROPRIETOR",
+        ownerName: "佐藤 花子",
+        email: "import-b@test.example",
+      },
+    ]);
     expect(r.created).toBe(2);
-    expect(r.initialPassword).toBe("unified-pass-123");
     expect(r.results.every((x) => x.ok)).toBe(true);
 
     const company = await prisma.company.findFirst({ where: { name: "取込A社" } });
-    expect(company?.status).toBe("ACTIVE");
+    expect(company?.status).toBe("APPLIED"); // 承認まで無効（ログイン不可）
     const owner = await prisma.companyMember.findFirst({
       where: { companyId: company!.id },
       include: { roles: true, userAccount: true },
     });
     expect(owner?.roles.map((x) => x.role).sort()).toEqual(["ADMIN", "OWNER"]);
     expect(owner?.userAccount.email).toBe("import-a@test.example");
-    // 全員が同じ統一初期パスワードでログイン可能
+    // 取込時点ではパスワード未発行
     const accounts = await prisma.userAccount.findMany({
       where: { email: { in: ["import-a@test.example", "import-b@test.example"] } },
+    });
+    expect(accounts.every((a) => a.passwordHash === "")).toBe(true);
+  });
+});
+
+describe("approveCompany（取込企業の承認で有効化）", () => {
+  async function importOne(name: string, email: string) {
+    await doImport([
+      { companyName: name, companyType: "CORPORATION", ownerName: "誰か", email },
+    ]);
+    return prisma.company.findFirstOrThrow({ where: { name } });
+  }
+
+  it("承認で ACTIVE になり、統一初期パスワードを全担当者に設定する", async () => {
+    await doImport([
+      {
+        companyName: "承認社",
+        companyType: "CORPORATION",
+        ownerName: "甲",
+        email: "approve-a@test.example",
+      },
+      {
+        companyName: "承認社",
+        companyType: "CORPORATION",
+        ownerName: "乙",
+        email: "approve-b@test.example",
+      },
+    ]);
+    const company = await prisma.company.findFirstOrThrow({ where: { name: "承認社" } });
+    const r = await approveCompany(company.id, "unified-pass-123");
+    if ("error" in r) throw new Error("approve failed");
+    expect(r.invited).toBe(2);
+    expect(r.initialPassword).toBe("unified-pass-123");
+
+    const after = await prisma.company.findUniqueOrThrow({ where: { id: company.id } });
+    expect(after.status).toBe("ACTIVE");
+    const accounts = await prisma.userAccount.findMany({
+      where: { email: { in: ["approve-a@test.example", "approve-b@test.example"] } },
     });
     for (const a of accounts) {
       expect(await verifyPassword("unified-pass-123", a.passwordHash)).toBe(true);
@@ -67,36 +101,33 @@ describe("importCompanies", () => {
   });
 
   it("統一パスワード未指定なら自動生成して返す", async () => {
-    const r = await doImport([
-      {
-        companyName: "自動生成社",
-        companyType: "CORPORATION",
-        ownerName: "三郎",
-        email: "auto-gen@test.example",
-      },
-    ]);
-    expect(r.initialPassword.length).toBeGreaterThanOrEqual(8);
+    const company = await importOne("自動生成社", "auto-gen@test.example");
+    const r = await approveCompany(company.id);
+    if ("error" in r) throw new Error("approve failed");
+    expect(r.initialPassword!.length).toBeGreaterThanOrEqual(8);
     const account = await prisma.userAccount.findUniqueOrThrow({
       where: { email: "auto-gen@test.example" },
     });
-    expect(await verifyPassword(r.initialPassword, account.passwordHash)).toBe(true);
+    expect(await verifyPassword(r.initialPassword!, account.passwordHash)).toBe(true);
   });
 
-  it("8文字未満の統一パスワードは拒否する", async () => {
-    const r = await importCompanies(
-      [
-        {
-          companyName: "拒否社",
-          companyType: "CORPORATION",
-          ownerName: "誰か",
-          email: "reject@test.example",
-        },
-      ],
-      "short"
-    );
+  it("8文字未満の統一パスワードは拒否し、企業は審査待ちのまま", async () => {
+    const company = await importOne("拒否社", "reject@test.example");
+    const r = await approveCompany(company.id, "short");
     expect("error" in r && r.error?.code).toBe("VALIDATION_ERROR");
-    expect(await prisma.company.count()).toBe(0);
+    const after = await prisma.company.findUniqueOrThrow({ where: { id: company.id } });
+    expect(after.status).toBe("APPLIED");
   });
+
+  it("承認済み企業の再承認は拒否する（409）", async () => {
+    const company = await importOne("再承認社", "re-approve@test.example");
+    expect("error" in (await approveCompany(company.id))).toBe(false);
+    const again = await approveCompany(company.id);
+    expect("error" in again && again.error?.code).toBe("VERSION_CONFLICT");
+  });
+});
+
+describe("importCompanies（行単位の検証）", () => {
 
   it("不正行はスキップし、正常行だけ登録する", async () => {
     const r = await doImport([
@@ -139,7 +170,7 @@ describe("importCompanies", () => {
     ]);
     expect(r.created).toBe(1);
     const company = await prisma.company.findFirst({ where: { name: "ラーニンギフト株式会社" } });
-    expect(company?.status).toBe("ACTIVE");
+    expect(company?.status).toBe("APPLIED");
     expect(company?.corporateNumber).toBeNull();
   });
 
@@ -302,7 +333,7 @@ describe("運営の担当者管理", () => {
     expect(list.items).toHaveLength(1);
     const member = list.items[0];
     expect(member.roles.sort()).toEqual(["ADMIN", "OWNER"]);
-    expect(member.passwordIssued).toBe(true); // 取込時に統一パスワード設定済み
+    expect(member.passwordIssued).toBe(false); // 初期パスワードは承認時まで未発行
 
     // 修正（オーナーでも可）
     const up = await updateMemberByOperations(member.id, {
