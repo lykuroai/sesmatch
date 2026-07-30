@@ -760,6 +760,20 @@ function CompanyMembersPanel({ companyId, token }: { companyId: string; token: s
     else setError("削除に失敗しました");
   }
 
+  async function promote(m: AdminMember) {
+    if (!window.confirm(`${m.name} を企業オーナーにしますか？（既存のロールは維持されます）`)) return;
+    setError(null);
+    const res = await fetch(`/api/v1/operations/members/${m.id}/promote-owner`, {
+      method: "POST",
+      headers: { "X-Admin-Token": token },
+    });
+    if (res.ok) await loadMembers();
+    else {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "オーナー昇格に失敗しました");
+    }
+  }
+
   return (
     <div className="text-sm">
       {error && <p className="mb-2 rounded bg-red-50 p-2 text-xs text-red-700">{error}</p>}
@@ -791,6 +805,9 @@ function CompanyMembersPanel({ companyId, token }: { companyId: string; token: s
               <>
                 <span className="font-medium">{m.name}</span>
                 <span className="text-slate-500">{m.email}</span>
+                {m.roles.includes("OWNER") && (
+                  <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">オーナー</span>
+                )}
                 <span className={`rounded px-2 py-0.5 text-xs ${m.passwordIssued ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
                   {m.passwordIssued ? "パスワード発行済み" : "未発行"}
                 </span>
@@ -813,6 +830,11 @@ function CompanyMembersPanel({ companyId, token }: { companyId: string; token: s
                   >
                     修正
                   </button>
+                  {!m.roles.includes("OWNER") && (
+                    <button onClick={() => promote(m)} className="rounded border border-indigo-300 px-2 py-1 text-xs text-indigo-700 hover:bg-indigo-50">
+                      オーナーにする
+                    </button>
+                  )}
                   <button onClick={() => reinvite(m)} className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100">
                     再招待
                   </button>

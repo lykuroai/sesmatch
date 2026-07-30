@@ -7,6 +7,7 @@ import {
   deleteMemberByOperations,
   importCompanies,
   listCompanyMembersByOperations,
+  promoteMemberToOwnerByOperations,
   reinviteMemberByOperations,
   updateCompanyByOperations,
   updateMemberByOperations,
@@ -384,11 +385,37 @@ describe("運営の担当者管理", () => {
     expect("error" in r && r.error?.code).toBe("DUPLICATE_ENTRY");
   });
 
+  it("管理者をオーナーに昇格できる（既存ロール維持、再昇格は409）", async () => {
+    await doImport([
+      {
+        companyName: "昇格社",
+        companyType: "CORPORATION",
+        ownerName: "丁",
+        email: "promote@test.example",
+      },
+    ]);
+    const company = await prisma.company.findFirstOrThrow({ where: { name: "昇格社" } });
+    const list = await listCompanyMembersByOperations(company.id);
+    if ("error" in list) throw new Error("list failed");
+    const member = list.items[0];
+    expect(member.roles).toEqual(["ADMIN"]);
+
+    const r = await promoteMemberToOwnerByOperations(member.id);
+    expect(r).toEqual({ ok: true });
+    const after = await listCompanyMembersByOperations(company.id);
+    if ("error" in after) throw new Error("list failed");
+    expect(after.items[0].roles.sort()).toEqual(["ADMIN", "OWNER"]);
+
+    const again = await promoteMemberToOwnerByOperations(member.id);
+    expect("error" in again && again.error?.code).toBe("VERSION_CONFLICT");
+  });
+
   it("存在しない担当者・企業は 404", async () => {
     expect("error" in (await updateMemberByOperations("nope", { name: "x", email: "x@y.example" }))).toBe(true);
     expect("error" in (await deleteMemberByOperations("nope"))).toBe(true);
     expect("error" in (await reinviteMemberByOperations("nope"))).toBe(true);
     expect("error" in (await listCompanyMembersByOperations("nope"))).toBe(true);
+    expect("error" in (await promoteMemberToOwnerByOperations("nope"))).toBe(true);
   });
 });
 

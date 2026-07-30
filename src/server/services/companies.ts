@@ -300,6 +300,26 @@ export async function deleteMemberByOperations(memberId: string) {
   return { ok: true as const };
 }
 
+// 運営: 担当者をオーナーに昇格（既存ロールは維持して OWNER を追加）。
+// 取込企業は初期ロールが企業管理者のみでオーナー不在のため、運営がここで指名する
+export async function promoteMemberToOwnerByOperations(memberId: string) {
+  const member = await prisma.companyMember.findUnique({
+    where: { id: memberId },
+    include: { roles: true },
+  });
+  if (!member) return { error: { code: "NOT_FOUND" as const } };
+  if (member.roles.some((r) => r.role === "OWNER"))
+    return { error: { code: "VERSION_CONFLICT" as const, message: "既にオーナーです" } };
+  await prisma.companyMemberRole.create({ data: { memberId, role: "OWNER" } });
+  await audit({
+    tenantCompanyId: member.companyId,
+    action: "MemberPromotedToOwnerByOperations",
+    targetType: "CompanyMember",
+    targetId: memberId,
+  });
+  return { ok: true as const };
+}
+
 // 運営: 担当者の再招待（個別に初期パスワードを再発行して招待メールを送る）。
 // 旧パスワード・旧セッションは失効し、停止中の担当者は有効に戻す
 export async function reinviteMemberByOperations(memberId: string) {

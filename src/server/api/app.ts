@@ -79,6 +79,7 @@ import {
   listAllMembersByOperations,
   listCompanyMembersByOperations,
   listPendingCompanies,
+  promoteMemberToOwnerByOperations,
   sendBroadcastMailByOperations,
   reinviteMember,
   reinviteMemberByOperations,
@@ -241,6 +242,13 @@ app.put("/operations/members/:id", requireAdminToken, async (c) => {
 
 app.delete("/operations/members/:id", requireAdminToken, async (c) => {
   const result = await deleteMemberByOperations(c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+app.post("/operations/members/:id/promote-owner", requireAdminToken, async (c) => {
+  const result = await promoteMemberToOwnerByOperations(c.req.param("id"));
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);
