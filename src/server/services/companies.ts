@@ -5,6 +5,7 @@ import { audit } from "@/server/audit";
 import { hashPassword } from "@/server/auth/password";
 import type { AuthContext } from "@/server/auth/session";
 import { randomBytes } from "crypto";
+import { sendMail, appBaseUrl } from "@/server/mail";
 
 // 企業申込（§6.4: 申込 → 事業者情報確認 → 規約同意 → 運営審査 → 開通）
 export async function applyCompany(input: {
@@ -52,6 +53,15 @@ export async function applyCompany(input: {
     targetId: company.id,
     metadata: { companyType: input.companyType },
   });
+  await sendMail({
+    to: input.email,
+    subject: "【SESマッチング】企業登録の申込を受け付けました",
+    body: `${input.ownerName} 様
+
+${input.companyName} の企業登録申込を受け付けました。
+運営による審査ののち、結果をメールでお知らせします。
+審査完了までログインはできません。しばらくお待ちください。`,
+  });
   return { companyId: company.id };
 }
 
@@ -68,6 +78,22 @@ export async function approveCompany(companyId: string) {
     targetType: "Company",
     targetId: companyId,
   });
+  const owner = await prisma.companyMember.findFirst({
+    where: { companyId, roles: { some: { role: "OWNER" } } },
+    include: { userAccount: true },
+  });
+  if (owner) {
+    await sendMail({
+      to: owner.userAccount.email,
+      subject: "【SESマッチング】企業登録が承認されました",
+      body: `${owner.userAccount.name} 様
+
+${company.name} の企業登録が承認され、利用を開始できるようになりました。
+以下の URL から申込時のメールアドレスとパスワードでログインしてください。
+
+${appBaseUrl()}/login`,
+    });
+  }
   return { ok: true as const };
 }
 
@@ -92,7 +118,7 @@ const ASSIGNABLE_ROLES = [
 type AssignableRole = (typeof ASSIGNABLE_ROLES)[number];
 
 // 担当者招待（§6.4, §28: /company/members/invitations）
-// MVP はメール送信の代わりに初期パスワードを一度だけ返す。
+// 初期パスワードは招待メール（SES）で本人に送り、画面にも一度だけ返す。
 export async function inviteMember(
   auth: AuthContext,
   input: { email: string; name: string; roles: string[] }
@@ -127,6 +153,19 @@ export async function inviteMember(
     targetType: "CompanyMember",
     targetId: member.id,
     metadata: { roles },
+  });
+  const company = await prisma.company.findUnique({ where: { id: auth.companyId } });
+  await sendMail({
+    to: input.email,
+    subject: "【SESマッチング】メンバー招待のお知らせ",
+    body: `${input.name} 様
+
+${company?.name ?? ""} のメンバーとして招待されました。
+以下の URL から次の初期パスワードでログインし、パスワードを変更してください。
+
+ログイン: ${appBaseUrl()}/login
+メールアドレス: ${input.email}
+初期パスワード: ${initialPassword}`,
   });
   return { memberId: member.id, initialPassword };
 }

@@ -11,6 +11,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-sesmatch}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432" # EC2 内ループバックのみ。ローカルからは SSH トンネル経由（scripts/db-tunnel.sh）
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?} -d ${POSTGRES_DB:-sesmatch}"]
       interval: 5s
@@ -40,6 +42,13 @@ services:
       LLM_MODEL: ${LLM_MODEL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # メール配信（Amazon SES）。MAIL_FROM 未設定ならログのみのモック動作
+      MAIL_FROM: ${MAIL_FROM:-}
+      APP_BASE_URL: ${APP_BASE_URL:-https://ses.lykuro.ai}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-1}
+      # EC2 インスタンスロールを使う場合は以下2つは不要
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
     volumes:
       - storage:/data/storage # 原本ファイル（§9.2）
     depends_on:
