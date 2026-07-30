@@ -34,7 +34,7 @@ describe("importCompanies", () => {
       where: { companyId: company!.id },
       include: { roles: true, userAccount: true },
     });
-    expect(owner?.roles.map((x) => x.role)).toEqual(["OWNER"]);
+    expect(owner?.roles.map((x) => x.role).sort()).toEqual(["ADMIN", "OWNER"]);
     expect(owner?.userAccount.email).toBe("import-a@test.example");
   });
 
@@ -83,7 +83,7 @@ describe("importCompanies", () => {
     expect(company?.corporateNumber).toBeNull();
   });
 
-  it("同名企業の2人目以降は新規作成せず既存企業へ営業担当として追加する", async () => {
+  it("同名企業の2人目以降は新規作成せず既存企業へ追加する（全員オーナー・管理者権限）", async () => {
     const r = await importCompanies([
       {
         companyName: "株式会社キャリアビート",
@@ -112,8 +112,8 @@ describe("importCompanies", () => {
       orderBy: { createdAt: "asc" },
     });
     expect(members).toHaveLength(2);
-    expect(members[0].roles.map((x) => x.role)).toEqual(["OWNER"]);
-    expect(members[1].roles.map((x) => x.role)).toEqual(["SALES"]);
+    expect(members[0].roles.map((x) => x.role).sort()).toEqual(["ADMIN", "OWNER"]);
+    expect(members[1].roles.map((x) => x.role).sort()).toEqual(["ADMIN", "OWNER"]);
     expect(members[1].userAccount.name).toBe("亀山 蓮");
   });
 

@@ -176,8 +176,8 @@ export async function importCompanies(rows: CompanyImportRow[]) {
     const initialPassword = randomBytes(9).toString("base64url");
     const passwordHash = await hashPassword(initialPassword);
 
-    // 同名企業が既にある場合は、新規作成せず既存企業へ営業担当として追加する
-    // （同一 CSV 内で同じ企業の担当者が複数行あるケース）
+    // 同名企業が既にある場合は、新規作成せず既存企業へ担当者として追加する
+    // （同一 CSV 内で同じ企業の担当者が複数行あるケース）。取込担当者は全員オーナー・管理者権限
     const sameName = await prisma.company.findFirst({ where: { name: row.companyName } });
     if (sameName) {
       try {
@@ -188,7 +188,12 @@ export async function importCompanies(rows: CompanyImportRow[]) {
           const member = await tx.companyMember.create({
             data: { companyId: sameName.id, userAccountId: account.id },
           });
-          await tx.companyMemberRole.create({ data: { memberId: member.id, role: "SALES" } });
+          await tx.companyMemberRole.createMany({
+            data: [
+              { memberId: member.id, role: "OWNER" },
+              { memberId: member.id, role: "ADMIN" },
+            ],
+          });
         });
       } catch {
         fail("登録に失敗しました（メールアドレスの重複など）");
@@ -239,7 +244,12 @@ ${sameName.name} のメンバーとして招待されました。
         const member = await tx.companyMember.create({
           data: { companyId: company.id, userAccountId: account.id },
         });
-        await tx.companyMemberRole.create({ data: { memberId: member.id, role: "OWNER" } });
+        await tx.companyMemberRole.createMany({
+          data: [
+            { memberId: member.id, role: "OWNER" },
+            { memberId: member.id, role: "ADMIN" },
+          ],
+        });
         return company;
       });
     } catch {
