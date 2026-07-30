@@ -71,13 +71,17 @@ import {
   applyCompany,
   approveCompany,
   deleteMember,
+  deleteMemberByOperations,
   importCompanies,
   inviteMember,
   listAllCompanies,
+  listCompanyMembersByOperations,
   listPendingCompanies,
   reinviteMember,
+  reinviteMemberByOperations,
   suspendMember,
   updateCompanyByOperations,
+  updateMemberByOperations,
   updateMemberProfile,
   updateMemberRoles,
 } from "@/server/services/companies";
@@ -165,12 +169,15 @@ app.post("/operations/companies/:id/approve", requireAdminToken, async (c) => {
 // 企業リスト（CSV）一括取込。ヘッダ行の列名で判定（3列: 企業名, 担当者名, メールアドレス も可）
 app.post("/operations/companies/import", requireAdminToken, async (c) => {
   const parsed = z
-    .object({ csv: z.string().min(1).max(20_000_000) })
+    .object({ csv: z.string().min(1).max(20_000_000), password: z.string().optional() })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
   const rows = csvToCompanyRows(parseCsv(parsed.data.csv));
   if (rows.length === 0) return c.json(err("VALIDATION_ERROR", "データ行がありません"), 400);
-  return c.json(await importCompanies(rows));
+  const result = await importCompanies(rows, parsed.data.password);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
 });
 
 // 全企業一覧と企業情報の修正（取込した不完全データの補完）
@@ -188,6 +195,39 @@ app.put("/operations/companies/:id", requireAdminToken, async (c) => {
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
   const result = await updateCompanyByOperations(c.req.param("id"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+// 運営: 担当者管理（一覧・修正・削除・再招待）。運営権限のためオーナーも操作可
+app.get("/operations/companies/:id/members", requireAdminToken, async (c) => {
+  const result = await listCompanyMembersByOperations(c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+app.put("/operations/members/:id", requireAdminToken, async (c) => {
+  const parsed = z
+    .object({ name: z.string().min(1), email: z.string().email() })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await updateMemberByOperations(c.req.param("id"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+app.delete("/operations/members/:id", requireAdminToken, async (c) => {
+  const result = await deleteMemberByOperations(c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+app.post("/operations/members/:id/reinvite", requireAdminToken, async (c) => {
+  const result = await reinviteMemberByOperations(c.req.param("id"));
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);

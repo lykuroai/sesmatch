@@ -140,8 +140,119 @@ export async function updateCompanyByOperations(
   return { ok: true as const };
 }
 
-// 運営: 企業リスト（CSV）の一括取込。運営による登録のため審査済み＝即時開通（ACTIVE）とし、
-// オーナーへ初期パスワードを招待メールで送る。行単位で成否を返し、失敗行はスキップする。
+// 運営: 企業の担当者一覧（運営コンソールの担当者管理用）
+export async function listCompanyMembersByOperations(companyId: string) {
+  const company = await prisma.company.findUnique({ where: { id: companyId } });
+  if (!company) return { error: { code: "NOT_FOUND" as const } };
+  const members = await prisma.companyMember.findMany({
+    where: { companyId },
+    include: { userAccount: true, roles: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return {
+    items: members.map((m) => ({
+      id: m.id,
+      name: m.userAccount.name,
+      email: m.userAccount.email,
+      status: m.status,
+      roles: m.roles.map((r) => r.role),
+      passwordIssued: m.userAccount.passwordHash !== "", // 初期パスワード配信済みか
+    })),
+  };
+}
+
+// 運営: 担当者の修正（氏名・メールアドレス）。運営権限のためオーナーも修正可
+export async function updateMemberByOperations(
+  memberId: string,
+  input: { name: string; email: string }
+) {
+  const member = await prisma.companyMember.findUnique({
+    where: { id: memberId },
+    include: { userAccount: true },
+  });
+  if (!member) return { error: { code: "NOT_FOUND" as const } };
+  if (input.email !== member.userAccount.email) {
+    const dup = await prisma.userAccount.findUnique({ where: { email: input.email } });
+    if (dup)
+      return { error: { code: "DUPLICATE_ENTRY" as const, message: "このメールアドレスは登録済みです" } };
+  }
+  await prisma.userAccount.update({
+    where: { id: member.userAccountId },
+    data: { name: input.name, email: input.email },
+  });
+  await audit({
+    tenantCompanyId: member.companyId,
+    action: "MemberProfileUpdatedByOperations",
+    targetType: "CompanyMember",
+    targetId: memberId,
+    metadata: { emailChanged: input.email !== member.userAccount.email },
+  });
+  return { ok: true as const };
+}
+
+// 運営: 担当者の削除（オーナーも削除可）。他企業に所属が残らなければアカウントも削除
+export async function deleteMemberByOperations(memberId: string) {
+  const member = await prisma.companyMember.findUnique({ where: { id: memberId } });
+  if (!member) return { error: { code: "NOT_FOUND" as const } };
+  await prisma.$transaction(async (tx) => {
+    await tx.companyMemberRole.deleteMany({ where: { memberId } });
+    await tx.companyMember.delete({ where: { id: memberId } });
+    const remaining = await tx.companyMember.count({
+      where: { userAccountId: member.userAccountId },
+    });
+    if (remaining === 0) {
+      await tx.session.deleteMany({ where: { userAccountId: member.userAccountId } });
+      await tx.userAccount.delete({ where: { id: member.userAccountId } });
+    }
+  });
+  await audit({
+    tenantCompanyId: member.companyId,
+    action: "MemberDeletedByOperations",
+    targetType: "CompanyMember",
+    targetId: memberId,
+  });
+  return { ok: true as const };
+}
+
+// 運営: 担当者の再招待（個別に初期パスワードを再発行して招待メールを送る）。
+// 旧パスワード・旧セッションは失効し、停止中の担当者は有効に戻す
+export async function reinviteMemberByOperations(memberId: string) {
+  const member = await prisma.companyMember.findUnique({
+    where: { id: memberId },
+    include: { userAccount: true, company: true },
+  });
+  if (!member) return { error: { code: "NOT_FOUND" as const } };
+  const initialPassword = randomBytes(9).toString("base64url");
+  const passwordHash = await hashPassword(initialPassword);
+  await prisma.$transaction([
+    prisma.userAccount.update({ where: { id: member.userAccountId }, data: { passwordHash } }),
+    prisma.companyMember.update({ where: { id: memberId }, data: { status: "ACTIVE" } }),
+    prisma.session.deleteMany({ where: { userAccountId: member.userAccountId } }),
+  ]);
+  await audit({
+    tenantCompanyId: member.companyId,
+    action: "MemberReinvitedByOperations",
+    targetType: "CompanyMember",
+    targetId: memberId,
+  });
+  await sendMail({
+    to: member.userAccount.email,
+    subject: "【SESマッチング】メンバー招待のお知らせ",
+    body: `${member.userAccount.name} 様
+
+${member.company.name} のメンバーとして招待されました。
+以下の URL から次の初期パスワードでログインし、パスワードを変更してください。
+
+ログイン: ${appBaseUrl()}/login
+メールアドレス: ${member.userAccount.email}
+初期パスワード: ${initialPassword}`,
+  });
+  return { memberId: member.id, initialPassword };
+}
+
+// 運営: 企業リスト（CSV）の一括取込。運営による登録のため審査済み＝即時開通（ACTIVE）とする。
+// 1行ごとにパスワードは生成せず、統一の初期パスワード（未指定なら自動生成）を全員に設定して
+// 招待メールを送る（ハッシュ計算は1回だけ）。行単位で成否を返し、失敗行はスキップする。
 export type CompanyImportRow = {
   companyName: string;
   companyType: "CORPORATION" | "SOLE_PROPRIETOR";
@@ -150,7 +261,13 @@ export type CompanyImportRow = {
   email: string;
 };
 
-export async function importCompanies(rows: CompanyImportRow[]) {
+export async function importCompanies(rows: CompanyImportRow[], initialPassword?: string) {
+  const password = initialPassword?.trim() || randomBytes(9).toString("base64url");
+  if (password.length < 8)
+    return {
+      error: { code: "VALIDATION_ERROR" as const, message: "初期パスワードは8文字以上にしてください" },
+    };
+  const passwordHash = await hashPassword(password); // 全行で共通（1回だけ計算）
   const results: {
     row: number;
     companyName: string;
@@ -181,9 +298,6 @@ export async function importCompanies(rows: CompanyImportRow[]) {
       skip("スキップ: このメールアドレスは登録済みです");
       continue;
     }
-
-    const initialPassword = randomBytes(9).toString("base64url");
-    const passwordHash = await hashPassword(initialPassword);
 
     // 同名企業が既にある場合は、新規作成せず既存企業へ担当者として追加する
     // （同一 CSV 内で同じ企業の担当者が複数行あるケース）。取込担当者は全員オーナー・管理者権限
@@ -225,7 +339,7 @@ ${sameName.name} のメンバーとして招待されました。
 
 ログイン: ${appBaseUrl()}/login
 メールアドレス: ${row.email}
-初期パスワード: ${initialPassword}`,
+初期パスワード: ${password}`,
       });
       results.push({
         row: rowNo,
@@ -283,12 +397,12 @@ ${row.companyName} の企業アカウントを開設しました。
 
 ログイン: ${appBaseUrl()}/login
 メールアドレス: ${row.email}
-初期パスワード: ${initialPassword}`,
+初期パスワード: ${password}`,
     });
     created++;
     results.push({ row: rowNo, companyName: row.companyName, ok: true });
   }
-  return { created, results };
+  return { created, results, initialPassword: password };
 }
 
 const ASSIGNABLE_ROLES = [
