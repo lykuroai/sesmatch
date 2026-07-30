@@ -12,6 +12,11 @@ type PendingCompany = {
   createdAt: string;
 };
 
+type ImportResult = {
+  created: number;
+  results: { row: number; companyName: string; ok: boolean; message?: string }[];
+};
+
 type AdminReport = {
   id: string;
   reporterCompanyName: string;
@@ -28,6 +33,9 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [companies, setCompanies] = useState<PendingCompany[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   const load = useCallback(async (t: string) => {
     const headers = { "X-Admin-Token": t };
@@ -59,6 +67,31 @@ export default function AdminPage() {
       setAuthed(true);
     } catch {
       setError("運営トークンが違います");
+    }
+  }
+
+  async function importCsv() {
+    if (!importFile) return;
+    setError(null);
+    setImportResult(null);
+    setImporting(true);
+    try {
+      const csv = await importFile.text();
+      const res = await fetch("/api/v1/operations/companies/import", {
+        method: "POST",
+        headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+        body: JSON.stringify({ csv }),
+      });
+      const body = await res.json().catch(() => null);
+      if (res.ok) {
+        setImportResult(body);
+        setImportFile(null);
+        await load(token);
+      } else {
+        setError(body?.error?.message ?? "取込に失敗しました");
+      }
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -137,6 +170,45 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="mb-1 font-bold">企業リスト取込（CSV アップロード）</h2>
+          <p className="mb-3 text-xs text-slate-500">
+            列順: 企業名, 種別（法人/個人）, 法人番号, オーナー名, メールアドレス（ヘッダ行は自動で読み飛ばし）。
+            取込した企業は審査済みとして即時開通し、オーナーへ初期パスワードを記載した招待メールを送ります。
+          </p>
+          <div className="flex items-center gap-3">
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+              className="text-sm"
+            />
+            <button
+              onClick={importCsv}
+              disabled={!importFile || importing}
+              className="rounded bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40"
+            >
+              {importing ? "取込中..." : "取り込む"}
+            </button>
+          </div>
+          {importResult && (
+            <div className="mt-3 rounded border border-slate-100 bg-slate-50 p-3 text-sm">
+              <p className="font-medium">
+                {importResult.created} 社を登録しました
+                {importResult.results.some((r) => !r.ok) &&
+                  `（失敗 ${importResult.results.filter((r) => !r.ok).length} 行）`}
+              </p>
+              <ul className="mt-1 space-y-0.5 text-xs">
+                {importResult.results.map((r) => (
+                  <li key={r.row} className={r.ok ? "text-emerald-700" : "text-red-600"}>
+                    {r.row}行目 {r.companyName || "（企業名なし）"}: {r.ok ? "登録済み" : r.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
