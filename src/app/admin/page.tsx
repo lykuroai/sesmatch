@@ -113,6 +113,26 @@ export default function AdminPage() {
     }
   }
 
+  async function deleteCompany(co: AdminCompany) {
+    if (
+      !window.confirm(
+        `${co.name} を削除しますか？（担当者 ${co._count.members} 名のアカウントも削除され、元に戻せません）`
+      )
+    )
+      return;
+    setError(null);
+    const res = await fetch(`/api/v1/operations/companies/${co.id}`, {
+      method: "DELETE",
+      headers: { "X-Admin-Token": token },
+    });
+    if (res.ok) {
+      await load(token);
+    } else {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "企業の削除に失敗しました");
+    }
+  }
+
   async function importCsv() {
     if (!importFile) return;
     setError(null);
@@ -355,6 +375,12 @@ export default function AdminPage() {
                             className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50"
                           >
                             {expandedCompanyId === co.id ? "担当者を閉じる" : "担当者"}
+                          </button>
+                          <button
+                            onClick={() => deleteCompany(co)}
+                            className="rounded border border-red-300 px-2 py-1 text-red-600 hover:bg-red-50"
+                          >
+                            削除
                           </button>
                         </div>
                       </td>

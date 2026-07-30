@@ -140,6 +140,54 @@ export async function updateCompanyByOperations(
   return { ok: true as const };
 }
 
+// 運営: 企業の削除（取込ミス等の是正用）。人材・案件・取込書類などの業務データを持つ企業は
+// 削除できない（先にデータ側の整理が必要）。担当者は物理削除し、他企業に所属が残らない
+// アカウントはセッションごと削除する。監査ログは追記型のため削除しない。
+export async function deleteCompanyByOperations(companyId: string) {
+  const company = await prisma.company.findUnique({ where: { id: companyId } });
+  if (!company) return { error: { code: "NOT_FOUND" as const } };
+  const [engineers, projects, documents, relationships, reports, privacyRequests] =
+    await prisma.$transaction([
+      prisma.engineer.count({ where: { tenantCompanyId: companyId } }),
+      prisma.project.count({ where: { tenantCompanyId: companyId } }),
+      prisma.sourceDocument.count({ where: { tenantCompanyId: companyId } }),
+      prisma.companyRelationship.count({ where: { companyId } }),
+      prisma.report.count({ where: { tenantCompanyId: companyId } }),
+      prisma.privacyRequest.count({ where: { tenantCompanyId: companyId } }),
+    ]);
+  if (engineers + projects + documents + relationships + reports + privacyRequests > 0)
+    return {
+      error: {
+        code: "VERSION_CONFLICT" as const,
+        message: "人材・案件・取込などの業務データがあるため削除できません",
+      },
+    };
+  await prisma.$transaction(async (tx) => {
+    const members = await tx.companyMember.findMany({ where: { companyId } });
+    await tx.companyMemberRole.deleteMany({
+      where: { memberId: { in: members.map((m) => m.id) } },
+    });
+    await tx.companyMember.deleteMany({ where: { companyId } });
+    for (const m of members) {
+      const remaining = await tx.companyMember.count({
+        where: { userAccountId: m.userAccountId },
+      });
+      if (remaining === 0) {
+        await tx.session.deleteMany({ where: { userAccountId: m.userAccountId } });
+        await tx.userAccount.delete({ where: { id: m.userAccountId } });
+      }
+    }
+    await tx.company.delete({ where: { id: companyId } });
+  });
+  await audit({
+    tenantCompanyId: companyId,
+    action: "CompanyDeletedByOperations",
+    targetType: "Company",
+    targetId: companyId,
+  });
+  return { ok: true as const };
+}
+
 // 運営: 企業の担当者一覧（運営コンソールの担当者管理用）
 export async function listCompanyMembersByOperations(companyId: string) {
   const company = await prisma.company.findUnique({ where: { id: companyId } });

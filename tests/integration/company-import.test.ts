@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/server/db";
 import {
+  deleteCompanyByOperations,
   deleteMemberByOperations,
   importCompanies,
   listCompanyMembersByOperations,
@@ -357,5 +358,66 @@ describe("運営の担当者管理", () => {
     expect("error" in (await deleteMemberByOperations("nope"))).toBe(true);
     expect("error" in (await reinviteMemberByOperations("nope"))).toBe(true);
     expect("error" in (await listCompanyMembersByOperations("nope"))).toBe(true);
+  });
+});
+
+describe("deleteCompanyByOperations", () => {
+  it("担当者ごと企業を物理削除し、他社所属のないアカウントも削除する", async () => {
+    await doImport([
+      {
+        companyName: "削除対象社",
+        companyType: "CORPORATION",
+        ownerName: "甲",
+        email: "del-a@test.example",
+      },
+      {
+        companyName: "削除対象社",
+        companyType: "CORPORATION",
+        ownerName: "乙",
+        email: "del-b@test.example",
+      },
+    ]);
+    const company = await prisma.company.findFirstOrThrow({ where: { name: "削除対象社" } });
+    const r = await deleteCompanyByOperations(company.id);
+    expect("error" in r).toBe(false);
+    expect(await prisma.company.findUnique({ where: { id: company.id } })).toBeNull();
+    expect(await prisma.companyMember.count({ where: { companyId: company.id } })).toBe(0);
+    expect(
+      await prisma.userAccount.count({
+        where: { email: { in: ["del-a@test.example", "del-b@test.example"] } },
+      })
+    ).toBe(0);
+  });
+
+  it("人材・案件など業務データを持つ企業は削除できない（409）", async () => {
+    await doImport([
+      {
+        companyName: "業務データ社",
+        companyType: "CORPORATION",
+        ownerName: "丙",
+        email: "del-busy@test.example",
+      },
+    ]);
+    const company = await prisma.company.findFirstOrThrow({ where: { name: "業務データ社" } });
+    await prisma.engineer.create({
+      data: {
+        tenantCompanyId: company.id,
+        code: "E-9001",
+        name: "テスト人材",
+        ageBand: 30,
+        affiliationType: "EMPLOYEE",
+        desiredRateYen: 600000,
+      },
+    });
+    const r = await deleteCompanyByOperations(company.id);
+    expect("error" in r && r.error?.code).toBe("VERSION_CONFLICT");
+    // 企業・担当者は残ったまま
+    expect(await prisma.company.findUnique({ where: { id: company.id } })).not.toBeNull();
+    expect(await prisma.companyMember.count({ where: { companyId: company.id } })).toBe(1);
+  });
+
+  it("存在しない企業は 404", async () => {
+    const r = await deleteCompanyByOperations("nope");
+    expect("error" in r && r.error?.code).toBe("NOT_FOUND");
   });
 });

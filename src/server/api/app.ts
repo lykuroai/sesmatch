@@ -70,6 +70,7 @@ import {
 import {
   applyCompany,
   approveCompany,
+  deleteCompanyByOperations,
   deleteMember,
   deleteMemberByOperations,
   importCompanies,
@@ -195,6 +196,14 @@ app.put("/operations/companies/:id", requireAdminToken, async (c) => {
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
   const result = await updateCompanyByOperations(c.req.param("id"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+// 企業の削除（取込ミス等の是正用）。業務データを持つ企業は 409 で拒否
+app.delete("/operations/companies/:id", requireAdminToken, async (c) => {
+  const result = await deleteCompanyByOperations(c.req.param("id"));
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);

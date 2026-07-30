@@ -8,3 +8,4 @@ next-env.d.ts
 .env.production
 scripts/release-ec2.env
 .claude/
+.env*.swp
