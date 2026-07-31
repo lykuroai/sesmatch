@@ -63,7 +63,7 @@ const ENGINEER_SCHEMA = {
       },
     },
     processes: { type: "array", items: { type: "string" }, description: "経験工程" },
-    summary: { type: "string", description: "匿名要約（200字以内・PIIを含めない）" },
+    summary: { type: "string", description: "匿名要約（200字以内・自然な日本語・PIIを含めない）" },
   },
   required: [
     "kind",
@@ -90,7 +90,7 @@ const PROJECT_SCHEMA = {
     onsiteDaysPerWeek: { ...nullable("integer"), description: "週出社日数 0-5" },
     requiredSkills: { type: "array", items: { type: "string" } },
     preferredSkills: { type: "array", items: { type: "string" } },
-    summary: { type: "string", description: "匿名要約（エンド企業名は抽象カテゴリに置換）" },
+    summary: { type: "string", description: "匿名要約（自然な日本語・エンド企業名は抽象カテゴリに置換）" },
   },
   required: [
     "kind",
@@ -165,8 +165,8 @@ export class ClaudeLlmGateway implements LlmGateway {
   ): Promise<ExtractionDraft> {
     const isEngineer = kind === "ENGINEER_SHEET";
     const instruction = isEngineer
-      ? "次のスキルシートから構造化データを抽出してください。summary には技術・経験の匿名要約を200字以内で書いてください（氏名・企業名・連絡先・PIIトークンを含めない）。"
-      : "次の案件情報から構造化データを抽出してください。summary には業務内容の匿名要約を200字以内で書いてください（エンド企業名は「大手金融機関」等の抽象カテゴリに置換する）。";
+      ? "次のスキルシートから構造化データを抽出してください。summary には技術・経験の匿名要約を200字以内の自然な日本語で書いてください（氏名・企業名・連絡先・PIIトークンを含めない）。"
+      : "次の案件情報から構造化データを抽出してください。summary には業務内容の匿名要約を200字以内の自然な日本語で書いてください（エンド企業名は「大手金融機関」等の抽象カテゴリに置換する）。";
     const raw = await this.call(
       `extract:${kind}`,
       isEngineer ? ENGINEER_SCHEMA : PROJECT_SCHEMA,

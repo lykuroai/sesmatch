@@ -746,7 +746,8 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
     if (!parsed.success) return c.json(err("VALIDATION_ERROR", parsed.error.message), 400);
     const d = parsed.data;
     const result = await createProject(auth, {
-      name: d.name ?? job.sourceDocument.filename,
+      // 案件名が抽出できなかった場合はファイル名を使うが、拡張子（.txt 等）は付けない
+      name: d.name ?? job.sourceDocument.filename.replace(/\.[^.]+$/, ""),
       anonymousSummary: d.summary,
       startDate: d.startDate ?? new Date().toISOString().slice(0, 10),
       rateMaxYen: d.rateMaxYen ?? 800_000,

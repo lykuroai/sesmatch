@@ -31,7 +31,8 @@ const SYSTEM_PROMPT = `あなたはSES（システムエンジニアリングサ
 - 単価は月額の円整数で出力する（例: 70万円 → 700000）
 - スキル名は一般的な正式名称に正規化する（例: "JAVA" → "Java"）
 - 経験年数は月数に換算する（例: 5年 → 60）
-- 判断できない項目は null にする（推測で埋めない）`;
+- 判断できない項目は null にする（推測で埋めない）
+- summary などの自由記述の文字列は、必ず自然な日本語で書く（英語・中国語で出力しない）`;
 
 const CLASSIFY_SCHEMA = `{"kind": "ENGINEER_SHEET" | "PROJECT_DESCRIPTION" | "UNKNOWN"}`;
 
@@ -46,7 +47,7 @@ const ENGINEER_SCHEMA = `{
   "maxOnsiteDaysPerWeek": number | null, // 週あたり最大出社日数 0-5
   "skills": [{"category": "LANGUAGE"|"FRAMEWORK"|"DATABASE"|"CLOUD"|"OS"|"TOOL"|"CERTIFICATION", "name": string, "months": number | null}],
   "processes": string[],               // 経験工程（要件定義/基本設計/詳細設計/開発/テスト/運用/保守）
-  "summary": string                    // 匿名要約200字以内。PII・企業名を含めない
+  "summary": string                    // 匿名要約200字以内。自然な日本語で書く。PII・企業名を含めない
 }`;
 
 const PROJECT_SCHEMA = `{
@@ -57,7 +58,7 @@ const PROJECT_SCHEMA = `{
   "onsiteDaysPerWeek": number | null,  // 週出社日数 0-5
   "requiredSkills": string[],
   "preferredSkills": string[],
-  "summary": string                    // 匿名要約。エンド企業名は「大手金融機関」等の抽象カテゴリに置換
+  "summary": string                    // 匿名要約。自然な日本語で書く。エンド企業名は「大手金融機関」等の抽象カテゴリに置換
 }`;
 
 export class OpenAiCompatGateway implements LlmGateway {
