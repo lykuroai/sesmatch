@@ -124,7 +124,7 @@ export default function PrivacyPage() {
       <p className={p}>
         個人情報の取扱いに関するお問い合わせ・各種請求は、以下の窓口までご連絡ください。
         <br />
-        【窓口メールアドレス】／【受付時間等】
+        メールアドレス: support@lykuro.ai（受付時間: 平日10:00〜18:00）
       </p>
     </article>
   );
