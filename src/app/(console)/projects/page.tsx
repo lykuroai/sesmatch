@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
 import { listProjects } from "@/server/services/projects";
 import { PUBLISH_STATUS_LABELS, REMOTE_LEVEL_LABELS } from "@/lib/constants";
+import { IngestPanel } from "@/components/IngestPanel";
 
 export default async function ProjectsPage({
   searchParams,
@@ -26,6 +27,10 @@ export default async function ProjectsPage({
           案件を登録
         </Link>
       </div>
+      <IngestPanel
+        label="案件票・紹介メールから取込"
+        hint="案件票や紹介メールの本文を貼り付け・アップロードするだけで登録できます。"
+      />
       <div className="mb-4 flex gap-2">
         <Link
           href="/projects"

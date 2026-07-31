@@ -12,7 +12,7 @@ const MENU = [
   { href: "/entries", label: "エントリー" },
   { href: "/contracts", label: "契約・稼働" },
   { href: "/billing", label: "請求" },
-  { href: "/ingestions", label: "取込" },
+  { href: "/ingestions", label: "取込履歴" },
   { href: "/privacy", label: "プライバシー" },
   { href: "/relationships", label: "企業間関係" },
   { href: "/reports", label: "通報" },

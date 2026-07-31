@@ -7,6 +7,7 @@ import {
   PUBLISH_STATUS_LABELS,
   REMOTE_LEVEL_LABELS,
 } from "@/lib/constants";
+import { IngestPanel } from "@/components/IngestPanel";
 
 export default async function EngineersPage({
   searchParams,
@@ -30,6 +31,10 @@ export default async function EngineersPage({
           人材を登録
         </Link>
       </div>
+      <IngestPanel
+        label="スキルシート・紹介メールから取込"
+        hint="人材のスキルシートや紹介メールの本文を貼り付け・アップロードするだけで登録できます。"
+      />
       <div className="mb-4 flex gap-2">
         <Link
           href="/engineers"
