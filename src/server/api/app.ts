@@ -20,6 +20,7 @@ import {
   createEngineer,
   getEngineer,
   listEngineers,
+  deleteEngineer,
   publishEngineer,
   updateEngineer,
 } from "@/server/services/engineers";
@@ -27,6 +28,7 @@ import {
   createProject,
   getProject,
   listProjects,
+  deleteProject,
   publishProject,
   updateProject,
 } from "@/server/services/projects";
@@ -540,6 +542,14 @@ app.put("/engineers/:id", requirePermission("engineer.create"), async (c) => {
   return c.json((result as { engineer: unknown }).engineer);
 });
 
+// 人材の削除（論理削除）。進行中エントリーがある場合は 409
+app.delete("/engineers/:id", requirePermission("engineer.create"), async (c) => {
+  const result = await deleteEngineer(c.get("auth"), c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
 app.post("/engineers/:id/consents", requirePermission("consent.manage"), async (c) => {
   const parsed = z
     .object({
@@ -617,6 +627,16 @@ app.put("/projects/:id", requirePermission("project.create"), async (c) => {
     return c.json(err("VALIDATION_ERROR", result.error), 400);
   }
   return c.json(result.project);
+});
+
+// 案件の削除（物理削除）。エントリーがある場合は 409
+app.delete("/projects/:id", requirePermission("project.create"), async (c) => {
+  const result = await deleteProject(c.get("auth"), c.req.param("id"));
+  if ("error" in result) {
+    if (result.error === "NOT_FOUND") return c.json(err("NOT_FOUND"), 404);
+    return c.json(err("VERSION_CONFLICT", result.error), 409);
+  }
+  return c.json(result);
 });
 
 app.post("/projects/:id/publish", requirePermission("project.publish"), async (c) => {

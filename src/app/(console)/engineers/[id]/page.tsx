@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
 import { getEngineer } from "@/server/services/engineers";
 import { hasPermission } from "@/server/auth/rbac";
+import { DeleteResourceButton } from "@/components/DeleteResourceButton";
 import {
   AFFILIATION_LABELS,
   PUBLISH_STATUS_LABELS,
@@ -52,12 +53,19 @@ export default async function EngineerDetailPage({
         </div>
         <div className="flex items-center gap-3">
           {e.own && hasPermission(auth.roles, "engineer.create") && (
-            <a
-              href={`/engineers/${e.id}/edit`}
-              className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-            >
-              編集
-            </a>
+            <>
+              <a
+                href={`/engineers/${e.id}/edit`}
+                className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+              >
+                編集
+              </a>
+              <DeleteResourceButton
+                path={`/api/v1/engineers/${e.id}`}
+                confirmText="この人材を削除しますか？（一覧・検索から除外されます。進行中のエントリーがある場合は削除できません）"
+                redirectTo="/engineers"
+              />
+            </>
           )}
           {canPublish && e.status !== "PUBLISHED" && (
             <ActionButton path={`/api/v1/engineers/${e.id}/publish`} label="公開する" />

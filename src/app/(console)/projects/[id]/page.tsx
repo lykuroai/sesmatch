@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
 import { getProject } from "@/server/services/projects";
 import { hasPermission } from "@/server/auth/rbac";
+import { DeleteResourceButton } from "@/components/DeleteResourceButton";
 import {
   AFFILIATION_LABELS,
   PUBLISH_STATUS_LABELS,
@@ -50,12 +51,19 @@ export default async function ProjectDetailPage({
         </div>
         <div className="flex items-center gap-3">
           {p.own && hasPermission(auth.roles, "project.create") && (
-            <a
-              href={`/projects/${p.id}/edit`}
-              className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-            >
-              編集
-            </a>
+            <>
+              <a
+                href={`/projects/${p.id}/edit`}
+                className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+              >
+                編集
+              </a>
+              <DeleteResourceButton
+                path={`/api/v1/projects/${p.id}`}
+                confirmText="この案件を削除しますか？（元に戻せません。エントリーがある案件は削除できません）"
+                redirectTo="/projects"
+              />
+            </>
           )}
           {canPublish && p.status !== "PUBLISHED" && (
             <ActionButton path={`/api/v1/projects/${p.id}/publish`} label="公開する" />

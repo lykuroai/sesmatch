@@ -212,3 +212,26 @@ export async function publishProject(auth: AuthContext, projectId: string) {
   });
   return { ok: true as const };
 }
+
+// 案件の削除（物理削除）。エントリーが1件でもある案件は削除できない
+export async function deleteProject(auth: AuthContext, projectId: string) {
+  const existing = await prisma.project.findFirst({
+    where: { id: projectId, tenantCompanyId: auth.companyId },
+  });
+  if (!existing) return { error: "NOT_FOUND" as const };
+  const entries = await prisma.entry.count({ where: { projectId } });
+  if (entries > 0) return { error: "エントリーがある案件は削除できません" };
+  await prisma.$transaction([
+    prisma.projectSkill.deleteMany({ where: { projectId } }),
+    prisma.matchingResult.deleteMany({ where: { projectId } }),
+    prisma.project.delete({ where: { id: projectId } }),
+  ]);
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "ProjectDeleted",
+    targetType: "Project",
+    targetId: projectId,
+  });
+  return { ok: true as const };
+}

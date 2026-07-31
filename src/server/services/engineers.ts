@@ -248,3 +248,35 @@ export async function publishEngineer(auth: AuthContext, engineerId: string) {
   });
   return { ok: true as const };
 }
+
+// 人材の削除（論理削除 §26 準拠）。deletedAt を設定して全画面・検索から除外する。
+// 進行中のエントリーがある人材は削除できない（見送り・辞退のみなら可）。
+// PII の物理削除は削除請求フロー（privacy）で行う
+export async function deleteEngineer(auth: AuthContext, engineerId: string) {
+  const existing = await prisma.engineer.findFirst({
+    where: { id: engineerId, tenantCompanyId: auth.companyId, deletedAt: null },
+  });
+  if (!existing) return { error: { code: "NOT_FOUND" as const } };
+  const activeEntries = await prisma.entry.count({
+    where: { engineerId, status: { notIn: ["DECLINED", "WITHDRAWN"] } },
+  });
+  if (activeEntries > 0)
+    return {
+      error: {
+        code: "VERSION_CONFLICT" as const,
+        message: "進行中のエントリーがあるため削除できません（見送り・辞退後に削除してください）",
+      },
+    };
+  await prisma.engineer.update({
+    where: { id: engineerId },
+    data: { deletedAt: new Date() },
+  });
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "EngineerDeleted",
+    targetType: "Engineer",
+    targetId: engineerId, // 監査ログに氏名等の PII は含めない
+  });
+  return { ok: true as const };
+}
