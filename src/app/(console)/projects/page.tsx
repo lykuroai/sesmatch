@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
+import { prisma } from "@/server/db";
 import { listProjects } from "@/server/services/projects";
 import { PUBLISH_STATUS_LABELS, REMOTE_LEVEL_LABELS } from "@/lib/constants";
 import { IngestPanel } from "@/components/IngestPanel";
+import { PendingIngestions } from "@/components/PendingIngestions";
 
 export default async function ProjectsPage({
   searchParams,
@@ -15,7 +17,18 @@ export default async function ProjectsPage({
   const { scope: scopeParam, q } = await searchParams;
   const scope = scopeParam === "public" ? "public" : "own";
   const query = q?.trim() || undefined;
-  const projects = await listProjects(auth, scope, query);
+  const [projects, pendingJobs] = await Promise.all([
+    listProjects(auth, scope, query),
+    prisma.ingestionJob.findMany({
+      where: {
+        tenantCompanyId: auth.companyId,
+        status: "REVIEW_REQUIRED",
+        sourceDocument: { kind: "PROJECT_DESCRIPTION" },
+      },
+      include: { sourceDocument: { select: { filename: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
   return (
     <div>
@@ -31,6 +44,13 @@ export default async function ProjectsPage({
       <IngestPanel
         label="案件票・紹介メールから取込"
         hint="案件票や紹介メールの本文を貼り付け・アップロードするだけで登録できます。"
+      />
+      <PendingIngestions
+        jobs={pendingJobs.map((j) => ({
+          id: j.id,
+          filename: j.sourceDocument.filename,
+          createdAt: j.createdAt,
+        }))}
       />
       <div className="mb-4 flex gap-2">
         <Link

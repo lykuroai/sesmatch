@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
+import { prisma } from "@/server/db";
 import { listEngineers } from "@/server/services/engineers";
 import {
   AFFILIATION_LABELS,
@@ -8,6 +9,7 @@ import {
   REMOTE_LEVEL_LABELS,
 } from "@/lib/constants";
 import { IngestPanel } from "@/components/IngestPanel";
+import { PendingIngestions } from "@/components/PendingIngestions";
 
 export default async function EngineersPage({
   searchParams,
@@ -19,7 +21,18 @@ export default async function EngineersPage({
   const { scope: scopeParam, q } = await searchParams;
   const scope = scopeParam === "public" ? "public" : "own";
   const query = q?.trim() || undefined;
-  const engineers = await listEngineers(auth, scope, query);
+  const [engineers, pendingJobs] = await Promise.all([
+    listEngineers(auth, scope, query),
+    prisma.ingestionJob.findMany({
+      where: {
+        tenantCompanyId: auth.companyId,
+        status: "REVIEW_REQUIRED",
+        sourceDocument: { kind: "ENGINEER_SHEET" },
+      },
+      include: { sourceDocument: { select: { filename: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
   return (
     <div>
@@ -35,6 +48,13 @@ export default async function EngineersPage({
       <IngestPanel
         label="スキルシート・紹介メールから取込"
         hint="人材のスキルシートや紹介メールの本文を貼り付け・アップロードするだけで登録できます。"
+      />
+      <PendingIngestions
+        jobs={pendingJobs.map((j) => ({
+          id: j.id,
+          filename: j.sourceDocument.filename,
+          createdAt: j.createdAt,
+        }))}
       />
       <div className="mb-4 flex gap-2">
         <Link
