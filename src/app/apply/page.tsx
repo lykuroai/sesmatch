@@ -101,7 +101,10 @@ export default function ApplyPage() {
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" name="agreedToTerms" required className="mt-0.5" />
             <span>
-              利用規約・基本契約に同意します（案件・人材の再転載、無承認の再仲介、二社下以降の流通、
+              <Link href="/terms" target="_blank" className="text-blue-600 hover:underline">利用規約</Link>・
+              <Link href="/agreement" target="_blank" className="text-blue-600 hover:underline">基本契約</Link>・
+              <Link href="/privacy-policy" target="_blank" className="text-blue-600 hover:underline">プライバシーポリシー</Link>
+              に同意します（案件・人材の再転載、無承認の再仲介、二社下以降の流通、
               直接取引の迂回は禁止されています）
             </span>
           </label>
