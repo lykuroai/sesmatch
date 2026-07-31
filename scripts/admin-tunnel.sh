@@ -17,9 +17,19 @@ BIND_ADDR="${BIND_ADDR:-10.8.1.18}"
 LOCAL_PORT="${LOCAL_PORT:-3001}"
 
 if [ "${1:-}" = "stop" ]; then
-  pkill -f "ssh.*${LOCAL_PORT}:127.0.0.1:3000" && echo "トンネルを閉じました" || echo "トンネルは開いていません"
+  killed=""
+  pkill -f "admin-tunnel\.sh$" 2>/dev/null && killed=1 || true # 再接続ループ本体
+  pkill -f "ssh.*${LOCAL_PORT}:127.0.0.1:3000" && killed=1 || true
+  [ -n "$killed" ] && echo "トンネルを閉じました" || echo "トンネルは開いていません"
   exit 0
 fi
 
 echo "本番アプリトンネル: http://$BIND_ADDR:$LOCAL_PORT/admin (Ctrl+C で切断)"
-exec ssh -i "$SSH_KEY" -N -L "$BIND_ADDR:$LOCAL_PORT:127.0.0.1:3000" -o ExitOnForwardFailure=yes "$EC2_HOST"
+# keepalive で無通信切断を防ぎ、切れたら自動で張り直す
+while true; do
+  ssh -i "$SSH_KEY" -N -L "$BIND_ADDR:$LOCAL_PORT:127.0.0.1:3000" \
+    -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 \
+    "$EC2_HOST" && break
+  echo "トンネル切断を検知。5秒後に再接続します..." >&2
+  sleep 5
+done

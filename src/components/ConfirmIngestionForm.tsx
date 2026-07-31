@@ -188,7 +188,7 @@ export function ConfirmIngestionForm({
       </p>
       {error && <p className="rounded bg-red-50 p-2 text-xs text-red-700">{error}</p>}
       <div className="grid grid-cols-3 gap-3">
-        <div className="col-span-2">
+        <div className="col-span-3">
           <label className={label}>案件名</label>
           <input name="name" defaultValue={d.name ?? ""} className={input} />
         </div>

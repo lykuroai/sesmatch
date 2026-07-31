@@ -40,7 +40,7 @@ export function IngestPaste() {
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-72 rounded border border-slate-300 px-2 py-1.5 text-sm"
+          className="w-full max-w-2xl rounded border border-slate-300 px-2 py-1.5 text-sm"
           placeholder="例: ○○案件のご紹介メール"
         />
       </div>
