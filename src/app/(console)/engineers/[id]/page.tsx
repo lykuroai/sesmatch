@@ -13,6 +13,7 @@ import { ActionButton } from "@/components/ActionButton";
 import { MatchPanel } from "@/components/MatchPanel";
 import { ConsentForm } from "@/components/ConsentForm";
 import { EntryCreate } from "@/components/EntryCreate";
+import { ResizableColumns } from "@/components/ResizableColumns";
 import { listProjects } from "@/server/services/projects";
 
 export default async function EngineerDetailPage({
@@ -73,8 +74,10 @@ export default async function EngineerDetailPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <ResizableColumns
+        storageKey="engineer-detail-columns"
+        left={
+          <section className="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">基本情報</h2>
           <dl className="space-y-2 text-sm">
             <Row label="単価帯（公開）" value={e.rateBand} />
@@ -98,9 +101,10 @@ export default async function EngineerDetailPage({
             <Row label="本人同意" value={e.hasValidConsent ? "有効" : "なし"} />
           </dl>
           {e.summary && <p className="mt-4 whitespace-pre-wrap text-sm text-slate-600">{e.summary}</p>}
-        </section>
-
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          </section>
+        }
+        right={
+          <section className="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">スキル</h2>
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-slate-500">
@@ -124,8 +128,9 @@ export default async function EngineerDetailPage({
               ))}
             </tbody>
           </table>
-        </section>
-      </div>
+          </section>
+        }
+      />
 
       {e.maskedSourceText && (
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

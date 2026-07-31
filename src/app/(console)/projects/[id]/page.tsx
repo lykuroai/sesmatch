@@ -11,6 +11,7 @@ import {
 import { ActionButton } from "@/components/ActionButton";
 import { MatchPanel } from "@/components/MatchPanel";
 import { EntryCreate } from "@/components/EntryCreate";
+import { ResizableColumns } from "@/components/ResizableColumns";
 import { listEngineers } from "@/server/services/engineers";
 
 export default async function ProjectDetailPage({
@@ -71,8 +72,10 @@ export default async function ProjectDetailPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <ResizableColumns
+        storageKey="project-detail-columns"
+        left={
+          <section className="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">案件条件</h2>
           <dl className="space-y-2 text-sm">
             <Row label="開始日" value={new Date(p.startDate).toLocaleDateString("ja-JP")} />
@@ -93,9 +96,10 @@ export default async function ProjectDetailPage({
             />
             <Row label="面談回数" value={`${p.interviewCount}回`} />
           </dl>
-        </section>
-
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          </section>
+        }
+        right={
+          <section className="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">スキル要件</h2>
           <p className="mb-1 text-xs text-slate-500">必須</p>
           <div className="mb-3 flex flex-wrap gap-1">
@@ -118,8 +122,9 @@ export default async function ProjectDetailPage({
           </div>
           <h2 className="mb-2 mt-5 font-bold">匿名概要</h2>
           <p className="whitespace-pre-wrap text-sm text-slate-600">{p.anonymousSummary}</p>
-        </section>
-      </div>
+          </section>
+        }
+      />
 
       {p.maskedSourceText && (
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
