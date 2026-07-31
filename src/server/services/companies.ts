@@ -55,7 +55,7 @@ export async function applyCompany(input: {
   });
   await sendMail({
     to: input.email,
-    subject: "【SESマッチング】企業登録の申込を受け付けました",
+    subject: "【Ai-SESマッチング】企業登録の申込を受け付けました",
     body: `${input.ownerName} 様
 
 ${input.companyName} の企業登録申込を受け付けました。
@@ -102,7 +102,7 @@ export async function approveCompany(companyId: string, initialPassword?: string
     for (const m of pending) {
       await sendMail({
         to: m.userAccount.email,
-        subject: "【SESマッチング】企業アカウント開設のお知らせ",
+        subject: "【Ai-SESマッチング】企業アカウント開設のお知らせ",
         body: `${m.userAccount.name} 様
 
 ${company.name} の企業登録が承認され、アカウントが有効になりました。
@@ -123,7 +123,7 @@ ${company.name} の企業登録が承認され、アカウントが有効にな�
   if (owner) {
     await sendMail({
       to: owner.userAccount.email,
-      subject: "【SESマッチング】企業登録が承認されました",
+      subject: "【Ai-SESマッチング】企業登録が承認されました",
       body: `${owner.userAccount.name} 様
 
 ${company.name} の企業登録が承認され、利用を開始できるようになりました。
@@ -343,7 +343,7 @@ export async function reinviteMemberByOperations(memberId: string) {
   });
   await sendMail({
     to: member.userAccount.email,
-    subject: "【SESマッチング】メンバー招待のお知らせ",
+    subject: "【Ai-SESマッチング】メンバー招待のお知らせ",
     body: `${member.userAccount.name} 様
 
 ${member.company.name} のメンバーとして招待されました。
@@ -671,7 +671,7 @@ export async function inviteMember(
   const company = await prisma.company.findUnique({ where: { id: auth.companyId } });
   await sendMail({
     to: input.email,
-    subject: "【SESマッチング】メンバー招待のお知らせ",
+    subject: "【Ai-SESマッチング】メンバー招待のお知らせ",
     body: `${input.name} 様
 
 ${company?.name ?? ""} のメンバーとして招待されました。
@@ -810,7 +810,7 @@ export async function reinviteMember(auth: AuthContext, memberId: string) {
   const company = await prisma.company.findUnique({ where: { id: auth.companyId } });
   await sendMail({
     to: member.userAccount.email,
-    subject: "【SESマッチング】メンバー招待のお知らせ（再送）",
+    subject: "【Ai-SESマッチング】メンバー招待のお知らせ（再送）",
     body: `${member.userAccount.name} 様
 
 ${company?.name ?? ""} のメンバーとして招待されました。

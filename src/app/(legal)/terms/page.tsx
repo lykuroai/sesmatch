@@ -3,18 +3,18 @@ const h2 = "mt-8 mb-2 text-base font-bold text-slate-800";
 const p = "mb-2 text-sm leading-relaxed text-slate-700";
 const li = "mb-1 text-sm leading-relaxed text-slate-700";
 
-export const metadata = { title: "利用規約 | SESマッチング" };
+export const metadata = { title: "利用規約 | Ai-SESマッチング" };
 
 export default function TermsPage() {
   return (
     <article>
-      <h1 className="text-xl font-bold text-slate-900">SESマッチングプラットフォーム利用規約</h1>
+      <h1 className="text-xl font-bold text-slate-900">Ai-SESマッチングプラットフォーム利用規約</h1>
       <p className="mt-2 text-xs text-slate-400">制定日: 2026年7月31日／最終改定日: 2026年7月31日</p>
 
       <h2 className={h2}>第1条（適用）</h2>
       <p className={p}>
-        本規約は、株式会社eビジネスソリューション（以下「当社」といいます）が提供するSESマッチングプラットフォーム
-        「SESマッチング」（以下「本サービス」といいます）の利用条件を定めるものです。
+        本規約は、株式会社eビジネスソリューション（以下「当社」といいます）が提供するAi-SESマッチングプラットフォーム
+        「Ai-SESマッチング」（以下「本サービス」といいます）の利用条件を定めるものです。
         登録企業（以下「利用企業」といいます）は、本規約および当社が別途定める
         「サービス利用基本契約」（以下「基本契約」といいます）に同意のうえ本サービスを利用するものとします。
         本規約と基本契約の内容が抵触する場合は、基本契約が優先します。

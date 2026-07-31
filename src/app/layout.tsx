@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SESマッチングプラットフォーム",
+  title: "Ai-SESマッチングプラットフォーム",
   description: "企業間SES案件・人材マッチング 企業コンソール",
 };
 

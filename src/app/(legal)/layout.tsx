@@ -7,7 +7,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
       <div className="mx-auto max-w-3xl px-6 py-10">
         <div className="mb-6 flex items-center justify-between text-sm">
           <Link href="/" className="font-bold text-slate-800">
-            SESマッチング
+            Ai-SESマッチング
           </Link>
           <nav className="flex gap-4 text-xs text-slate-500">
             <Link href="/terms" className="hover:underline">

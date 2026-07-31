@@ -32,7 +32,7 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center">
       <form onSubmit={submit} className="w-96 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-xl font-bold">SESマッチングプラットフォーム</h1>
+        <h1 className="mb-1 text-xl font-bold">Ai-SESマッチングプラットフォーム</h1>
         <p className="mb-6 text-sm text-slate-500">企業コンソールにログイン</p>
         {error && <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
         <label className="mb-1 block text-sm font-medium">メールアドレス</label>
