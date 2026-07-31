@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
 import { prisma } from "@/server/db";
 import { INGESTION_STATUS_LABELS } from "@/lib/constants";
+import { ActionButton } from "@/components/ActionButton";
 import { IngestUpload } from "@/components/IngestUpload";
 import { IngestPaste } from "@/components/IngestPaste";
 import { ConfirmIngestionForm } from "@/components/ConfirmIngestionForm";
@@ -71,6 +72,11 @@ export default async function IngestionsPage() {
               </div>
             </div>
             {job.error && <p className="mt-2 text-xs text-red-600">{job.error}</p>}
+            {job.status === "FAILED" && (
+              <div className="mt-2">
+                <ActionButton path={`/api/v1/ingestions/${job.id}/retry`} label="再実行" />
+              </div>
+            )}
             {canConfirm &&
               job.status === "REVIEW_REQUIRED" &&
               job.extraction &&

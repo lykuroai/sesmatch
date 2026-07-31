@@ -66,14 +66,38 @@ export class OpenAiCompatGateway implements LlmGateway {
   private model = process.env.LLM_MODEL ?? "";
   private apiKey = process.env.LLM_API_KEY ?? "";
 
-  private async call(purpose: string, prompt: string, maxTokens: number): Promise<unknown> {
+  // タイムアウト（504等）・一時エラー（429/5xx）・ネットワーク断は自動リトライする
+  private async fetchWithRetry(body: string): Promise<Response> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (this.apiKey) headers.Authorization = `Bearer ${this.apiKey}`;
+    const waits = [2000, 5000]; // リトライ間隔（最大3回試行）
+    let lastError = "";
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await fetch(`${this.baseUrl}/chat/completions`, { method: "POST", headers, body });
+        if (res.ok) return res;
+        const respBody = await res.text().catch(() => "");
+        // HTML のエラーページ（Cloudflare 等）は本文を捨ててステータスだけ残す
+        const detail = respBody.trimStart().startsWith("<") ? "" : ` ${respBody.slice(0, 200)}`;
+        lastError = `LLM API エラー: HTTP ${res.status}${detail}`;
+        const retryable = res.status === 429 || res.status >= 500;
+        if (!retryable || attempt >= waits.length)
+          throw new Error(
+            retryable ? `${lastError}（LLM側の一時的な障害の可能性があります。しばらくして再実行してください）` : lastError
+          );
+      } catch (e) {
+        if (e instanceof Error && e.message.startsWith("LLM API エラー")) throw e;
+        lastError = `LLM API への接続に失敗しました: ${e instanceof Error ? e.message : String(e)}`;
+        if (attempt >= waits.length)
+          throw new Error(`${lastError}（しばらくして再実行してください）`);
+      }
+      await new Promise((r) => setTimeout(r, waits[attempt]));
+    }
+  }
 
-    const res = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
+  private async call(purpose: string, prompt: string, maxTokens: number): Promise<unknown> {
+    const res = await this.fetchWithRetry(
+      JSON.stringify({
         model: this.model,
         max_tokens: maxTokens,
         temperature: 0,
@@ -82,12 +106,8 @@ export class OpenAiCompatGateway implements LlmGateway {
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: prompt },
         ],
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error(`LLM API エラー: HTTP ${res.status} ${body.slice(0, 200)}`);
-    }
+      })
+    );
     const data = (await res.json()) as {
       choices?: { message?: { content?: string } }[];
       usage?: { prompt_tokens?: number; completion_tokens?: number };

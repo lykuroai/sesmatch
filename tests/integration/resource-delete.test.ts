@@ -24,7 +24,7 @@ async function seedEngineer(auth: AuthContext) {
     skills: [{ category: "LANGUAGE", name: "Java", months: 60 }],
     processes: [],
   } as never);
-  return (e as { engineer: { id: string } }).engineer ?? (e as { id: string });
+  return e as unknown as { id: string };
 }
 
 async function seedProject(auth: AuthContext) {

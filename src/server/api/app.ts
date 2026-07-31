@@ -94,7 +94,7 @@ import {
   updateMemberProfile,
   updateMemberRoles,
 } from "@/server/services/companies";
-import { startIngestion } from "@/server/pipeline/ingest";
+import { retryIngestion, startIngestion } from "@/server/pipeline/ingest";
 import { csvToCompanyRows, parseCsv } from "@/lib/csv";
 import { engineerDraftSchema, projectDraftSchema } from "@/server/pipeline/llm";
 
@@ -724,6 +724,19 @@ app.get("/ingestions/:id", requirePermission("ingestion.create"), async (c) => {
 });
 
 // 人手確認 → 確定DB反映（§9.2）
+// 失敗した取込ジョブの再実行（LLM一時障害等からの復旧）
+app.post("/ingestions/:id/retry", requirePermission("ingestion.create"), async (c) => {
+  const auth = c.get("auth");
+  const result = await retryIngestion({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    jobId: c.req.param("id"),
+  });
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
 app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), async (c) => {
   const auth = c.get("auth");
   const job = await prisma.ingestionJob.findFirst({
