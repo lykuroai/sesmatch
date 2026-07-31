@@ -9,7 +9,7 @@ export default function AgreementPage() {
   return (
     <article>
       <h1 className="text-xl font-bold text-slate-900">サービス利用基本契約</h1>
-      <p className="mt-2 text-xs text-slate-400">制定日: 【制定日】／最終改定日: 【改定日】</p>
+      <p className="mt-2 text-xs text-slate-400">制定日: 2026年7月31日／最終改定日: 2026年7月31日</p>
       <p className={p + " mt-4"}>
         本契約は、株式会社eビジネスソリューション（以下「当社」といいます）と、SESマッチングプラットフォーム
         「SESマッチング」（以下「本サービス」といいます）の利用を申し込んだ企業（以下「利用企業」と
@@ -147,7 +147,7 @@ export default function AgreementPage() {
       <h2 className={h2}>第12条（準拠法・管轄）</h2>
       <p className={p}>
         本契約は日本法に準拠し、本契約に関して紛争が生じた場合、
-        【管轄裁判所（例: 東京地方裁判所）】を第一審の専属的合意管轄裁判所とします。
+        東京地方裁判所を第一審の専属的合意管轄裁判所とします。
       </p>
     </article>
   );

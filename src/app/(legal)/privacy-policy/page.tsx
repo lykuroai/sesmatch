@@ -9,7 +9,7 @@ export default function PrivacyPage() {
   return (
     <article>
       <h1 className="text-xl font-bold text-slate-900">プライバシーポリシー</h1>
-      <p className="mt-2 text-xs text-slate-400">制定日: 【制定日】／最終改定日: 【改定日】</p>
+      <p className="mt-2 text-xs text-slate-400">制定日: 2026年7月31日／最終改定日: 2026年7月31日</p>
       <p className={p + " mt-4"}>
         株式会社eビジネスソリューション（以下「当社」といいます）は、SESマッチングプラットフォーム「SESマッチング」
         （以下「本サービス」といいます）における個人情報その他の情報の取扱いについて、
@@ -19,7 +19,7 @@ export default function PrivacyPage() {
       <h2 className={h2}>1. 事業者情報</h2>
       <p className={p}>
         事業者名: 株式会社eビジネスソリューション／所在地: 東京都江東区塩浜２－１３－９／
-        代表者: 郭亮／個人情報保護管理者: 【担当部署・役職】
+        代表者: 郭亮／個人情報保護管理者: 取締役
       </p>
 
       <h2 className={h2}>2. 取得する情報</h2>

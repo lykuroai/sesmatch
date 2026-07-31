@@ -9,7 +9,7 @@ export default function TermsPage() {
   return (
     <article>
       <h1 className="text-xl font-bold text-slate-900">SESマッチングプラットフォーム利用規約</h1>
-      <p className="mt-2 text-xs text-slate-400">制定日: 【制定日】／最終改定日: 【改定日】</p>
+      <p className="mt-2 text-xs text-slate-400">制定日: 2026年7月31日／最終改定日: 2026年7月31日</p>
 
       <h2 className={h2}>第1条（適用）</h2>
       <p className={p}>
@@ -167,7 +167,7 @@ export default function TermsPage() {
       <h2 className={h2}>第13条（準拠法・管轄）</h2>
       <p className={p}>
         本規約は日本法に準拠します。本サービスに関して紛争が生じた場合、
-        【管轄裁判所（例: 東京地方裁判所）】を第一審の専属的合意管轄裁判所とします。
+        東京地方裁判所を第一審の専属的合意管轄裁判所とします。
       </p>
     </article>
   );
