@@ -640,6 +640,19 @@ model CompanyRelationship {
   @@map("company_relationships")
 }
 
+// ---- 販促先（プロスペクト） ----
+// テナント未登録の営業PR・お知らせメール配信先。企業CSVと同じフォーマットで取込む
+
+model ProspectContact {
+  id          String   @id @default(cuid())
+  companyName String
+  contactName String
+  email       String   @unique
+  createdAt   DateTime @default(now())
+
+  @@map("prospect_contacts")
+}
+
 // ---- 通報・異議申立て (§24, Phase 2) ----
 
 enum ReportStatus {

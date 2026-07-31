@@ -498,37 +498,124 @@ export async function listAllMembersByOperations() {
   };
 }
 
-// 運営: 選択した担当者への一斉メール配信（営業PR・お知らせ）。
-// 実行は運営者の明示操作を前提とする。複数企業に所属するアカウントへの重複配信は除外。
+// 運営: 販促先リスト（CSV）の取込。企業CSVと同じフォーマット（3列/5列）を受け付け、
+// 企業名・担当者名・メールアドレスを配信先として保存する（テナント登録はしない）。
+// 登録済みメールアドレスの行はエラーにせずスキップする（冪等）
+export async function importProspects(rows: CompanyImportRow[]) {
+  const results: {
+    row: number;
+    companyName: string;
+    ok: boolean;
+    skipped?: boolean;
+    message?: string;
+  }[] = [];
+  let created = 0;
+  for (const [i, row] of rows.entries()) {
+    const rowNo = i + 1;
+    if (!row.companyName || !row.ownerName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
+      results.push({
+        row: rowNo,
+        companyName: row.companyName,
+        ok: false,
+        message: "企業名・担当者名・メールアドレスは必須です",
+      });
+      continue;
+    }
+    const existing = await prisma.prospectContact.findUnique({ where: { email: row.email } });
+    if (existing) {
+      results.push({
+        row: rowNo,
+        companyName: row.companyName,
+        ok: true,
+        skipped: true,
+        message: "スキップ: このメールアドレスは登録済みです",
+      });
+      continue;
+    }
+    await prisma.prospectContact.create({
+      data: { companyName: row.companyName, contactName: row.ownerName, email: row.email },
+    });
+    created++;
+    results.push({ row: rowNo, companyName: row.companyName, ok: true });
+  }
+  await audit({
+    action: "ProspectsImported",
+    targetType: "ProspectContact",
+    metadata: { rows: rows.length, created },
+  });
+  return { created, results };
+}
+
+// 運営: 販促先の一覧（メール配信の宛先選択用）
+export async function listProspects() {
+  const items = await prisma.prospectContact.findMany({
+    orderBy: [{ companyName: "asc" }, { createdAt: "asc" }],
+    take: 5000,
+  });
+  return { items };
+}
+
+// 運営: 販促先の削除
+export async function deleteProspect(id: string) {
+  const prospect = await prisma.prospectContact.findUnique({ where: { id } });
+  if (!prospect) return { error: { code: "NOT_FOUND" as const } };
+  await prisma.prospectContact.delete({ where: { id } });
+  await audit({
+    action: "ProspectDeleted",
+    targetType: "ProspectContact",
+    targetId: id,
+  });
+  return { ok: true as const };
+}
+
+// 運営: 選択した担当者・販促先への一斉メール配信（営業PR・お知らせ）。
+// 実行は運営者の明示操作を前提とする。同一メールアドレスへの重複配信は除外。
 // 監査ログには件名・件数のみ記録し、宛先の氏名・メールアドレス（PII）は含めない。
 export async function sendBroadcastMailByOperations(input: {
-  memberIds: string[];
+  memberIds?: string[];
+  prospectIds?: string[];
   subject: string;
   body: string;
 }) {
-  const memberIds = [...new Set(input.memberIds)];
-  if (memberIds.length === 0)
+  const memberIds = [...new Set(input.memberIds ?? [])];
+  const prospectIds = [...new Set(input.prospectIds ?? [])];
+  const requested = memberIds.length + prospectIds.length;
+  if (requested === 0)
     return { error: { code: "VALIDATION_ERROR" as const, message: "宛先を選択してください" } };
-  const members = await prisma.companyMember.findMany({
-    where: { id: { in: memberIds } },
-    include: { userAccount: true },
-  });
-  if (members.length === 0)
+  const members = memberIds.length
+    ? await prisma.companyMember.findMany({
+        where: { id: { in: memberIds } },
+        include: { userAccount: true },
+      })
+    : [];
+  const prospects = prospectIds.length
+    ? await prisma.prospectContact.findMany({ where: { id: { in: prospectIds } } })
+    : [];
+  const recipients = [
+    ...members.map((m) => m.userAccount.email),
+    ...prospects.map((p) => p.email),
+  ];
+  if (recipients.length === 0)
     return { error: { code: "NOT_FOUND" as const, message: "宛先が見つかりません" } };
   const seen = new Set<string>();
   let sent = 0;
-  for (const m of members) {
-    if (seen.has(m.userAccount.email)) continue;
-    seen.add(m.userAccount.email);
-    await sendMail({ to: m.userAccount.email, subject: input.subject, body: input.body });
+  for (const email of recipients) {
+    if (seen.has(email)) continue;
+    seen.add(email);
+    await sendMail({ to: email, subject: input.subject, body: input.body });
     sent++;
   }
   await audit({
     action: "OperationsBroadcastMailSent",
     targetType: "CompanyMember",
-    metadata: { subject: input.subject, requested: memberIds.length, sent },
+    metadata: {
+      subject: input.subject,
+      requested,
+      sent,
+      prospects: prospects.length,
+    },
   });
-  return { sent, notFound: memberIds.length - members.length };
+  return { sent, notFound: requested - members.length - prospects.length };
 }
 
 const ASSIGNABLE_ROLES = [

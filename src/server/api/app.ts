@@ -73,7 +73,10 @@ import {
   deleteCompanyByOperations,
   deleteMember,
   deleteMemberByOperations,
+  deleteProspect,
   importCompanies,
+  importProspects,
+  listProspects,
   inviteMember,
   listAllCompanies,
   listAllMembersByOperations,
@@ -262,7 +265,7 @@ app.post("/operations/members/:id/reinvite", requireAdminToken, async (c) => {
 });
 
 // 運営: メール配信（営業PR・お知らせ）。宛先一覧と一斉送信。
-// 1リクエストの宛先は200名まで（UI側で分割送信する）
+// 1リクエストの宛先は担当者・販促先合計200名まで（UI側で分割送信する）
 app.get("/operations/members/all", requireAdminToken, async (c) =>
   c.json(await listAllMembersByOperations())
 );
@@ -270,13 +273,43 @@ app.get("/operations/members/all", requireAdminToken, async (c) =>
 app.post("/operations/mail/broadcast", requireAdminToken, async (c) => {
   const parsed = z
     .object({
-      memberIds: z.array(z.string()).min(1).max(200),
+      memberIds: z.array(z.string()).max(200).optional(),
+      prospectIds: z.array(z.string()).max(200).optional(),
       subject: z.string().min(1).max(200),
       body: z.string().min(1).max(20000),
+    })
+    .refine(
+      (v) => (v.memberIds?.length ?? 0) + (v.prospectIds?.length ?? 0) > 0,
+      { message: "宛先を選択してください" }
+    )
+    .refine((v) => (v.memberIds?.length ?? 0) + (v.prospectIds?.length ?? 0) <= 200, {
+      message: "宛先は1リクエスト200名までです",
     })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
   const result = await sendBroadcastMailByOperations(parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+// 運営: 販促先リストの取込（企業CSVと同じ3列/5列フォーマット）・一覧・削除
+app.post("/operations/prospects/import", requireAdminToken, async (c) => {
+  const parsed = z
+    .object({ csv: z.string().min(1).max(20_000_000) })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const rows = csvToCompanyRows(parseCsv(parsed.data.csv));
+  if (rows.length === 0) return c.json(err("VALIDATION_ERROR", "データ行がありません"), 400);
+  return c.json(await importProspects(rows));
+});
+
+app.get("/operations/prospects", requireAdminToken, async (c) =>
+  c.json(await listProspects())
+);
+
+app.delete("/operations/prospects/:id", requireAdminToken, async (c) => {
+  const result = await deleteProspect(c.req.param("id"));
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);

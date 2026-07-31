@@ -3,8 +3,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/server/db";
 import {
+  deleteProspect,
   importCompanies,
+  importProspects,
   listAllMembersByOperations,
+  listProspects,
   sendBroadcastMailByOperations,
 } from "@/server/services/companies";
 import { truncateAll } from "./helpers";
@@ -90,5 +93,77 @@ describe("sendBroadcastMailByOperations", () => {
     const a = list.items.find((m) => m.email === "cast-a@test.example");
     expect(a?.companyName).toBe("配信A社");
     expect(a?.companyStatus).toBe("APPLIED");
+  });
+});
+
+describe("importProspects / 販促先への配信", () => {
+  const rows = [
+    {
+      companyName: "見込みA社",
+      companyType: "CORPORATION" as const,
+      ownerName: "販促 太郎",
+      email: "lead-a@test.example",
+    },
+    {
+      companyName: "見込みB社",
+      companyType: "CORPORATION" as const,
+      ownerName: "販促 花子",
+      email: "lead-b@test.example",
+    },
+  ];
+
+  it("企業CSVと同じ形式の行を販促先として登録し、再取込はスキップする（冪等）", async () => {
+    const r = await importProspects(rows);
+    expect(r.created).toBe(2);
+    expect(r.results.every((x) => x.ok)).toBe(true);
+    // テナント（企業・アカウント）は作られない
+    expect(await prisma.company.count()).toBe(0);
+    expect(await prisma.userAccount.count()).toBe(0);
+
+    const again = await importProspects(rows);
+    expect(again.created).toBe(0);
+    expect(again.results.every((x) => x.ok && x.skipped)).toBe(true);
+    expect((await listProspects()).items).toHaveLength(2);
+  });
+
+  it("メール形式不正の行は失敗として返し、正常行のみ登録する", async () => {
+    const r = await importProspects([
+      rows[0],
+      { companyName: "不正社", companyType: "CORPORATION", ownerName: "誰か", email: "bad" },
+    ]);
+    expect(r.created).toBe(1);
+    expect(r.results.map((x) => x.ok)).toEqual([true, false]);
+  });
+
+  it("担当者と販促先を混在で配信でき、同一メールへは1通のみ", async () => {
+    const members = await seedMembers();
+    await importProspects([
+      rows[0],
+      // 既存担当者と同じメールアドレスの販促先（重複配信されないこと）
+      {
+        companyName: "重複社",
+        companyType: "CORPORATION",
+        ownerName: "甲",
+        email: "cast-a@test.example",
+      },
+    ]);
+    const prospects = (await listProspects()).items;
+    const r = await sendBroadcastMailByOperations({
+      memberIds: members.map((m) => m.id),
+      prospectIds: prospects.map((p) => p.id),
+      subject: "混在配信",
+      body: "本文",
+    });
+    if ("error" in r) throw new Error("broadcast failed");
+    // 担当者2 + 販促先2 のうち、メール重複1件を除いた3通
+    expect(r.sent).toBe(3);
+  });
+
+  it("販促先を削除できる", async () => {
+    await importProspects([rows[0]]);
+    const [p] = (await listProspects()).items;
+    expect(await deleteProspect(p.id)).toEqual({ ok: true });
+    expect((await listProspects()).items).toHaveLength(0);
+    expect("error" in (await deleteProspect("nope"))).toBe(true);
   });
 });

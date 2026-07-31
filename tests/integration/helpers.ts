@@ -16,6 +16,7 @@ export async function truncateAll() {
   const tables = [
     "audit_events",
     "reports",
+    "prospect_contacts",
     "company_relationships",
     "privacy_requests",
     "invoices",

@@ -514,9 +514,30 @@ type BroadcastMember = {
   companyStatus: string;
 };
 
-// メール配信（営業PR・お知らせ）: 宛先を選択して一斉送信。200名ずつ分割して送信する
+type BroadcastProspect = {
+  id: string;
+  companyName: string;
+  contactName: string;
+  email: string;
+};
+
+// 宛先行: 担当者（テナント）と販促先（プロスペクト）を1つの表で扱う
+type Recipient = {
+  key: string; // "m:<id>" | "p:<id>"
+  kind: "member" | "prospect";
+  id: string;
+  name: string;
+  email: string;
+  companyName: string;
+  memberStatus?: string;
+  companyStatus?: string;
+};
+
+// メール配信（営業PR・お知らせ）: 宛先を選択して一斉送信。200名ずつ分割して送信する。
+// 販促先は企業CSVと同じフォーマットのCSVから取り込める
 function MailBroadcastSection({ token }: { token: string }) {
   const [members, setMembers] = useState<BroadcastMember[]>([]);
+  const [prospects, setProspects] = useState<BroadcastProspect[]>([]);
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [subject, setSubject] = useState("");
@@ -525,28 +546,57 @@ function MailBroadcastSection({ token }: { token: string }) {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [prospectFile, setProspectFile] = useState<File | null>(null);
+  const [importingProspects, setImportingProspects] = useState(false);
+  const [prospectMsg, setProspectMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/v1/operations/members/all", { headers: { "X-Admin-Token": token } })
-      .then(async (res) => {
-        if (res.ok) setMembers((await res.json()).items);
-        else setError("宛先一覧の取得に失敗しました");
-      })
-      .catch(() => setError("宛先一覧の取得に失敗しました"));
+  const loadRecipients = useCallback(async () => {
+    const headers = { "X-Admin-Token": token };
+    const [mRes, pRes] = await Promise.all([
+      fetch("/api/v1/operations/members/all", { headers }),
+      fetch("/api/v1/operations/prospects", { headers }),
+    ]);
+    if (!mRes.ok || !pRes.ok) throw new Error("load failed");
+    setMembers((await mRes.json()).items);
+    setProspects((await pRes.json()).items);
   }, [token]);
 
+  useEffect(() => {
+    loadRecipients().catch(() => setError("宛先一覧の取得に失敗しました"));
+  }, [loadRecipients]);
+
+  const recipients: Recipient[] = [
+    ...members.map((m) => ({
+      key: `m:${m.id}`,
+      kind: "member" as const,
+      id: m.id,
+      name: m.name,
+      email: m.email,
+      companyName: m.companyName,
+      memberStatus: m.status,
+      companyStatus: m.companyStatus,
+    })),
+    ...prospects.map((p) => ({
+      key: `p:${p.id}`,
+      kind: "prospect" as const,
+      id: p.id,
+      name: p.contactName,
+      email: p.email,
+      companyName: p.companyName,
+    })),
+  ];
   const q = filter.trim().toLowerCase();
   const visible = q
-    ? members.filter((m) =>
-        [m.name, m.email, m.companyName].some((v) => v.toLowerCase().includes(q))
+    ? recipients.filter((r) =>
+        [r.name, r.email, r.companyName].some((v) => v.toLowerCase().includes(q))
       )
-    : members;
+    : recipients;
 
-  function toggle(id: string) {
+  function toggle(key: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }
@@ -554,20 +604,68 @@ function MailBroadcastSection({ token }: { token: string }) {
   function selectVisible(on: boolean) {
     setSelected((prev) => {
       const next = new Set(prev);
-      for (const m of visible) {
-        if (on) next.add(m.id);
-        else next.delete(m.id);
+      for (const r of visible) {
+        if (on) next.add(r.key);
+        else next.delete(r.key);
       }
       return next;
     });
   }
 
+  async function importProspectCsv() {
+    if (!prospectFile) return;
+    setError(null);
+    setProspectMsg(null);
+    setImportingProspects(true);
+    try {
+      const csv = await prospectFile.text();
+      const res = await fetch("/api/v1/operations/prospects/import", {
+        method: "POST",
+        headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+        body: JSON.stringify({ csv }),
+      });
+      const b = await res.json().catch(() => null);
+      if (res.ok) {
+        const skipped = b.results.filter((r: { skipped?: boolean }) => r.skipped).length;
+        const failed = b.results.filter((r: { ok: boolean }) => !r.ok).length;
+        setProspectMsg(
+          `販促先を ${b.created} 件登録しました${skipped ? ` ／ スキップ ${skipped} 行` : ""}${failed ? ` ／ 失敗 ${failed} 行` : ""}`
+        );
+        setProspectFile(null);
+        await loadRecipients();
+      } else {
+        setError(b?.error?.message ?? "販促先の取込に失敗しました");
+      }
+    } finally {
+      setImportingProspects(false);
+    }
+  }
+
+  async function removeProspect(r: Recipient) {
+    if (!window.confirm(`販促先 ${r.name}（${r.email}）を削除しますか？`)) return;
+    setError(null);
+    const res = await fetch(`/api/v1/operations/prospects/${r.id}`, {
+      method: "DELETE",
+      headers: { "X-Admin-Token": token },
+    });
+    if (res.ok) {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        next.delete(r.key);
+        return next;
+      });
+      await loadRecipients();
+    } else {
+      setError("販促先の削除に失敗しました");
+    }
+  }
+
   async function send() {
-    const ids = [...selected];
-    if (ids.length === 0 || !subject.trim() || !body.trim()) return;
+    const keys = [...selected];
+    if (keys.length === 0 || !subject.trim() || !body.trim()) return;
     if (
       !window.confirm(
-        `選択した ${ids.length} 名にメールを配信しますか？\n件名: ${subject.trim()}\nこの操作は取り消せません。`
+        `選択した ${keys.length} 名にメールを配信しますか？\n件名: ${subject.trim()}\nこの操作は取り消せません。`
       )
     )
       return;
@@ -577,12 +675,14 @@ function MailBroadcastSection({ token }: { token: string }) {
     setProgress(0);
     let sent = 0;
     try {
-      for (let i = 0; i < ids.length; i += 200) {
+      for (let i = 0; i < keys.length; i += 200) {
+        const chunk = keys.slice(i, i + 200);
         const res = await fetch("/api/v1/operations/mail/broadcast", {
           method: "POST",
           headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
           body: JSON.stringify({
-            memberIds: ids.slice(i, i + 200),
+            memberIds: chunk.filter((k) => k.startsWith("m:")).map((k) => k.slice(2)),
+            prospectIds: chunk.filter((k) => k.startsWith("p:")).map((k) => k.slice(2)),
             subject: subject.trim(),
             body: body.trim(),
           }),
@@ -593,7 +693,7 @@ function MailBroadcastSection({ token }: { token: string }) {
           return;
         }
         sent += b.sent;
-        setProgress(Math.min(i + 200, ids.length));
+        setProgress(Math.min(i + 200, keys.length));
       }
       setResult(`${sent} 名に配信しました`);
       setSelected(new Set());
@@ -606,10 +706,29 @@ function MailBroadcastSection({ token }: { token: string }) {
     <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="mb-1 font-bold">メール配信（営業PR・お知らせ）</h2>
       <p className="mb-3 text-xs text-slate-500">
-        宛先に選択した担当者へ同じ内容のメールを一斉送信します。複数企業に所属する同一アカウントへは1通のみ送ります。
+        宛先に選択した担当者・販促先へ同じ内容のメールを一斉送信します。同一メールアドレスへは1通のみ送ります。
+        販促先は企業CSVと同じフォーマット（3列: 企業名, 担当者名, メールアドレス ／ 5列にも対応）の
+        CSVから取り込めます（テナント登録はされず、配信先としてのみ使われます）。
       </p>
       {error && <p className="mb-2 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
       {result && <p className="mb-2 rounded bg-emerald-50 p-2 text-sm text-emerald-700">{result}</p>}
+      <div className="mb-3 flex flex-wrap items-center gap-3 rounded border border-slate-100 bg-slate-50 p-3">
+        <span className="text-xs font-medium text-slate-600">販促先リスト取込（CSV）</span>
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          onChange={(e) => setProspectFile(e.target.files?.[0] ?? null)}
+          className="text-sm"
+        />
+        <button
+          onClick={importProspectCsv}
+          disabled={!prospectFile || importingProspects}
+          className="rounded bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-40"
+        >
+          {importingProspects ? "取込中..." : "取り込む"}
+        </button>
+        {prospectMsg && <span className="text-xs text-emerald-700">{prospectMsg}</span>}
+      </div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <input
           value={filter}
@@ -630,37 +749,58 @@ function MailBroadcastSection({ token }: { token: string }) {
           表示中を解除
         </button>
         <span className="text-xs text-slate-500">
-          選択 {selected.size} 名 ／ 表示 {visible.length} 名 ／ 全 {members.length} 名
+          選択 {selected.size} 名 ／ 表示 {visible.length} 名 ／ 担当者 {members.length} 名・販促先 {prospects.length} 件
         </span>
       </div>
       <div className="mb-3 max-h-64 overflow-y-auto rounded border border-slate-100">
         <table className="w-full text-sm">
           <tbody>
-            {visible.map((m) => (
-              <tr key={m.id} className="border-t border-slate-100 first:border-t-0 hover:bg-slate-50">
+            {visible.map((r) => (
+              <tr key={r.key} className="border-t border-slate-100 first:border-t-0 hover:bg-slate-50">
                 <td className="w-8 px-2 py-1.5">
                   <input
                     type="checkbox"
-                    checked={selected.has(m.id)}
-                    onChange={() => toggle(m.id)}
+                    checked={selected.has(r.key)}
+                    onChange={() => toggle(r.key)}
                   />
                 </td>
-                <td className="px-2 py-1.5 font-medium">{m.name}</td>
-                <td className="px-2 py-1.5 text-slate-500">{m.email}</td>
-                <td className="px-2 py-1.5 text-xs text-slate-500">{m.companyName}</td>
+                <td className="px-2 py-1.5">
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-xs ${
+                      r.kind === "prospect"
+                        ? "bg-purple-50 text-purple-700"
+                        : "bg-sky-50 text-sky-700"
+                    }`}
+                  >
+                    {r.kind === "prospect" ? "販促先" : "担当者"}
+                  </span>
+                </td>
+                <td className="px-2 py-1.5 font-medium">{r.name}</td>
+                <td className="px-2 py-1.5 text-slate-500">{r.email}</td>
+                <td className="px-2 py-1.5 text-xs text-slate-500">{r.companyName}</td>
                 <td className="px-2 py-1.5 text-xs">
-                  {m.companyStatus !== "ACTIVE" && (
+                  {r.kind === "member" && r.companyStatus !== "ACTIVE" && (
                     <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700">未開通</span>
                   )}
-                  {m.status !== "ACTIVE" && (
+                  {r.kind === "member" && r.memberStatus !== "ACTIVE" && (
                     <span className="ml-1 rounded bg-slate-100 px-1.5 py-0.5">停止中</span>
+                  )}
+                </td>
+                <td className="px-2 py-1.5 text-right">
+                  {r.kind === "prospect" && (
+                    <button
+                      onClick={() => removeProspect(r)}
+                      className="rounded border border-red-300 px-1.5 py-0.5 text-xs text-red-600 hover:bg-red-50"
+                    >
+                      削除
+                    </button>
                   )}
                 </td>
               </tr>
             ))}
             {visible.length === 0 && (
               <tr>
-                <td className="px-3 py-3 text-xs text-slate-400">該当する担当者がいません</td>
+                <td className="px-3 py-3 text-xs text-slate-400">該当する宛先がいません</td>
               </tr>
             )}
           </tbody>
