@@ -116,7 +116,7 @@ export default async function EngineerDetailPage({
                 <tr key={s.name} className="border-t border-slate-100">
                   <td className="py-1.5 text-xs text-slate-500">{SKILL_CATEGORY_LABELS[s.category]}</td>
                   <td className="py-1.5 font-medium">{s.name}</td>
-                  <td className="py-1.5">{Math.floor(s.months / 12)}年{s.months % 12}ヶ月</td>
+                  <td className="py-1.5">{formatMonths(s.months)}</td>
                   <td className="py-1.5">
                     {s.lastUsedAt ? new Date(s.lastUsedAt).toLocaleDateString("ja-JP") : "-"}
                   </td>
@@ -141,6 +141,16 @@ export default async function EngineerDetailPage({
       {canMatch && <MatchPanel direction="engineer-to-projects" targetId={e.id} />}
     </div>
   );
+}
+
+// 経験期間の表示。0（取込時の期間不明）は "-"、1年未満は「Nヶ月」、ちょうどN年は「N年」
+function formatMonths(months: number): string {
+  if (months <= 0) return "-";
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  if (years === 0) return `${rest}ヶ月`;
+  if (rest === 0) return `${years}年`;
+  return `${years}年${rest}ヶ月`;
 }
 
 function Row({ label, value }: { label: string; value: string }) {
