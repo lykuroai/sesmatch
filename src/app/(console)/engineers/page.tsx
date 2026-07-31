@@ -12,13 +12,14 @@ import { IngestPanel } from "@/components/IngestPanel";
 export default async function EngineersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ scope?: string }>;
+  searchParams: Promise<{ scope?: string; q?: string }>;
 }) {
   const auth = await getAuth();
   if (!auth) redirect("/login");
-  const { scope: scopeParam } = await searchParams;
+  const { scope: scopeParam, q } = await searchParams;
   const scope = scopeParam === "public" ? "public" : "own";
-  const engineers = await listEngineers(auth, scope);
+  const query = q?.trim() || undefined;
+  const engineers = await listEngineers(auth, scope, query);
 
   return (
     <div>
@@ -48,7 +49,29 @@ export default async function EngineersPage({
         >
           公開人材検索（他社・匿名）
         </Link>
+        <form method="GET" className="ml-auto flex items-center gap-2">
+          <input type="hidden" name="scope" value={scope} />
+          <input
+            name="q"
+            defaultValue={query ?? ""}
+            placeholder="スキル・エリア・概要などで検索"
+            className="w-72 rounded border border-slate-300 bg-white px-3 py-1.5 text-sm"
+          />
+          <button className="rounded bg-slate-800 px-3 py-1.5 text-sm text-white hover:bg-slate-700">
+            検索
+          </button>
+          {query && (
+            <Link href={`/engineers?scope=${scope}`} className="text-xs text-slate-500 hover:underline">
+              クリア
+            </Link>
+          )}
+        </form>
       </div>
+      {query && (
+        <p className="mb-3 text-xs text-slate-500">
+          「{query}」の検索結果: {engineers.length}件
+        </p>
+      )}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">

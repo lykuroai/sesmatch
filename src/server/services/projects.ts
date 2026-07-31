@@ -36,13 +36,28 @@ export function serializeProject(p: ProjectWithRels, auth: AuthContext) {
   };
 }
 
-export async function listProjects(auth: AuthContext, scope: "own" | "public") {
-  const where =
+export async function listProjects(auth: AuthContext, scope: "own" | "public", query?: string) {
+  const base =
     scope === "own"
       ? { tenantCompanyId: auth.companyId }
       : { status: "PUBLISHED" as const, NOT: { tenantCompanyId: auth.companyId } };
+  // キーワード検索: 案件名・コード・匿名概要・スキル名・勤務地・業種・工程
+  const q = query?.trim();
+  const search = q
+    ? {
+        OR: [
+          { name: { contains: q, mode: "insensitive" as const } },
+          { code: { contains: q, mode: "insensitive" as const } },
+          { anonymousSummary: { contains: q, mode: "insensitive" as const } },
+          { locationCity: { contains: q, mode: "insensitive" as const } },
+          { industry: { contains: q, mode: "insensitive" as const } },
+          { processes: { has: q } },
+          { skills: { some: { name: { contains: q, mode: "insensitive" as const } } } },
+        ],
+      }
+    : {};
   const projects = await prisma.project.findMany({
-    where,
+    where: { ...base, ...search },
     include: { skills: true },
     orderBy: { createdAt: "desc" },
   });

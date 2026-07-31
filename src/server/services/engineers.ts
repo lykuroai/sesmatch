@@ -53,14 +53,31 @@ export function serializeEngineer(e: EngineerWithRels, auth: AuthContext) {
   };
 }
 
-export async function listEngineers(auth: AuthContext, scope: "own" | "public") {
-  const where =
+export async function listEngineers(auth: AuthContext, scope: "own" | "public", query?: string) {
+  const base =
     scope === "own"
       ? { tenantCompanyId: auth.companyId, deletedAt: null }
       : // 公開人材検索: 他社の公開済み人材（Level 1 匿名表示）
         { status: "PUBLISHED" as const, deletedAt: null, NOT: { tenantCompanyId: auth.companyId } };
+  // キーワード検索: コード・概要・スキル名・居住エリア・工程/役割/業種。
+  // 氏名（PII）は自社スコープのみ対象（他社の匿名人材を氏名で探索できないようにする）
+  const q = query?.trim();
+  const search = q
+    ? {
+        OR: [
+          { code: { contains: q, mode: "insensitive" as const } },
+          { summary: { contains: q, mode: "insensitive" as const } },
+          { residenceCity: { contains: q, mode: "insensitive" as const } },
+          { skills: { some: { name: { contains: q, mode: "insensitive" as const } } } },
+          { processes: { has: q } },
+          { roles: { has: q } },
+          { industries: { has: q } },
+          ...(scope === "own" ? [{ name: { contains: q, mode: "insensitive" as const } }] : []),
+        ],
+      }
+    : {};
   const engineers = await prisma.engineer.findMany({
-    where,
+    where: { ...base, ...search },
     include: { skills: true, consents: true },
     orderBy: { createdAt: "desc" },
   });

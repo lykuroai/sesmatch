@@ -486,7 +486,7 @@ app.get("/me", async (c) => {
 
 app.get("/engineers", requirePermission("engineer.read.masked"), async (c) => {
   const scope = c.req.query("scope") === "public" ? "public" : "own";
-  return c.json({ items: await listEngineers(c.get("auth"), scope) });
+  return c.json({ items: await listEngineers(c.get("auth"), scope, c.req.query("q")) });
 });
 
 const engineerInputSchema = z.object({
@@ -578,7 +578,7 @@ app.post("/engineers/:id/publish", requirePermission("engineer.publish"), async 
 
 app.get("/projects", requirePermission("project.read"), async (c) => {
   const scope = c.req.query("scope") === "public" ? "public" : "own";
-  return c.json({ items: await listProjects(c.get("auth"), scope) });
+  return c.json({ items: await listProjects(c.get("auth"), scope, c.req.query("q")) });
 });
 
 const projectInputSchema = z.object({
