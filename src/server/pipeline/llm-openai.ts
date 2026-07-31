@@ -65,6 +65,9 @@ export class OpenAiCompatGateway implements LlmGateway {
   private baseUrl = (process.env.LLM_BASE_URL ?? "").replace(/\/+$/, "");
   private model = process.env.LLM_MODEL ?? "";
   private apiKey = process.env.LLM_API_KEY ?? "";
+  // 思考(reasoning)モデルの思考出力を抑制して高速化する（実測で3.4秒→1.5秒・トークン77%減）。
+  // 非対応モデルでエラーになる場合は LLM_REASONING_EFFORT=default で送信を止められる
+  private reasoningEffort = process.env.LLM_REASONING_EFFORT ?? "none";
 
   // タイムアウト（504等）・一時エラー（429/5xx）・ネットワーク断は自動リトライする
   private async fetchWithRetry(body: string): Promise<Response> {
@@ -102,6 +105,7 @@ export class OpenAiCompatGateway implements LlmGateway {
         max_tokens: maxTokens,
         temperature: 0,
         response_format: { type: "json_object" },
+        ...(this.reasoningEffort !== "default" ? { reasoning_effort: this.reasoningEffort } : {}),
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: prompt },
