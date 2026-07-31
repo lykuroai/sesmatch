@@ -47,6 +47,7 @@ export function serializeEngineer(e: EngineerWithRels, auth: AuthContext) {
     })),
     hasValidConsent: hasValidConsent(e.consents),
     workAuthStatus: own ? e.workAuthStatus : undefined,
+    maskedSourceText: own ? e.maskedSourceText : undefined, // 取込時の匿名化済み原文（自社のみ）
     // ---- Level 2 相当（自社 + PII権限のみ）----
     name: canPii ? e.name : undefined,
     desiredRateYen: canPii ? e.desiredRateYen : undefined,

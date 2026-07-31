@@ -792,6 +792,19 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
     createdId = result.project.id;
   }
 
+  // 匿名化済み原文を作成された案件・人材に保存する（詳細表示用）
+  if (createdId && job.sourceDocument.kind === "ENGINEER_SHEET") {
+    await prisma.engineer.update({
+      where: { id: createdId },
+      data: { maskedSourceText: job.extraction.maskedText },
+    });
+  } else if (createdId && job.sourceDocument.kind === "PROJECT_DESCRIPTION") {
+    await prisma.project.update({
+      where: { id: createdId },
+      data: { maskedSourceText: job.extraction.maskedText },
+    });
+  }
+
   await prisma.extractionResult.update({
     where: { id: job.extraction.id },
     data: {

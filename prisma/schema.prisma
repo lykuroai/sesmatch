@@ -166,6 +166,7 @@ model Engineer {
   status               PublishStatus   @default(DRAFT)
   deletedAt            DateTime? // 論理削除（本人削除請求 §26）。全クエリで除外すること
   summary              String          @default("") // 匿名化済み概要
+  maskedSourceText     String? // 取込時の匿名化済み原文（PII除去済み。詳細表示用）
   processes            String[] // 要件定義/設計/開発/テスト/運用
   roles                String[] // PM/PMO/リーダー等
   industries           String[]
@@ -231,6 +232,7 @@ model Project {
 
   name              String
   anonymousSummary  String // 匿名化済み概要（エンド企業名は抽象カテゴリ）
+  maskedSourceText  String? // 取込時の匿名化済み原文（PII除去済み。詳細表示用）
   industry          String?
   headcount         Int               @default(1)
   startDate         DateTime

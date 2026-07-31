@@ -127,6 +127,15 @@ export default async function EngineerDetailPage({
         </section>
       </div>
 
+      {e.maskedSourceText && (
+        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="mb-3 font-bold">取込原文（匿名化済み）</h2>
+          <pre className="max-h-96 overflow-y-auto whitespace-pre-wrap rounded bg-slate-50 p-4 text-sm text-slate-700">
+            {e.maskedSourceText}
+          </pre>
+        </section>
+      )}
+
       {canConsent && (
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">本人同意の登録</h2>

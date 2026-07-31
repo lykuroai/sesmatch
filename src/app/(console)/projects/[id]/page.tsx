@@ -121,6 +121,15 @@ export default async function ProjectDetailPage({
         </section>
       </div>
 
+      {p.maskedSourceText && (
+        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="mb-3 font-bold">取込原文（匿名化済み）</h2>
+          <pre className="max-h-96 overflow-y-auto whitespace-pre-wrap rounded bg-slate-50 p-4 text-sm text-slate-700">
+            {p.maskedSourceText}
+          </pre>
+        </section>
+      )}
+
       {canPropose && (
         <EntryCreate
           type="PROPOSAL"

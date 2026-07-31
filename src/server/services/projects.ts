@@ -33,6 +33,7 @@ export function serializeProject(p: ProjectWithRels, auth: AuthContext) {
     status: p.status,
     requiredSkills: p.skills.filter((s) => s.required).map((s) => ({ name: s.name, minMonths: s.minMonths })),
     preferredSkills: p.skills.filter((s) => !s.required).map((s) => ({ name: s.name })),
+    maskedSourceText: own ? p.maskedSourceText : undefined, // 取込時の匿名化済み原文（自社のみ）
   };
 }
 
