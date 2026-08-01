@@ -178,6 +178,11 @@ export async function signContract(auth: AuthContext, contractId: string) {
       return { error: { code: "VERSION_CONFLICT" as const, message: "同時更新が発生しました" } };
     if (nextStatus === "EXECUTED") {
       await tx.entry.update({ where: { id: c.entryId }, data: { status: "CONTRACTED" } });
+      // 成約に合わせて案件の進行状態を自動更新（手動で上書き可能）
+      await tx.project.updateMany({
+        where: { id: c.projectId },
+        data: { workflowStatus: "CONTRACTED" },
+      });
     }
     return { ok: true as const, executed: nextStatus === "EXECUTED" };
   });
@@ -198,10 +203,14 @@ export async function startWork(auth: AuthContext, contractId: string, date: str
   if (!c || !sideOfContract(c, auth.companyId)) return { error: { code: "NOT_FOUND" as const } };
   if (c.status !== "EXECUTED")
     return { error: { code: "VERSION_CONFLICT" as const, message: "相互締結完了後に稼働開始できます" } };
-  await prisma.contract.update({
-    where: { id: contractId },
-    data: { status: "ACTIVE", workStartedAt: new Date(date) },
-  });
+  await prisma.$transaction([
+    prisma.contract.update({
+      where: { id: contractId },
+      data: { status: "ACTIVE", workStartedAt: new Date(date) },
+    }),
+    // 稼働開始に合わせて人材の稼働状態を自動更新（手動で上書き可能）
+    prisma.engineer.updateMany({ where: { id: c.engineerId }, data: { workStatus: "WORKING" } }),
+  ]);
   await audit({
     tenantCompanyId: auth.companyId,
     actorUserId: auth.userAccountId,
@@ -221,6 +230,16 @@ export async function cancelContract(auth: AuthContext, contractId: string) {
   if (["CANCELLED", "TERMINATED", "COMPLETED"].includes(c.status))
     return { error: { code: "VERSION_CONFLICT" as const, message: "既に終了しています" } };
   await prisma.contract.update({ where: { id: contractId }, data: { status: "CANCELLED" } });
+  // この案件に他の有効な契約がなければ進行状態を応募中へ戻す
+  const otherContracts = await prisma.contract.count({
+    where: { projectId: c.projectId, status: { in: ["EXECUTED", "ACTIVE"] } },
+  });
+  if (otherContracts === 0) {
+    await prisma.project.updateMany({
+      where: { id: c.projectId, workflowStatus: "CONTRACTED" },
+      data: { workflowStatus: "RECRUITING" },
+    });
+  }
   await audit({
     tenantCompanyId: auth.companyId,
     actorUserId: auth.userAccountId,
@@ -251,6 +270,16 @@ export async function terminateContract(
       where: { id: contractId },
       data: { status: "TERMINATED", terminatedAt, terminationReason: input.reason },
     });
+    // 他に稼働中の契約がなければ人材の稼働状態を紹介中へ戻す
+    const otherActive = await tx.contract.count({
+      where: { engineerId: c.engineerId, status: "ACTIVE" },
+    });
+    if (otherActive === 0) {
+      await tx.engineer.updateMany({
+        where: { id: c.engineerId, workStatus: "WORKING" },
+        data: { workStatus: "PROPOSING" },
+      });
+    }
     if (!refund) return 0;
     const updated = await tx.platformFee.updateMany({
       where: { contractId, status: "CHARGED" },
