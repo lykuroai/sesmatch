@@ -939,6 +939,7 @@ app.post("/contracts", requirePermission("contract.create"), async (c) => {
       startDate: z.string(),
       endDate: z.string().optional(),
       commandChecklist: z.record(z.string(), z.string()),
+      notes: z.string().max(2000).optional(),
     })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);

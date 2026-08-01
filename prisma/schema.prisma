@@ -502,6 +502,7 @@ model Contract {
   endDate            DateTime?
   // 指揮命令・検収等の確認事項（§22）: 業務指示責任者、勤怠管理主体、配置決定主体、検収方法、再委託承認
   commandChecklist   Json
+  notes              String         @default("") // 契約条件の備考（特記事項）
   status             ContractStatus @default(DRAFT)
   supplySignedAt     DateTime?
   supplySignedBy     String?

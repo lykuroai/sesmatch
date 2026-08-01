@@ -38,6 +38,7 @@ export function ContractCreateForm({
           acceptanceMethod: f.get("acceptanceMethod"),
           resubcontractApproval: f.get("resubcontractApproval"),
         },
+        notes: String(f.get("notes") ?? "").trim() || undefined,
       }),
     });
     setLoading(false);
@@ -97,6 +98,16 @@ export function ContractCreateForm({
         <div>
           <label className="mb-1 block text-xs text-slate-600">契約終了日（任意）</label>
           <input type="date" name="endDate" className={input} />
+        </div>
+        <div className="col-span-3">
+          <label className="mb-1 block text-xs text-slate-600">備考（任意）</label>
+          <textarea
+            name="notes"
+            rows={3}
+            maxLength={2000}
+            className={input}
+            placeholder="精算幅（140h〜180h）、残業単価、支払サイト、その他特記事項など"
+          />
         </div>
       </div>
       <button

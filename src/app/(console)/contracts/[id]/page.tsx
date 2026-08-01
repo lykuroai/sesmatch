@@ -65,6 +65,12 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
             <Row label="実稼働開始日" value={c.workStartedAt ? new Date(c.workStartedAt).toLocaleDateString("ja-JP") : "未開始"} />
             {c.terminatedAt && <Row label="終了日" value={new Date(c.terminatedAt).toLocaleDateString("ja-JP")} />}
           </dl>
+          {c.notes && (
+            <div className="mt-3 rounded bg-slate-50 p-3">
+              <p className="mb-1 text-xs font-medium text-slate-600">備考</p>
+              <p className="whitespace-pre-wrap text-sm text-slate-700">{c.notes}</p>
+            </div>
+          )}
           <p className="mt-3 text-xs text-slate-400">
             エントリー: <Link href={`/entries/${c.entryId}`} className="text-blue-600 hover:underline">詳細を見る</Link>
           </p>

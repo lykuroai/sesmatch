@@ -42,6 +42,7 @@ export function serializeContract(c: ContractWithRels, auth: AuthContext) {
     startDate: c.startDate,
     endDate: c.endDate,
     commandChecklist: c.commandChecklist as Record<string, string>,
+    notes: c.notes,
     supplySigned: c.supplySignedAt != null,
     demandSigned: c.demandSignedAt != null,
     workStartedAt: c.workStartedAt,
@@ -97,6 +98,7 @@ export async function createContract(
     startDate: string;
     endDate?: string;
     commandChecklist: Record<string, string>;
+    notes?: string;
   }
 ): Promise<Err | { contract: NonNullable<ReturnType<typeof serializeContract>> }> {
   const entry = await prisma.entry.findUnique({
@@ -132,6 +134,7 @@ export async function createContract(
         startDate: new Date(input.startDate),
         endDate: input.endDate ? new Date(input.endDate) : null,
         commandChecklist: input.commandChecklist,
+        notes: input.notes?.trim() ?? "",
         createdByCompanyId: auth.companyId,
       },
       include: CONTRACT_INCLUDE,
