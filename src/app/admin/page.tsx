@@ -41,6 +41,17 @@ type AdminReport = {
   createdAt: string;
 };
 
+// 機能ごとの画面（メニューで切り替え）
+const MENU = [
+  { key: "review", label: "企業審査" },
+  { key: "companies", label: "企業一覧" },
+  { key: "contracts", label: "契約・手数料" },
+  { key: "engineers", label: "人材稼働状況" },
+  { key: "mail", label: "メール配信" },
+  { key: "reports", label: "通報対応" },
+] as const;
+type MenuKey = (typeof MENU)[number]["key"];
+
 export default function AdminPage() {
   const [token, setToken] = useState("");
   const [authed, setAuthed] = useState(false);
@@ -48,12 +59,17 @@ export default function AdminPage() {
   const [companies, setCompanies] = useState<PendingCompany[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [allCompanies, setAllCompanies] = useState<AdminCompany[]>([]);
-  const [editCompanyId, setEditCompanyId] = useState<string | null>(null);
-  const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
-  const [editCo, setEditCo] = useState({ name: "", companyType: "CORPORATION", corporateNumber: "" });
-  const [approvePassword, setApprovePassword] = useState("");
-  const [bulkApproving, setBulkApproving] = useState(false);
-  const [bulkProgress, setBulkProgress] = useState(0);
+  const [tab, setTab] = useState<MenuKey>("review");
+
+  // URL ハッシュ（#companies 等）と画面を同期し、リロード後も同じ画面を開く
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "");
+    if (MENU.some((m) => m.key === hash)) setTab(hash as MenuKey);
+  }, []);
+  function selectTab(key: MenuKey) {
+    setTab(key);
+    window.location.hash = key;
+  }
 
   const load = useCallback(async (t: string) => {
     const headers = { "X-Admin-Token": t };
@@ -90,44 +106,128 @@ export default function AdminPage() {
     }
   }
 
-  async function saveCompany(id: string) {
-    setError(null);
-    const res = await fetch(`/api/v1/operations/companies/${id}`, {
-      method: "PUT",
-      headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
-      body: JSON.stringify(editCo),
-    });
-    if (res.ok) {
-      setEditCompanyId(null);
-      await load(token);
-    } else {
-      const b = await res.json().catch(() => null);
-      setError(b?.error?.message ?? "企業情報の更新に失敗しました");
-    }
+  if (!authed) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-900">
+        <form onSubmit={login} className="w-96 rounded-xl bg-white p-8 shadow">
+          <h1 className="mb-1 text-xl font-bold">運営コンソール</h1>
+          <p className="mb-6 text-sm text-slate-500">運営トークンを入力してください</p>
+          {error && <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+          <input
+            type="password"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            className="mb-4 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            placeholder="PLATFORM_ADMIN_TOKEN"
+          />
+          <button className="w-full rounded bg-slate-800 py-2 text-sm font-medium text-white hover:bg-slate-700">
+            ログイン
+          </button>
+        </form>
+      </main>
+    );
   }
 
-  async function deleteCompany(co: AdminCompany) {
+  const openReports = reports.filter((r) => r.status !== "RESOLVED").length;
+  const badge = (key: MenuKey) =>
+    key === "review" ? companies.length : key === "reports" ? openReports : 0;
+
+  return (
+    <main className="min-h-screen bg-slate-100 p-8">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-bold">運営コンソール</h1>
+          <button
+            onClick={() => {
+              sessionStorage.removeItem("adminToken");
+              setAuthed(false);
+              setToken("");
+            }}
+            className="text-xs text-slate-500 underline"
+          >
+            ログアウト
+          </button>
+        </div>
+        {error && <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+
+        <div className="flex items-start gap-6">
+          <aside className="w-48 shrink-0 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+            {MENU.map((m) => (
+              <button
+                key={m.key}
+                onClick={() => selectTab(m.key)}
+                className={`flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm ${
+                  tab === m.key ? "bg-slate-800 font-medium text-white" : "text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                <span>{m.label}</span>
+                {badge(m.key) > 0 && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-xs ${
+                      tab === m.key ? "bg-white text-slate-800" : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    {badge(m.key)}
+                  </span>
+                )}
+              </button>
+            ))}
+          </aside>
+
+          <div className="min-w-0 flex-1">
+            {tab === "review" && (
+              <CompanyReviewSection token={token} companies={companies} reload={() => load(token)} />
+            )}
+            {tab === "companies" && (
+              <CompanyListSection token={token} companies={allCompanies} reload={() => load(token)} />
+            )}
+            {tab === "contracts" && <ContractMonitorSection token={token} />}
+            {tab === "engineers" && <EngineerMonitorSection token={token} />}
+            {tab === "mail" && <MailBroadcastSection token={token} />}
+            {tab === "reports" && (
+              <ReportsSection token={token} reports={reports} reload={() => load(token)} />
+            )}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+// 企業審査
+function CompanyReviewSection({
+  token,
+  companies,
+  reload,
+}: {
+  token: string;
+  companies: PendingCompany[];
+  reload: () => Promise<void>;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [approvePassword, setApprovePassword] = useState("");
+  const [bulkApproving, setBulkApproving] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState(0);
+
+  function approveBody() {
+    return approvePassword.trim() ? { initialPassword: approvePassword.trim() } : {};
+  }
+
+  async function approveOne(co: PendingCompany) {
     if (
       !window.confirm(
-        `${co.name} を削除しますか？（担当者 ${co._count.members} 名のアカウントも削除され、元に戻せません）`
+        `${co.name} を承認して開通しますか？\nパスワード未発行の担当者には初期パスワード付きの招待メールが送信されます。`
       )
     )
       return;
     setError(null);
-    const res = await fetch(`/api/v1/operations/companies/${co.id}`, {
-      method: "DELETE",
-      headers: { "X-Admin-Token": token },
+    const res = await fetch(`/api/v1/operations/companies/${co.id}/approve`, {
+      method: "POST",
+      headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+      body: JSON.stringify(approveBody()),
     });
-    if (res.ok) {
-      await load(token);
-    } else {
-      const b = await res.json().catch(() => null);
-      setError(b?.error?.message ?? "企業の削除に失敗しました");
-    }
-  }
-
-  function approveBody() {
-    return approvePassword.trim() ? { initialPassword: approvePassword.trim() } : {};
+    if (res.ok) await reload();
+    else setError("操作に失敗しました");
   }
 
   async function approveAll() {
@@ -154,61 +254,15 @@ export default function AdminPage() {
         }
         setBulkProgress(i + 1);
       }
-      await load(token);
+      await reload();
     } finally {
       setBulkApproving(false);
     }
   }
 
-  async function post(path: string, body?: object) {
-    const res = await fetch(path, {
-      method: "POST",
-      headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    if (res.ok) await load(token);
-    else setError("操作に失敗しました");
-  }
-
-  if (!authed) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-900">
-        <form onSubmit={login} className="w-96 rounded-xl bg-white p-8 shadow">
-          <h1 className="mb-1 text-xl font-bold">運営コンソール</h1>
-          <p className="mb-6 text-sm text-slate-500">運営トークンを入力してください</p>
-          {error && <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-          <input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            className="mb-4 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-            placeholder="PLATFORM_ADMIN_TOKEN"
-          />
-          <button className="w-full rounded bg-slate-800 py-2 text-sm font-medium text-white hover:bg-slate-700">
-            ログイン
-          </button>
-        </form>
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-slate-100 p-8">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">運営コンソール</h1>
-          <button
-            onClick={() => {
-              sessionStorage.removeItem("adminToken");
-              setAuthed(false);
-              setToken("");
-            }}
-            className="text-xs text-slate-500 underline"
-          >
-            ログアウト
-          </button>
-        </div>
-        {error && <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+    <div>
+      {error && <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
 
         <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">企業審査（審査待ち {companies.length}件）</h2>
@@ -246,14 +300,7 @@ export default function AdminPage() {
                   </p>
                 </div>
                 <button
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        `${co.name} を承認して開通しますか？\nパスワード未発行の担当者には初期パスワード付きの招待メールが送信されます。`
-                      )
-                    )
-                      post(`/api/v1/operations/companies/${co.id}/approve`, approveBody());
-                  }}
+                  onClick={() => approveOne(co)}
                   className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
                 >
                   承認して開通
@@ -262,7 +309,64 @@ export default function AdminPage() {
             ))}
           </div>
         </section>
+    </div>
+  );
+}
 
+// 企業一覧（修正・担当者・削除）
+function CompanyListSection({
+  token,
+  companies,
+  reload,
+}: {
+  token: string;
+  companies: AdminCompany[];
+  reload: () => Promise<void>;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [editCompanyId, setEditCompanyId] = useState<string | null>(null);
+  const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
+  const [editCo, setEditCo] = useState({ name: "", companyType: "CORPORATION", corporateNumber: "" });
+
+  async function saveCompany(id: string) {
+    setError(null);
+    const res = await fetch(`/api/v1/operations/companies/${id}`, {
+      method: "PUT",
+      headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+      body: JSON.stringify(editCo),
+    });
+    if (res.ok) {
+      setEditCompanyId(null);
+      await reload();
+    } else {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "企業情報の更新に失敗しました");
+    }
+  }
+
+  async function deleteCompany(co: AdminCompany) {
+    if (
+      !window.confirm(
+        `${co.name} を削除しますか？（担当者 ${co._count.members} 名のアカウントも削除され、元に戻せません）`
+      )
+    )
+      return;
+    setError(null);
+    const res = await fetch(`/api/v1/operations/companies/${co.id}`, {
+      method: "DELETE",
+      headers: { "X-Admin-Token": token },
+    });
+    if (res.ok) await reload();
+    else {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "企業の削除に失敗しました");
+    }
+  }
+
+  const allCompanies = companies;
+  return (
+    <div>
+        {error && <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
         <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-1 font-bold">企業一覧（{allCompanies.length}社）</h2>
           <p className="mb-3 text-xs text-slate-500">
@@ -374,13 +478,35 @@ export default function AdminPage() {
             </table>
           </div>
         </section>
+    </div>
+  );
+}
 
-        <ContractMonitorSection token={token} />
+// 通報対応
+function ReportsSection({
+  token,
+  reports,
+  reload,
+}: {
+  token: string;
+  reports: AdminReport[];
+  reload: () => Promise<void>;
+}) {
+  const [error, setError] = useState<string | null>(null);
 
-        <EngineerMonitorSection token={token} />
+  async function post(path: string, body?: object) {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (res.ok) await reload();
+    else setError("操作に失敗しました");
+  }
 
-        <MailBroadcastSection token={token} />
-
+  return (
+    <div>
+        {error && <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">通報対応（§24）</h2>
           {reports.length === 0 && <p className="text-sm text-slate-400">通報はありません</p>}
@@ -426,8 +552,7 @@ export default function AdminPage() {
             ))}
           </div>
         </section>
-      </div>
-    </main>
+    </div>
   );
 }
 
