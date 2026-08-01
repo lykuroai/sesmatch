@@ -5,6 +5,7 @@ import { prisma } from "@/server/db";
 import { listEngineers } from "@/server/services/engineers";
 import {
   AFFILIATION_LABELS,
+  ENGINEER_WORK_STATUS_LABELS,
   PUBLISH_STATUS_LABELS,
   REMOTE_LEVEL_LABELS,
 } from "@/lib/constants";
@@ -122,7 +123,16 @@ export default async function EngineersPage({
                   {e.availableFrom ? new Date(e.availableFrom).toLocaleDateString("ja-JP") : "-"}
                 </td>
                 <td className="px-4 py-3 text-xs">{REMOTE_LEVEL_LABELS[e.remotePreference]}</td>
-                <td className="px-4 py-3">{PUBLISH_STATUS_LABELS[e.status]}</td>
+                <td className="px-4 py-3">
+                  {PUBLISH_STATUS_LABELS[e.status]}
+                  <span
+                    className={`ml-1.5 rounded px-1.5 py-0.5 text-xs ${
+                      e.workStatus === "WORKING" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
+                    }`}
+                  >
+                    {ENGINEER_WORK_STATUS_LABELS[e.workStatus]}
+                  </span>
+                </td>
                 <td className="px-4 py-3">{e.hasValidConsent ? "✓" : <span className="text-red-600">なし</span>}</td>
               </tr>
             ))}

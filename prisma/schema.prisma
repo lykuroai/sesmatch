@@ -142,6 +142,12 @@ enum WorkAuthStatus {
   EXPIRED // 期限切れ
 }
 
+// 人材の稼働状態（手動設定）
+enum EngineerWorkStatus {
+  PROPOSING // 紹介中
+  WORKING // 稼働中
+}
+
 model Engineer {
   id              String @id @default(cuid())
   tenantCompanyId String
@@ -164,6 +170,7 @@ model Engineer {
   workAuthStatus       WorkAuthStatus  @default(NOT_REQUIRED)
   workAuthExpiry       DateTime?
   status               PublishStatus   @default(DRAFT)
+  workStatus           EngineerWorkStatus @default(PROPOSING) // 稼働状態（手動設定）
   deletedAt            DateTime? // 論理削除（本人削除請求 §26）。全クエリで除外すること
   summary              String          @default("") // 匿名化済み概要
   maskedSourceText     String? // 取込時の匿名化済み原文（PII除去済み。詳細表示用）
@@ -225,6 +232,13 @@ model PersonConsent {
 
 // ---- 案件 (§17) ----
 
+// 案件の進行状態（手動設定）
+enum ProjectWorkflowStatus {
+  RECRUITING // 応募中
+  CONTRACTED // 成約
+  ENDED // 終了
+}
+
 model Project {
   id              String @id @default(cuid())
   tenantCompanyId String
@@ -250,6 +264,7 @@ model Project {
   interviewCount    Int               @default(1)
   processes         String[]
   status            PublishStatus     @default(DRAFT)
+  workflowStatus    ProjectWorkflowStatus @default(RECRUITING) // 進行状態（手動設定）
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 

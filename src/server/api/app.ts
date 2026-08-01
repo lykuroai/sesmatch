@@ -22,6 +22,7 @@ import {
   listEngineers,
   deleteEngineer,
   publishEngineer,
+  setEngineerWorkStatus,
   updateEngineer,
 } from "@/server/services/engineers";
 import {
@@ -30,6 +31,7 @@ import {
   listProjects,
   deleteProject,
   publishProject,
+  setProjectWorkflowStatus,
   updateProject,
 } from "@/server/services/projects";
 import {
@@ -579,6 +581,17 @@ app.post("/engineers/:id/consents", requirePermission("consent.manage"), async (
   return c.json(consent, 201);
 });
 
+// 人材の稼働状態（紹介中/稼働中）の手動設定
+app.post("/engineers/:id/work-status", requirePermission("engineer.create"), async (c) => {
+  const parsed = z
+    .object({ status: z.enum(["PROPOSING", "WORKING"]) })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await setEngineerWorkStatus(c.get("auth"), c.req.param("id"), parsed.data.status);
+  if ("error" in result) return c.json(err("NOT_FOUND"), 404);
+  return c.json(result);
+});
+
 app.post("/engineers/:id/publish", requirePermission("engineer.publish"), async (c) => {
   const result = await publishEngineer(c.get("auth"), c.req.param("id"));
   if ("error" in result) {
@@ -650,6 +663,17 @@ app.delete("/projects/:id", requirePermission("project.create"), async (c) => {
     if (result.error === "NOT_FOUND") return c.json(err("NOT_FOUND"), 404);
     return c.json(err("VERSION_CONFLICT", result.error), 409);
   }
+  return c.json(result);
+});
+
+// 案件の進行状態（応募中/成約/終了）の手動設定
+app.post("/projects/:id/workflow-status", requirePermission("project.create"), async (c) => {
+  const parsed = z
+    .object({ status: z.enum(["RECRUITING", "CONTRACTED", "ENDED"]) })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await setProjectWorkflowStatus(c.get("auth"), c.req.param("id"), parsed.data.status);
+  if ("error" in result) return c.json(err("NOT_FOUND"), 404);
   return c.json(result);
 });
 

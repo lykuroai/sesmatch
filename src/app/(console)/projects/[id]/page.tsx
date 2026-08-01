@@ -5,9 +5,11 @@ import { hasPermission } from "@/server/auth/rbac";
 import { DeleteResourceButton } from "@/components/DeleteResourceButton";
 import {
   AFFILIATION_LABELS,
+  PROJECT_WORKFLOW_LABELS,
   PUBLISH_STATUS_LABELS,
   REMOTE_LEVEL_LABELS,
 } from "@/lib/constants";
+import { WorkflowStatusSelect } from "@/components/WorkflowStatusSelect";
 import { ActionButton } from "@/components/ActionButton";
 import { MatchPanel } from "@/components/MatchPanel";
 import { EntryCreate } from "@/components/EntryCreate";
@@ -48,7 +50,28 @@ export default async function ProjectDetailPage({
             {p.code} {p.name}
             {!p.own && <span className="ml-3 rounded bg-indigo-50 px-2 py-1 text-xs text-indigo-600">他社案件</span>}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">{PUBLISH_STATUS_LABELS[p.status]}</p>
+          <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
+            <span>{PUBLISH_STATUS_LABELS[p.status]}</span>
+            {p.own && hasPermission(auth.roles, "project.create") ? (
+              <WorkflowStatusSelect
+                path={`/api/v1/projects/${p.id}/workflow-status`}
+                current={p.workflowStatus}
+                options={Object.entries(PROJECT_WORKFLOW_LABELS).map(([value, label]) => ({ value, label }))}
+              />
+            ) : (
+              <span
+                className={`rounded px-2 py-0.5 text-xs ${
+                  p.workflowStatus === "RECRUITING"
+                    ? "bg-blue-50 text-blue-700"
+                    : p.workflowStatus === "CONTRACTED"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                {PROJECT_WORKFLOW_LABELS[p.workflowStatus]}
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           {p.own && hasPermission(auth.roles, "project.create") && (

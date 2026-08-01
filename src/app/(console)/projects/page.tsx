@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
 import { prisma } from "@/server/db";
 import { listProjects } from "@/server/services/projects";
-import { PUBLISH_STATUS_LABELS, REMOTE_LEVEL_LABELS } from "@/lib/constants";
+import { PROJECT_WORKFLOW_LABELS, PUBLISH_STATUS_LABELS, REMOTE_LEVEL_LABELS } from "@/lib/constants";
 import { IngestPanel } from "@/components/IngestPanel";
 import { PendingIngestions } from "@/components/PendingIngestions";
 
@@ -114,7 +114,20 @@ export default async function ProjectsPage({
                 <td className="px-4 py-3">{(p.rateMaxYen / 10_000).toLocaleString()}万円</td>
                 <td className="px-4 py-3 text-xs">{REMOTE_LEVEL_LABELS[p.remoteLevel]}</td>
                 <td className="px-4 py-3 text-xs">{p.requiredSkills.map((s) => s.name).join(", ")}</td>
-                <td className="px-4 py-3">{PUBLISH_STATUS_LABELS[p.status]}</td>
+                <td className="px-4 py-3">
+                  {PUBLISH_STATUS_LABELS[p.status]}
+                  <span
+                    className={`ml-1.5 rounded px-1.5 py-0.5 text-xs ${
+                      p.workflowStatus === "RECRUITING"
+                        ? "bg-blue-50 text-blue-700"
+                        : p.workflowStatus === "CONTRACTED"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {PROJECT_WORKFLOW_LABELS[p.workflowStatus]}
+                  </span>
+                </td>
               </tr>
             ))}
             {projects.length === 0 && (

@@ -54,6 +54,19 @@ export const PUBLISH_STATUS_LABELS: Record<string, string> = {
   CLOSED: "終了",
 };
 
+// 案件の進行状態（手動設定）
+export const PROJECT_WORKFLOW_LABELS: Record<string, string> = {
+  RECRUITING: "応募中",
+  CONTRACTED: "成約",
+  ENDED: "終了",
+};
+
+// 人材の稼働状態（手動設定）
+export const ENGINEER_WORK_STATUS_LABELS: Record<string, string> = {
+  PROPOSING: "紹介中",
+  WORKING: "稼働中",
+};
+
 export const INGESTION_STATUS_LABELS: Record<string, string> = {
   RECEIVED: "受領",
   MASKING: "匿名化中",

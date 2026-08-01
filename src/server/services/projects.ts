@@ -31,6 +31,7 @@ export function serializeProject(p: ProjectWithRels, auth: AuthContext) {
     interviewCount: p.interviewCount,
     processes: p.processes,
     status: p.status,
+    workflowStatus: p.workflowStatus,
     requiredSkills: p.skills.filter((s) => s.required).map((s) => ({ name: s.name, minMonths: s.minMonths })),
     preferredSkills: p.skills.filter((s) => !s.required).map((s) => ({ name: s.name })),
     maskedSourceText: own ? p.maskedSourceText : undefined, // 取込時の匿名化済み原文（自社のみ）
@@ -225,6 +226,28 @@ export async function publishProject(auth: AuthContext, projectId: string) {
     action: "ProjectRouteOpened",
     targetType: "Project",
     targetId: projectId,
+  });
+  return { ok: true as const };
+}
+
+// 案件の進行状態（応募中/成約/終了）の手動設定
+export async function setProjectWorkflowStatus(
+  auth: AuthContext,
+  projectId: string,
+  workflowStatus: "RECRUITING" | "CONTRACTED" | "ENDED"
+) {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, tenantCompanyId: auth.companyId },
+  });
+  if (!project) return { error: "NOT_FOUND" as const };
+  await prisma.project.update({ where: { id: projectId }, data: { workflowStatus } });
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "ProjectUpdated",
+    targetType: "Project",
+    targetId: projectId,
+    metadata: { workflowStatus },
   });
   return { ok: true as const };
 }

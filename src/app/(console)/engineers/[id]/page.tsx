@@ -5,10 +5,12 @@ import { hasPermission } from "@/server/auth/rbac";
 import { DeleteResourceButton } from "@/components/DeleteResourceButton";
 import {
   AFFILIATION_LABELS,
+  ENGINEER_WORK_STATUS_LABELS,
   PUBLISH_STATUS_LABELS,
   REMOTE_LEVEL_LABELS,
   SKILL_CATEGORY_LABELS,
 } from "@/lib/constants";
+import { WorkflowStatusSelect } from "@/components/WorkflowStatusSelect";
 import { ActionButton } from "@/components/ActionButton";
 import { MatchPanel } from "@/components/MatchPanel";
 import { ConsentForm } from "@/components/ConsentForm";
@@ -48,8 +50,25 @@ export default async function EngineerDetailPage({
             {e.name && <span className="ml-2">{e.name}</span>}
             {!e.own && <span className="ml-3 rounded bg-indigo-50 px-2 py-1 text-xs text-indigo-600">他社（匿名表示）</span>}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {e.ageBand} / {AFFILIATION_LABELS[e.affiliationType]} / {PUBLISH_STATUS_LABELS[e.status]}
+          <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
+            <span>
+              {e.ageBand} / {AFFILIATION_LABELS[e.affiliationType]} / {PUBLISH_STATUS_LABELS[e.status]}
+            </span>
+            {e.own && hasPermission(auth.roles, "engineer.create") ? (
+              <WorkflowStatusSelect
+                path={`/api/v1/engineers/${e.id}/work-status`}
+                current={e.workStatus}
+                options={Object.entries(ENGINEER_WORK_STATUS_LABELS).map(([value, label]) => ({ value, label }))}
+              />
+            ) : (
+              <span
+                className={`rounded px-2 py-0.5 text-xs ${
+                  e.workStatus === "WORKING" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
+                }`}
+              >
+                {ENGINEER_WORK_STATUS_LABELS[e.workStatus]}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-3">

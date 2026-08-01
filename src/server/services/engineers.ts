@@ -35,6 +35,7 @@ export function serializeEngineer(e: EngineerWithRels, auth: AuthContext) {
     remotePreference: e.remotePreference,
     travelOk: e.travelOk,
     status: e.status,
+    workStatus: e.workStatus,
     summary: e.summary,
     processes: e.processes,
     roles: e.roles,
@@ -263,6 +264,28 @@ export async function publishEngineer(auth: AuthContext, engineerId: string) {
     action: "EngineerPublished",
     targetType: "Engineer",
     targetId: engineerId,
+  });
+  return { ok: true as const };
+}
+
+// 人材の稼働状態（紹介中/稼働中）の手動設定
+export async function setEngineerWorkStatus(
+  auth: AuthContext,
+  engineerId: string,
+  workStatus: "PROPOSING" | "WORKING"
+) {
+  const engineer = await prisma.engineer.findFirst({
+    where: { id: engineerId, tenantCompanyId: auth.companyId, deletedAt: null },
+  });
+  if (!engineer) return { error: "NOT_FOUND" as const };
+  await prisma.engineer.update({ where: { id: engineerId }, data: { workStatus } });
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "EngineerUpdated",
+    targetType: "Engineer",
+    targetId: engineerId,
+    metadata: { workStatus },
   });
   return { ok: true as const };
 }
