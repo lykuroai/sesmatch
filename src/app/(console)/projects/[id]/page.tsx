@@ -51,7 +51,11 @@ export default async function ProjectDetailPage({
             {!p.own && <span className="ml-3 rounded bg-indigo-50 px-2 py-1 text-xs text-indigo-600">他社案件</span>}
           </h1>
           <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
-            <span>{PUBLISH_STATUS_LABELS[p.status]}</span>
+            {p.status !== "PUBLISHED" && (
+              <span className="rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+                {PUBLISH_STATUS_LABELS[p.status]}
+              </span>
+            )}
             {p.own && hasPermission(auth.roles, "project.create") ? (
               <WorkflowStatusSelect
                 path={`/api/v1/projects/${p.id}/workflow-status`}

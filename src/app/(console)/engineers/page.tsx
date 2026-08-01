@@ -124,9 +124,13 @@ export default async function EngineersPage({
                 </td>
                 <td className="px-4 py-3 text-xs">{REMOTE_LEVEL_LABELS[e.remotePreference]}</td>
                 <td className="px-4 py-3">
-                  {PUBLISH_STATUS_LABELS[e.status]}
+                  {e.status !== "PUBLISHED" && (
+                    <span className="mr-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">
+                      {PUBLISH_STATUS_LABELS[e.status]}
+                    </span>
+                  )}
                   <span
-                    className={`ml-1.5 rounded px-1.5 py-0.5 text-xs ${
+                    className={`rounded px-1.5 py-0.5 text-xs ${
                       e.workStatus === "WORKING" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
                     }`}
                   >

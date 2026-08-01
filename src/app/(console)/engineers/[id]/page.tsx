@@ -52,8 +52,13 @@ export default async function EngineerDetailPage({
           </h1>
           <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
             <span>
-              {e.ageBand} / {AFFILIATION_LABELS[e.affiliationType]} / {PUBLISH_STATUS_LABELS[e.status]}
+              {e.ageBand} / {AFFILIATION_LABELS[e.affiliationType]}
             </span>
+            {e.status !== "PUBLISHED" && (
+              <span className="rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+                {PUBLISH_STATUS_LABELS[e.status]}
+              </span>
+            )}
             {e.own && hasPermission(auth.roles, "engineer.create") ? (
               <WorkflowStatusSelect
                 path={`/api/v1/engineers/${e.id}/work-status`}

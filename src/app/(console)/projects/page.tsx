@@ -115,9 +115,13 @@ export default async function ProjectsPage({
                 <td className="px-4 py-3 text-xs">{REMOTE_LEVEL_LABELS[p.remoteLevel]}</td>
                 <td className="px-4 py-3 text-xs">{p.requiredSkills.map((s) => s.name).join(", ")}</td>
                 <td className="px-4 py-3">
-                  {PUBLISH_STATUS_LABELS[p.status]}
+                  {p.status !== "PUBLISHED" && (
+                    <span className="mr-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">
+                      {PUBLISH_STATUS_LABELS[p.status]}
+                    </span>
+                  )}
                   <span
-                    className={`ml-1.5 rounded px-1.5 py-0.5 text-xs ${
+                    className={`rounded px-1.5 py-0.5 text-xs ${
                       p.workflowStatus === "RECRUITING"
                         ? "bg-blue-50 text-blue-700"
                         : p.workflowStatus === "CONTRACTED"
