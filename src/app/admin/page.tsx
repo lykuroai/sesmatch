@@ -452,6 +452,10 @@ export default function AdminPage() {
           </div>
         </section>
 
+        <ContractMonitorSection token={token} />
+
+        <EngineerMonitorSection token={token} />
+
         <MailBroadcastSection token={token} />
 
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -501,6 +505,353 @@ export default function AdminPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+type AdminContract = {
+  id: string;
+  status: string;
+  contractType: string;
+  monthlyRateYen: number;
+  startDate: string;
+  endDate: string | null;
+  workStartedAt: string | null;
+  terminatedAt: string | null;
+  demandCompanyName: string;
+  supplyCompanyName: string;
+  projectCode: string;
+  projectName: string;
+  engineerCode: string;
+  engineerName: string;
+  confirmedMonths: number;
+  lastConfirmedMonth: string | null;
+  totalConfirmedYen: number;
+  totalFeeExTaxYen: number;
+  chargedMonths: number;
+  freeMonths: number;
+};
+
+const CONTRACT_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "下書き",
+  SIGNED_SUPPLY: "供給側署名済",
+  SIGNED_DEMAND: "需要側署名済",
+  EXECUTED: "成約（稼働前）",
+  ACTIVE: "稼働中",
+  CANCELLED: "キャンセル",
+  TERMINATED: "終了",
+  COMPLETED: "完了",
+};
+
+const yen = (n: number) => `¥${n.toLocaleString("ja-JP")}`;
+
+// 各契約の稼働状況・金額・手数料の監視
+function ContractMonitorSection({ token }: { token: string }) {
+  const [contracts, setContracts] = useState<AdminContract[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  useEffect(() => {
+    fetch("/api/v1/operations/contracts", { headers: { "X-Admin-Token": token } })
+      .then(async (res) => {
+        if (!res.ok) throw new Error();
+        setContracts((await res.json()).items);
+      })
+      .catch(() => setError("契約一覧の取得に失敗しました"));
+  }, [token]);
+
+  const q = filter.trim().toLowerCase();
+  const visible = contracts.filter(
+    (c) =>
+      (!statusFilter || c.status === statusFilter) &&
+      (!q ||
+        [c.demandCompanyName, c.supplyCompanyName, c.projectName, c.engineerName, c.engineerCode].some(
+          (v) => v.toLowerCase().includes(q)
+        ))
+  );
+  const active = contracts.filter((c) => c.status === "ACTIVE");
+  const totalConfirmed = contracts.reduce((s, c) => s + c.totalConfirmedYen, 0);
+  const totalFee = contracts.reduce((s, c) => s + c.totalFeeExTaxYen, 0);
+
+  return (
+    <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 className="mb-1 font-bold">契約・手数料の監視（{contracts.length}件）</h2>
+      <p className="mb-3 text-xs text-slate-500">
+        全テナントの契約と、月次確認済みの稼働金額・プラットフォーム手数料（3%・最大12稼働月）を一覧します。
+      </p>
+      {error && <p className="mb-2 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+      <div className="mb-3 flex flex-wrap gap-3 text-xs">
+        <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-700">稼働中 {active.length} 件</span>
+        <span className="rounded bg-blue-50 px-2 py-1 text-blue-700">
+          成約（稼働前） {contracts.filter((c) => c.status === "EXECUTED").length} 件
+        </span>
+        <span className="rounded bg-slate-100 px-2 py-1 text-slate-600">確認済み稼働額 累計 {yen(totalConfirmed)}</span>
+        <span className="rounded bg-indigo-50 px-2 py-1 text-indigo-700">手数料（税抜） 累計 {yen(totalFee)}</span>
+      </div>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="絞り込み（企業名・案件名・人材）"
+          className="w-72 rounded border border-slate-300 px-2 py-1.5 text-sm"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded border border-slate-300 px-2 py-1.5 text-sm"
+        >
+          <option value="">すべての状態</option>
+          {Object.entries(CONTRACT_STATUS_LABELS).map(([v, label]) => (
+            <option key={v} value={v}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-left text-xs text-slate-500">
+            <tr>
+              <th className="px-3 py-2">状態</th>
+              <th className="px-3 py-2">案件（需要側）</th>
+              <th className="px-3 py-2">人材（供給側）</th>
+              <th className="px-3 py-2 text-right">月額（税抜）</th>
+              <th className="px-3 py-2">稼働期間</th>
+              <th className="px-3 py-2 text-right">確認済み稼働</th>
+              <th className="px-3 py-2 text-right">手数料（税抜）</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((c) => (
+              <tr key={c.id} className="border-t border-slate-100 align-top">
+                <td className="px-3 py-2 text-xs">
+                  <span
+                    className={`rounded px-1.5 py-0.5 ${
+                      c.status === "ACTIVE"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : c.status === "EXECUTED"
+                          ? "bg-blue-50 text-blue-700"
+                          : c.status === "CANCELLED" || c.status === "TERMINATED"
+                            ? "bg-red-50 text-red-700"
+                            : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {CONTRACT_STATUS_LABELS[c.status] ?? c.status}
+                  </span>
+                </td>
+                <td className="px-3 py-2">
+                  <p className="font-medium">{c.projectName}</p>
+                  <p className="text-xs text-slate-500">{c.demandCompanyName}</p>
+                </td>
+                <td className="px-3 py-2">
+                  <p className="font-medium">
+                    {c.engineerCode} {c.engineerName}
+                  </p>
+                  <p className="text-xs text-slate-500">{c.supplyCompanyName}</p>
+                </td>
+                <td className="px-3 py-2 text-right">{yen(c.monthlyRateYen)}</td>
+                <td className="px-3 py-2 text-xs">
+                  {c.workStartedAt
+                    ? `${new Date(c.workStartedAt).toLocaleDateString("ja-JP")} 〜`
+                    : "稼働前"}
+                  {c.endDate && ` ${new Date(c.endDate).toLocaleDateString("ja-JP")}`}
+                  {c.terminatedAt && (
+                    <span className="block text-red-600">
+                      終了: {new Date(c.terminatedAt).toLocaleDateString("ja-JP")}
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-right">
+                  {c.confirmedMonths > 0 ? (
+                    <>
+                      <p>{yen(c.totalConfirmedYen)}</p>
+                      <p className="text-xs text-slate-500">
+                        {c.confirmedMonths}か月（〜{c.lastConfirmedMonth}）
+                      </p>
+                    </>
+                  ) : (
+                    <span className="text-xs text-slate-400">未確認</span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-right">
+                  {c.confirmedMonths > 0 ? (
+                    <>
+                      <p>{yen(c.totalFeeExTaxYen)}</p>
+                      <p className="text-xs text-slate-500">
+                        課金 {c.chargedMonths}/12
+                        {c.freeMonths > 0 && `（無償 ${c.freeMonths}）`}
+                      </p>
+                    </>
+                  ) : (
+                    <span className="text-xs text-slate-400">-</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {visible.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-3 py-4 text-center text-xs text-slate-400">
+                  {contracts.length === 0 ? "契約はまだありません" : "条件に一致する契約がありません"}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+type AdminEngineer = {
+  id: string;
+  code: string;
+  name: string;
+  companyName: string;
+  publishStatus: string;
+  availabilityRate: number;
+  availableFrom: string | null;
+  workStatus: "WORKING" | "CONTRACTED" | "STANDBY";
+  assignment: {
+    projectName: string;
+    demandCompanyName: string;
+    monthlyRateYen: number;
+    workStartedAt: string | null;
+    endDate: string | null;
+  } | null;
+};
+
+// 人材の稼働状況の監視
+function EngineerMonitorSection({ token }: { token: string }) {
+  const [engineers, setEngineers] = useState<AdminEngineer[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
+  const [workFilter, setWorkFilter] = useState("");
+
+  useEffect(() => {
+    fetch("/api/v1/operations/engineers", { headers: { "X-Admin-Token": token } })
+      .then(async (res) => {
+        if (!res.ok) throw new Error();
+        setEngineers((await res.json()).items);
+      })
+      .catch(() => setError("人材一覧の取得に失敗しました"));
+  }, [token]);
+
+  const q = filter.trim().toLowerCase();
+  const visible = engineers.filter(
+    (e) =>
+      (!workFilter || e.workStatus === workFilter) &&
+      (!q ||
+        [e.name, e.code, e.companyName, e.assignment?.projectName ?? ""].some((v) =>
+          v.toLowerCase().includes(q)
+        ))
+  );
+  const count = (s: AdminEngineer["workStatus"]) => engineers.filter((e) => e.workStatus === s).length;
+
+  return (
+    <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 className="mb-1 font-bold">人材稼働状況の監視（{engineers.length}名）</h2>
+      <p className="mb-3 text-xs text-slate-500">
+        全テナントの人材と稼働状態（契約から導出）を一覧します。削除済みの人材は含みません。
+      </p>
+      {error && <p className="mb-2 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+      <div className="mb-3 flex flex-wrap gap-3 text-xs">
+        <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-700">稼働中 {count("WORKING")} 名</span>
+        <span className="rounded bg-blue-50 px-2 py-1 text-blue-700">成約（稼働前） {count("CONTRACTED")} 名</span>
+        <span className="rounded bg-slate-100 px-2 py-1 text-slate-600">待機 {count("STANDBY")} 名</span>
+      </div>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="絞り込み（氏名・人材ID・企業名・案件名）"
+          className="w-72 rounded border border-slate-300 px-2 py-1.5 text-sm"
+        />
+        <select
+          value={workFilter}
+          onChange={(e) => setWorkFilter(e.target.value)}
+          className="rounded border border-slate-300 px-2 py-1.5 text-sm"
+        >
+          <option value="">すべての稼働状態</option>
+          <option value="WORKING">稼働中</option>
+          <option value="CONTRACTED">成約（稼働前）</option>
+          <option value="STANDBY">待機</option>
+        </select>
+      </div>
+      <div className="max-h-96 overflow-x-auto overflow-y-auto rounded border border-slate-100">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-slate-50 text-left text-xs text-slate-500">
+            <tr>
+              <th className="px-3 py-2">人材</th>
+              <th className="px-3 py-2">所属企業</th>
+              <th className="px-3 py-2">稼働状態</th>
+              <th className="px-3 py-2">稼働先（案件／需要側）</th>
+              <th className="px-3 py-2">稼働開始日</th>
+              <th className="px-3 py-2">公開状態</th>
+              <th className="px-3 py-2 text-right">稼働率</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((e) => (
+              <tr key={e.id} className="border-t border-slate-100">
+                <td className="px-3 py-2 font-medium">
+                  {e.code} {e.name}
+                </td>
+                <td className="px-3 py-2 text-xs text-slate-500">{e.companyName}</td>
+                <td className="px-3 py-2 text-xs">
+                  <span
+                    className={`rounded px-1.5 py-0.5 ${
+                      e.workStatus === "WORKING"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : e.workStatus === "CONTRACTED"
+                          ? "bg-blue-50 text-blue-700"
+                          : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {e.workStatus === "WORKING" ? "稼働中" : e.workStatus === "CONTRACTED" ? "成約（稼働前）" : "待機"}
+                  </span>
+                </td>
+                <td className="px-3 py-2 text-xs">
+                  {e.assignment ? (
+                    <>
+                      <p>{e.assignment.projectName}</p>
+                      <p className="text-slate-500">{e.assignment.demandCompanyName}</p>
+                    </>
+                  ) : (
+                    <span className="text-slate-400">
+                      {e.availableFrom
+                        ? `${new Date(e.availableFrom).toLocaleDateString("ja-JP")} から稼働可能`
+                        : "-"}
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-xs">
+                  {e.assignment?.workStartedAt
+                    ? new Date(e.assignment.workStartedAt).toLocaleDateString("ja-JP")
+                    : "-"}
+                </td>
+                <td className="px-3 py-2 text-xs">
+                  {e.publishStatus === "PUBLISHED" ? (
+                    <span className="text-emerald-700">公開中</span>
+                  ) : e.publishStatus === "DRAFT" ? (
+                    "下書き"
+                  ) : (
+                    "非公開"
+                  )}
+                </td>
+                <td className="px-3 py-2 text-right text-xs">{e.availabilityRate}%</td>
+              </tr>
+            ))}
+            {visible.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-3 py-4 text-center text-xs text-slate-400">
+                  {engineers.length === 0 ? "人材はまだ登録されていません" : "条件に一致する人材がいません"}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 

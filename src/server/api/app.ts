@@ -94,6 +94,10 @@ import {
   updateMemberProfile,
   updateMemberRoles,
 } from "@/server/services/companies";
+import {
+  listContractsForOperations,
+  listEngineersWorkStatusForOperations,
+} from "@/server/services/operations-monitor";
 import { retryIngestion, startIngestion } from "@/server/pipeline/ingest";
 import { csvToCompanyRows, parseCsv } from "@/lib/csv";
 import { engineerDraftSchema, projectDraftSchema } from "@/server/pipeline/llm";
@@ -318,6 +322,16 @@ app.delete("/operations/prospects/:id", requireAdminToken, async (c) => {
 });
 
 // 通報の運営対応（§24）: 全テナントの通報を横断で参照・ステータス更新
+// 契約ごとの稼働状況・金額・手数料の監視（テナント横断）
+app.get("/operations/contracts", requireAdminToken, async (c) =>
+  c.json({ items: await listContractsForOperations() })
+);
+
+// 人材の稼働状況の監視（テナント横断）
+app.get("/operations/engineers", requireAdminToken, async (c) =>
+  c.json({ items: await listEngineersWorkStatusForOperations() })
+);
+
 app.get("/operations/reports", requireAdminToken, async (c) => {
   const reports = await prisma.report.findMany({ orderBy: { createdAt: "desc" }, take: 200 });
   const companies = await prisma.company.findMany({
