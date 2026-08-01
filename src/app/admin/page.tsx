@@ -22,11 +22,6 @@ type AdminCompany = {
   _count: { members: number };
 };
 
-type ImportResult = {
-  created: number;
-  results: { row: number; companyName: string; ok: boolean; skipped?: boolean; message?: string }[];
-};
-
 type AdminMember = {
   id: string;
   name: string;
@@ -56,9 +51,6 @@ export default function AdminPage() {
   const [editCompanyId, setEditCompanyId] = useState<string | null>(null);
   const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
   const [editCo, setEditCo] = useState({ name: "", companyType: "CORPORATION", corporateNumber: "" });
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [approvePassword, setApprovePassword] = useState("");
   const [bulkApproving, setBulkApproving] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(0);
@@ -131,31 +123,6 @@ export default function AdminPage() {
     } else {
       const b = await res.json().catch(() => null);
       setError(b?.error?.message ?? "企業の削除に失敗しました");
-    }
-  }
-
-  async function importCsv() {
-    if (!importFile) return;
-    setError(null);
-    setImportResult(null);
-    setImporting(true);
-    try {
-      const csv = await importFile.text();
-      const res = await fetch("/api/v1/operations/companies/import", {
-        method: "POST",
-        headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
-        body: JSON.stringify({ csv }),
-      });
-      const body = await res.json().catch(() => null);
-      if (res.ok) {
-        setImportResult(body);
-        setImportFile(null);
-        await load(token);
-      } else {
-        setError(body?.error?.message ?? "取込に失敗しました");
-      }
-    } finally {
-      setImporting(false);
     }
   }
 
@@ -294,50 +261,6 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
-        </section>
-
-        <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-1 font-bold">企業リスト取込（CSV アップロード）</h2>
-          <p className="mb-3 text-xs text-slate-500">
-            ヘッダ行の列名で自動判定します。3列（企業名, 担当者名, メールアドレス）の不完全なリストも取込可能で、
-            種別・法人番号は下の企業一覧から後で修正できます。5列（企業名, 種別, 法人番号, オーナー名, メールアドレス）にも対応。
-            取込した企業は<span className="font-medium">審査待ち</span>として登録され、上の企業審査で承認するまで
-            有効になりません（この時点ではメールも送信されません）。承認時に初期パスワードを発行して招待メールを送ります。
-            取込した担当者は全員企業管理者（ADMIN）権限になり、同名の企業が既にある場合は新規作成せずその企業へ追加します。
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-              className="text-sm"
-            />
-            <button
-              onClick={importCsv}
-              disabled={!importFile || importing}
-              className="rounded bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40"
-            >
-              {importing ? "取込中..." : "取り込む"}
-            </button>
-          </div>
-          {importResult && (
-            <div className="mt-3 rounded border border-slate-100 bg-slate-50 p-3 text-sm">
-              <p className="font-medium">
-                {importResult.created} 社を審査待ちで登録しました（企業審査から承認すると有効になります）
-                {importResult.results.some((r) => r.skipped) &&
-                  ` ／ スキップ ${importResult.results.filter((r) => r.skipped).length} 行`}
-                {importResult.results.some((r) => !r.ok) &&
-                  ` ／ 失敗 ${importResult.results.filter((r) => !r.ok).length} 行`}
-              </p>
-              <ul className="mt-1 space-y-0.5 text-xs">
-                {importResult.results.map((r) => (
-                  <li key={r.row} className={!r.ok ? "text-red-600" : r.skipped ? "text-slate-400" : "text-emerald-700"}>
-                    {r.row}行目 {r.companyName || "（企業名なし）"}: {r.ok ? (r.message ?? "登録済み") : r.message}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </section>
 
         <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
