@@ -56,25 +56,27 @@ export default async function ProjectDetailPage({
                 {PUBLISH_STATUS_LABELS[p.status]}
               </span>
             )}
-            {p.own && hasPermission(auth.roles, "project.create") ? (
-              <WorkflowStatusSelect
-                path={`/api/v1/projects/${p.id}/workflow-status`}
-                current={p.workflowStatus}
-                options={Object.entries(PROJECT_WORKFLOW_LABELS).map(([value, label]) => ({ value, label }))}
-              />
-            ) : (
-              <span
-                className={`rounded px-2 py-0.5 text-xs ${
-                  p.workflowStatus === "RECRUITING"
-                    ? "bg-blue-50 text-blue-700"
-                    : p.workflowStatus === "CONTRACTED"
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-slate-100 text-slate-600"
-                }`}
-              >
-                {PROJECT_WORKFLOW_LABELS[p.workflowStatus]}
-              </span>
-            )}
+            {/* 未公開の案件は応募を受けられないため進行状態（応募中）は表示・設定しない */}
+            {(p.status === "PUBLISHED" || p.workflowStatus !== "RECRUITING") &&
+              (p.own && hasPermission(auth.roles, "project.create") ? (
+                <WorkflowStatusSelect
+                  path={`/api/v1/projects/${p.id}/workflow-status`}
+                  current={p.workflowStatus}
+                  options={Object.entries(PROJECT_WORKFLOW_LABELS).map(([value, label]) => ({ value, label }))}
+                />
+              ) : (
+                <span
+                  className={`rounded px-2 py-0.5 text-xs ${
+                    p.workflowStatus === "RECRUITING"
+                      ? "bg-blue-50 text-blue-700"
+                      : p.workflowStatus === "CONTRACTED"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {PROJECT_WORKFLOW_LABELS[p.workflowStatus]}
+                </span>
+              ))}
           </p>
         </div>
         <div className="flex items-center gap-3">

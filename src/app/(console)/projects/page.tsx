@@ -120,17 +120,20 @@ export default async function ProjectsPage({
                       {PUBLISH_STATUS_LABELS[p.status]}
                     </span>
                   )}
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-xs ${
-                      p.workflowStatus === "RECRUITING"
-                        ? "bg-blue-50 text-blue-700"
-                        : p.workflowStatus === "CONTRACTED"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    {PROJECT_WORKFLOW_LABELS[p.workflowStatus]}
-                  </span>
+                  {/* 未公開の案件は応募を受けられないため「応募中」は表示しない */}
+                  {(p.status === "PUBLISHED" || p.workflowStatus !== "RECRUITING") && (
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-xs ${
+                        p.workflowStatus === "RECRUITING"
+                          ? "bg-blue-50 text-blue-700"
+                          : p.workflowStatus === "CONTRACTED"
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {PROJECT_WORKFLOW_LABELS[p.workflowStatus]}
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}
