@@ -92,6 +92,7 @@ import {
   reinviteMemberByOperations,
   suspendMember,
   updateCompanyByOperations,
+  updateOwnCompany,
   updateMemberByOperations,
   updateMemberProfile,
   updateMemberRoles,
@@ -427,6 +428,23 @@ const requirePermission =
 app.get("/company/dashboard", requirePermission("dashboard.read"), async (c) =>
   c.json(await getDashboard(c.get("auth")))
 );
+
+// ---- 企業情報（オーナー・管理者による自社情報の修正）----
+
+app.put("/company/profile", requirePermission("company.manage"), async (c) => {
+  const parsed = z
+    .object({
+      name: z.string().min(1),
+      companyType: z.enum(["CORPORATION", "SOLE_PROPRIETOR"]),
+      corporateNumber: z.string().optional(),
+    })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await updateOwnCompany(c.get("auth"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
 
 // ---- 担当者管理（§7, §28）----
 

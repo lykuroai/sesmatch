@@ -17,6 +17,7 @@ const MENU = [
   { href: "/relationships", label: "企業間関係" },
   { href: "/reports", label: "通報" },
   { href: "/settings/members", label: "担当者" },
+  { href: "/settings/company", label: "企業情報" },
   { href: "/audit", label: "監査" },
 ];
 

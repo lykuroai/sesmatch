@@ -178,6 +178,36 @@ export async function updateCompanyByOperations(
   return { ok: true as const };
 }
 
+// 企業情報の修正（企業オーナー・企業管理者）。名称・種別・法人番号を自社分のみ変更できる
+export async function updateOwnCompany(
+  auth: AuthContext,
+  input: { name: string; companyType: "CORPORATION" | "SOLE_PROPRIETOR"; corporateNumber?: string }
+) {
+  const corporateNumber = (input.corporateNumber ?? "").replace(/\D/g, "");
+  // 法人は法人番号必須（§6.4 の申込時と同じ基準）
+  if (input.companyType === "CORPORATION" && !/^\d{13}$/.test(corporateNumber))
+    return { error: { code: "VALIDATION_ERROR" as const, message: "法人番号（13桁）を入力してください" } };
+  if (corporateNumber && !/^\d{13}$/.test(corporateNumber))
+    return { error: { code: "VALIDATION_ERROR" as const, message: "法人番号は13桁で入力してください" } };
+  await prisma.company.update({
+    where: { id: auth.companyId }, // 自社のみ（テナント分離）
+    data: {
+      name: input.name,
+      companyType: input.companyType,
+      corporateNumber: corporateNumber || null,
+    },
+  });
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "CompanyProfileUpdated",
+    targetType: "Company",
+    targetId: auth.companyId,
+    metadata: { companyType: input.companyType },
+  });
+  return { ok: true as const };
+}
+
 // 運営: 企業の削除（取込ミス等の是正用）。人材・案件・取込書類などの業務データを持つ企業は
 // 削除できない（先にデータ側の整理が必要）。担当者は物理削除し、他企業に所属が残らない
 // アカウントはセッションごと削除する。監査ログは追記型のため削除しない。
