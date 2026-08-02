@@ -59,21 +59,23 @@ export default async function EngineerDetailPage({
                 {PUBLISH_STATUS_LABELS[e.status]}
               </span>
             )}
-            {e.own && hasPermission(auth.roles, "engineer.create") ? (
-              <WorkflowStatusSelect
-                path={`/api/v1/engineers/${e.id}/work-status`}
-                current={e.workStatus}
-                options={Object.entries(ENGINEER_WORK_STATUS_LABELS).map(([value, label]) => ({ value, label }))}
-              />
-            ) : (
-              <span
-                className={`rounded px-2 py-0.5 text-xs ${
-                  e.workStatus === "WORKING" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
-                }`}
-              >
-                {ENGINEER_WORK_STATUS_LABELS[e.workStatus]}
-              </span>
-            )}
+            {/* 未公開の人材は紹介できないため稼働状態（紹介中）は表示・設定しない */}
+            {(e.status === "PUBLISHED" || e.workStatus !== "PROPOSING") &&
+              (e.own && hasPermission(auth.roles, "engineer.create") ? (
+                <WorkflowStatusSelect
+                  path={`/api/v1/engineers/${e.id}/work-status`}
+                  current={e.workStatus}
+                  options={Object.entries(ENGINEER_WORK_STATUS_LABELS).map(([value, label]) => ({ value, label }))}
+                />
+              ) : (
+                <span
+                  className={`rounded px-2 py-0.5 text-xs ${
+                    e.workStatus === "WORKING" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
+                  }`}
+                >
+                  {ENGINEER_WORK_STATUS_LABELS[e.workStatus]}
+                </span>
+              ))}
           </p>
         </div>
         <div className="flex items-center gap-3">

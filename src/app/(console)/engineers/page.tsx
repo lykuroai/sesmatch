@@ -129,13 +129,16 @@ export default async function EngineersPage({
                       {PUBLISH_STATUS_LABELS[e.status]}
                     </span>
                   )}
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-xs ${
-                      e.workStatus === "WORKING" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
-                    }`}
-                  >
-                    {ENGINEER_WORK_STATUS_LABELS[e.workStatus]}
-                  </span>
+                  {/* 未公開の人材は紹介できないため「紹介中」は表示しない */}
+                  {(e.status === "PUBLISHED" || e.workStatus !== "PROPOSING") && (
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-xs ${
+                        e.workStatus === "WORKING" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
+                      }`}
+                    >
+                      {ENGINEER_WORK_STATUS_LABELS[e.workStatus]}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3">{e.hasValidConsent ? "✓" : <span className="text-red-600">なし</span>}</td>
               </tr>
