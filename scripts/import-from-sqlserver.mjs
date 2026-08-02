@@ -142,7 +142,8 @@ async function main() {
     failed = 0;
   const errors = [];
   for (const [i, d] of targets.entries()) {
-    const title = `[eb#${d.document_id}] ${(d.title ?? "").trim()}`.slice(0, 200);
+    // タイトルは短めに切る（原本保存のファイル名になるため。長い日本語タイトルはバイト長超過で失敗する）
+    const title = `[eb#${d.document_id}] ${(d.title ?? "").trim()}`.slice(0, 60);
     const text = (d.body_text ?? "").slice(0, 100_000);
     if (!text.trim()) {
       failed++;

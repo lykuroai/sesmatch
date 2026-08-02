@@ -12,6 +12,20 @@ import { audit } from "@/server/audit";
 
 const STORAGE_DIR = process.env.STORAGE_DIR ?? "./storage";
 
+// 保存用ファイル名をUTF-8のバイト長で安全に切り詰める（ext4等の255バイト制限対策。拡張子は保持）。
+// 表示用の filename（DB）は切り詰めず、ディスク上のパスだけを短くする。
+function truncateFilenameBytes(filename: string, maxBytes: number): string {
+  const ext = path.extname(filename).slice(0, 20);
+  const base = filename.slice(0, filename.length - ext.length);
+  const budget = maxBytes - Buffer.byteLength(ext, "utf-8");
+  let out = "";
+  for (const ch of base) {
+    if (Buffer.byteLength(out + ch, "utf-8") > budget) break;
+    out += ch;
+  }
+  return (out || "document") + ext;
+}
+
 export async function startIngestion(params: {
   tenantCompanyId: string;
   memberId: string;
@@ -25,7 +39,7 @@ export async function startIngestion(params: {
   const storagePath = path.join(
     STORAGE_DIR,
     params.tenantCompanyId,
-    `${Date.now()}_${params.filename}`
+    `${Date.now()}_${truncateFilenameBytes(params.filename, 180)}`
   );
   await writeFile(storagePath, params.content);
 
