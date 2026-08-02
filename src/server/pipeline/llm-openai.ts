@@ -32,6 +32,7 @@ const SYSTEM_PROMPT = `あなたはSES（システムエンジニアリングサ
 - スキル名は一般的な正式名称に正規化する（例: "JAVA" → "Java"）
 - 経験年数は月数に換算する（例: 5年 → 60）
 - 判断できない項目は null にする（推測で埋めない）
+- 例外: スキルの経験月数（months）に限り、明記がなければ経歴欄のプロジェクト期間から推定してよい（推定した場合は monthsEstimated=true を付ける）
 - summary などの自由記述の文字列は、必ず自然な日本語で書く（英語・中国語で出力しない）`;
 
 const CLASSIFY_SCHEMA = `{"kind": "ENGINEER_SHEET" | "PROJECT_DESCRIPTION" | "UNKNOWN"}`;
@@ -45,7 +46,10 @@ const ENGINEER_SCHEMA = `{
   "availableFrom": string | null,      // 稼働可能日 YYYY-MM-DD
   "desiredRateYen": number | null,     // 希望月額単価（円整数）
   "maxOnsiteDaysPerWeek": number | null, // 週あたり最大出社日数 0-5
-  "skills": [{"category": "LANGUAGE"|"FRAMEWORK"|"DATABASE"|"CLOUD"|"OS"|"TOOL"|"CERTIFICATION", "name": string, "months": number | null}],
+  "skills": [{"category": "LANGUAGE"|"FRAMEWORK"|"DATABASE"|"CLOUD"|"OS"|"TOOL"|"CERTIFICATION", "name": string, "months": number | null, "monthsEstimated": boolean}],
+                                       // months: スキル一覧に経験年数・月数の明記があればその値（monthsEstimated=false）。
+                                       // 明記がない場合は、経歴・職務経歴欄の各プロジェクトの期間と使用技術からそのスキルの使用月数を合算して推定し monthsEstimated=true とする。
+                                       // 期間が重複するプロジェクトは重複期間を二重に数えない。経歴からも判断できない場合のみ months=null
   "processes": string[],               // 経験工程（要件定義/基本設計/詳細設計/開発/テスト/運用/保守）
   "summary": string                    // 匿名要約200字以内。自然な日本語で書く。PII・企業名を含めない
 }`;

@@ -57,9 +57,17 @@ const ENGINEER_SCHEMA = {
             enum: ["LANGUAGE", "FRAMEWORK", "DATABASE", "CLOUD", "OS", "TOOL", "CERTIFICATION"],
           },
           name: { type: "string" },
-          months: { ...nullable("integer"), description: "経験月数（不明は null）" },
+          months: {
+            ...nullable("integer"),
+            description:
+              "経験月数。明記があればその値。明記がなければ経歴欄の各プロジェクトの期間と使用技術から使用月数を合算して推定する（重複期間は二重に数えない）。経歴からも判断できない場合のみ null",
+          },
+          monthsEstimated: {
+            type: "boolean",
+            description: "months を経歴からの推定で算出した場合 true（明記値をそのまま使った場合 false）",
+          },
         },
-        required: ["category", "name", "months"],
+        required: ["category", "name", "months", "monthsEstimated"],
       },
     },
     processes: { type: "array", items: { type: "string" }, description: "経験工程" },
@@ -111,7 +119,8 @@ const SYSTEM_PROMPT = `あなたはSES（システムエンジニアリングサ
 - 単価は月額の円整数で出力する（例: 70万円 → 700000）
 - スキル名は一般的な正式名称に正規化する（例: "JAVA" → "Java", "railsフレームワーク" → "Rails"）
 - 経験年数は月数に換算する（例: 5年 → 60）
-- 判断できない項目は null にする（推測で埋めない）`;
+- 判断できない項目は null にする（推測で埋めない）
+- 例外: スキルの経験月数（months）に限り、明記がなければ経歴欄のプロジェクト期間から推定してよい（推定した場合は monthsEstimated=true を付ける）`;
 
 export class ClaudeLlmGateway implements LlmGateway {
   private client = new Anthropic(); // ANTHROPIC_API_KEY を環境変数から解決

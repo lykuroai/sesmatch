@@ -18,7 +18,10 @@ export const engineerDraftSchema = z.object({
     z.object({
       category: z.enum(["LANGUAGE", "FRAMEWORK", "DATABASE", "CLOUD", "OS", "TOOL", "CERTIFICATION"]),
       name: z.string(),
-      months: z.number().int().min(0).nullable(), // 経験期間不明は null（推測で埋めない）
+      // 明記があればその値。明記がなければ経歴欄（プロジェクト期間×使用技術）から合算推定し
+      // monthsEstimated=true とする。経歴からも判断できない場合のみ null
+      months: z.number().int().min(0).nullable(),
+      monthsEstimated: z.boolean().optional().default(false), // true=経歴からの推定値（人手確認で修正対象）
     })
   ),
   processes: z.array(z.string()),
@@ -78,7 +81,12 @@ const SKILL_DICT: { name: string; category: EngineerDraft["skills"][number]["cat
 const PROCESSES = ["要件定義", "基本設計", "詳細設計", "開発", "テスト", "運用", "保守"];
 
 function findSkills(text: string) {
-  const found: { name: string; category: EngineerDraft["skills"][number]["category"]; months: number }[] = [];
+  const found: {
+    name: string;
+    category: EngineerDraft["skills"][number]["category"];
+    months: number;
+    monthsEstimated: boolean;
+  }[] = [];
   for (const s of SKILL_DICT) {
     const names = [s.name, ...(s.aliases ?? [])];
     const hit = names.find((n) => text.toLowerCase().includes(n.toLowerCase()));
@@ -90,7 +98,7 @@ function findSkills(text: string) {
     );
     const m = text.match(near);
     const months = m ? (m[1] ? parseInt(m[1]) * 12 : parseInt(m[2])) : 12;
-    found.push({ name: s.name, category: s.category, months });
+    found.push({ name: s.name, category: s.category, months, monthsEstimated: !m });
   }
   return found;
 }

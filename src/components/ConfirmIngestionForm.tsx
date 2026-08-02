@@ -16,7 +16,7 @@ type EngineerDraft = {
   availableFrom: string | null;
   desiredRateYen: number | null;
   maxOnsiteDaysPerWeek: number | null;
-  skills: { category: string; name: string; months: number | null }[];
+  skills: { category: string; name: string; months: number | null; monthsEstimated?: boolean }[];
   processes: string[];
   summary: string;
 };
@@ -158,6 +158,15 @@ export function ConfirmIngestionForm({
         </div>
         <div>
           <label className={label}>スキル（1行1件: 名称,分類,経験月数 — 不明は0）</label>
+          {d.skills.some((s) => s.monthsEstimated) && (
+            <p className="mb-1 rounded bg-amber-100 px-2 py-1 text-xs text-amber-800">
+              ⚠ 経験月数が明記されていないため、経歴から推定した値が含まれます。確認して必要なら修正してください:{" "}
+              {d.skills
+                .filter((s) => s.monthsEstimated)
+                .map((s) => `${s.name}（${s.months ?? "?"}ヶ月）`)
+                .join("、")}
+            </p>
+          )}
           <textarea
             name="skills"
             rows={4}
