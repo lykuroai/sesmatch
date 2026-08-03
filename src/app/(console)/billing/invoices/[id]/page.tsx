@@ -100,14 +100,6 @@ export default async function InvoiceDocumentPage({
           <p>カ）イービジネスソリューション</p>
         </div>
 
-        <p className="mt-4 text-xs text-slate-500">
-          成約手数料（確定契約金額の3%・§23）のご請求です。
-          {inv.status === "PAID" && inv.paidAt && (
-            <span className="ml-2 font-medium text-emerald-700">
-              {fmtDate(inv.paidAt)} 入金確認済み
-            </span>
-          )}
-        </p>
       </div>
     </div>
   );
