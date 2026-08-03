@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
 import { ROLE_LABELS } from "@/lib/constants";
 import { LogoutButton } from "@/components/LogoutButton";
+import { ResizableSidebar } from "@/components/ResizableSidebar";
 
 // 企業専用コンソール（§8）: ログイン後、所属企業コンソールを自動表示
 const MENU = [
@@ -27,7 +28,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
 
   return (
     <div className="flex min-h-screen">
-      <aside className="w-60 shrink-0 border-r border-slate-200 bg-white">
+      <ResizableSidebar>
         <div className="border-b border-slate-200 p-4">
           <p className="text-sm font-bold">{auth.companyName}</p>
           <p className="mt-1 text-xs text-slate-500">{auth.userName}</p>
@@ -49,8 +50,8 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
         <div className="p-4">
           <LogoutButton />
         </div>
-      </aside>
-      <main className="flex-1 p-8">{children}</main>
+      </ResizableSidebar>
+      <main className="min-w-0 flex-1 p-8">{children}</main>
     </div>
   );
 }
