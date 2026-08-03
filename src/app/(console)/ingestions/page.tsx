@@ -7,17 +7,30 @@ import { IngestUpload } from "@/components/IngestUpload";
 import { IngestPaste } from "@/components/IngestPaste";
 import { ConfirmIngestionForm } from "@/components/ConfirmIngestionForm";
 import { hasPermission } from "@/server/auth/rbac";
+import { Pager, parsePage } from "@/components/Pager";
+import { LIST_PAGE_SIZE } from "@/lib/constants";
 
 // 取込（§9）: ファイルアップロード → 匿名化 → LLM正規化 → 人手確認 → 確定
-export default async function IngestionsPage() {
+export default async function IngestionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const auth = await getAuth();
   if (!auth) redirect("/login");
-  const jobs = await prisma.ingestionJob.findMany({
-    where: { tenantCompanyId: auth.companyId },
-    include: { sourceDocument: true, extraction: true },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
+  const { page: pageParam } = await searchParams;
+  const page = parsePage(pageParam);
+  const where = { tenantCompanyId: auth.companyId };
+  const [total, jobs] = await Promise.all([
+    prisma.ingestionJob.count({ where }),
+    prisma.ingestionJob.findMany({
+      where,
+      include: { sourceDocument: true, extraction: true },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * LIST_PAGE_SIZE,
+      take: LIST_PAGE_SIZE,
+    }),
+  ]);
   const canConfirm = hasPermission(auth.roles, "ingestion.confirm");
 
   return (
@@ -106,6 +119,7 @@ export default async function IngestionsPage() {
         ))}
         {jobs.length === 0 && <p className="text-sm text-slate-400">取込履歴はありません</p>}
       </div>
+      <Pager total={total} page={page} basePath="/ingestions" />
     </div>
   );
 }

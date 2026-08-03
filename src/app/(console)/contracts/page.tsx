@@ -4,14 +4,22 @@ import { getAuth } from "@/server/session-rsc";
 import { hasPermission } from "@/server/auth/rbac";
 import { listContracts } from "@/server/services/contracts";
 import { CONTRACT_STATUS_LABELS } from "@/lib/constants";
+import { Pager, parsePage, slicePage } from "@/components/Pager";
 
-export default async function ContractsPage() {
+export default async function ContractsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const auth = await getAuth();
   if (!auth) redirect("/login");
   if (!hasPermission(auth.roles, "contract.read")) {
     return <p className="text-sm text-slate-500">契約情報の閲覧権限がありません。</p>;
   }
-  const contracts = await listContracts(auth);
+  const { page: pageParam } = await searchParams;
+  const page = parsePage(pageParam);
+  const all = await listContracts(auth);
+  const contracts = slicePage(all, page);
 
   return (
     <div>
@@ -65,6 +73,7 @@ export default async function ContractsPage() {
           </tbody>
         </table>
       </div>
+      <Pager total={all.length} page={page} basePath="/contracts" />
     </div>
   );
 }

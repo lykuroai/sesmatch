@@ -36,7 +36,7 @@ export default async function EngineerDetailPage({
 
   // 他社人材: スカウト先となる自社の公開案件（§20.1）
   const scoutOptions = canScout
-    ? (await listProjects(auth, "own"))
+    ? (await listProjects(auth, "own")).items
         .filter((p) => p.status === "PUBLISHED")
         .map((p) => ({ id: p.id, label: `${p.code} ${p.name}` }))
     : [];

@@ -6,19 +6,21 @@ import { listProjects } from "@/server/services/projects";
 import { PROJECT_WORKFLOW_LABELS, PUBLISH_STATUS_LABELS, REMOTE_LEVEL_LABELS } from "@/lib/constants";
 import { IngestPanel } from "@/components/IngestPanel";
 import { PendingIngestions } from "@/components/PendingIngestions";
+import { Pager, parsePage } from "@/components/Pager";
 
 export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ scope?: string; q?: string }>;
+  searchParams: Promise<{ scope?: string; q?: string; page?: string }>;
 }) {
   const auth = await getAuth();
   if (!auth) redirect("/login");
-  const { scope: scopeParam, q } = await searchParams;
+  const { scope: scopeParam, q, page: pageParam } = await searchParams;
   const scope = scopeParam === "public" ? "public" : "own";
   const query = q?.trim() || undefined;
-  const [projects, pendingJobs] = await Promise.all([
-    listProjects(auth, scope, query),
+  const page = parsePage(pageParam);
+  const [{ items: projects, total }, pendingJobs] = await Promise.all([
+    listProjects(auth, scope, query, page),
     prisma.ingestionJob.findMany({
       where: {
         tenantCompanyId: auth.companyId,
@@ -147,6 +149,7 @@ export default async function ProjectsPage({
           </tbody>
         </table>
       </div>
+      <Pager total={total} page={page} basePath="/projects" params={{ scope: scopeParam, q }} />
     </div>
   );
 }

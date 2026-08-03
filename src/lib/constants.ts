@@ -47,6 +47,9 @@ export const REMOTE_LEVEL_ORDER: Record<string, number> = {
   R5: 5,
 };
 
+// 一覧共通のページサイズ（§8 一覧表示。ページャは components/Pager.tsx）
+export const LIST_PAGE_SIZE = 50;
+
 export const PUBLISH_STATUS_LABELS: Record<string, string> = {
   DRAFT: "下書き",
   PUBLISHED: "公開中",

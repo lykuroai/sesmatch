@@ -3,19 +3,22 @@ import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
 import { listEntries } from "@/server/services/entries";
 import { ENTRY_STATUS_LABELS, ENTRY_TYPE_LABELS } from "@/lib/constants";
+import { Pager, parsePage, slicePage } from "@/components/Pager";
 
 // エントリー一覧（§20.1: 送信・受信）
 export default async function EntriesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ box?: string }>;
+  searchParams: Promise<{ box?: string; page?: string }>;
 }) {
   const auth = await getAuth();
   if (!auth) redirect("/login");
-  const { box: boxParam } = await searchParams;
+  const { box: boxParam, page: pageParam } = await searchParams;
   const box = boxParam === "received" ? "received" : "sent";
+  const page = parsePage(pageParam);
   const all = await listEntries(auth);
-  const entries = all.filter((e) => (box === "sent" ? e!.createdByOwn : !e!.createdByOwn));
+  const filtered = all.filter((e) => (box === "sent" ? e!.createdByOwn : !e!.createdByOwn));
+  const entries = slicePage(filtered, page);
 
   return (
     <div>
@@ -92,6 +95,7 @@ export default async function EntriesPage({
           </tbody>
         </table>
       </div>
+      <Pager total={filtered.length} page={page} basePath="/entries" params={{ box: boxParam }} />
     </div>
   );
 }

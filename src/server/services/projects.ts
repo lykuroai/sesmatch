@@ -1,6 +1,7 @@
 import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
+import { LIST_PAGE_SIZE } from "@/lib/constants";
 import type { Project, ProjectSkill } from "@prisma/client";
 
 type ProjectWithRels = Project & { skills: ProjectSkill[] };
@@ -38,7 +39,13 @@ export function serializeProject(p: ProjectWithRels, auth: AuthContext) {
   };
 }
 
-export async function listProjects(auth: AuthContext, scope: "own" | "public", query?: string) {
+// page 指定時は 50件/ページでページングし、未指定時は全件を返す（詳細画面の候補選択用）
+export async function listProjects(
+  auth: AuthContext,
+  scope: "own" | "public",
+  query?: string,
+  page?: number
+) {
   const base =
     scope === "own"
       ? { tenantCompanyId: auth.companyId }
@@ -58,12 +65,17 @@ export async function listProjects(auth: AuthContext, scope: "own" | "public", q
         ],
       }
     : {};
-  const projects = await prisma.project.findMany({
-    where: { ...base, ...search },
-    include: { skills: true },
-    orderBy: { createdAt: "desc" },
-  });
-  return projects.map((p) => serializeProject(p, auth));
+  const where = { ...base, ...search };
+  const [total, projects] = await Promise.all([
+    prisma.project.count({ where }),
+    prisma.project.findMany({
+      where,
+      include: { skills: true },
+      orderBy: { createdAt: "desc" },
+      ...(page ? { skip: (page - 1) * LIST_PAGE_SIZE, take: LIST_PAGE_SIZE } : {}),
+    }),
+  ]);
+  return { items: projects.map((p) => serializeProject(p, auth)), total };
 }
 
 export async function getProject(auth: AuthContext, id: string) {

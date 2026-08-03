@@ -33,7 +33,7 @@ export default async function ProjectDetailPage({
 
   // 他社案件: 提案候補となる自社の公開・同意済み人材（§20.1）
   const proposalOptions = canPropose
-    ? (await listEngineers(auth, "own"))
+    ? (await listEngineers(auth, "own")).items
         .filter((e) => e.status === "PUBLISHED" && e.hasValidConsent)
         .map((e) => ({
           id: e.id,

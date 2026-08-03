@@ -100,7 +100,7 @@ describe("テナント間データ分離", () => {
     const b = await makeCompany("B社");
     await makeEngineer(a, { publish: false }); // 下書き
     await makeEngineer(a); // 公開+同意あり
-    const visible = await listEngineers(b, "public");
+    const visible = (await listEngineers(b, "public")).items;
     expect(visible).toHaveLength(1);
   });
 });
@@ -353,7 +353,7 @@ describe("本人削除・物理削除（§26, §34）", () => {
     // 受付 → 即時非公開（他社の公開検索から消える）
     const created = await createPrivacyRequest(a, { engineerId: engineer.id, kind: "DELETION" });
     const requestId = created.request?.id as string;
-    expect(await listEngineers(b, "public")).toHaveLength(0);
+    expect((await listEngineers(b, "public")).items).toHaveLength(0);
 
     // 承認 → 論理削除
     await decidePrivacyRequest(a, requestId, true);

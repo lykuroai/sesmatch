@@ -63,7 +63,7 @@ describe("deleteEngineer", () => {
     expect(r).toEqual({ ok: true });
     const row = await prisma.engineer.findUnique({ where: { id: engineer.id } });
     expect(row?.deletedAt).not.toBeNull();
-    expect((await listEngineers(auth, "own")).find((e) => e.id === engineer.id)).toBeUndefined();
+    expect((await listEngineers(auth, "own")).items.find((e) => e.id === engineer.id)).toBeUndefined();
     expect("error" in (await deleteEngineer(auth, engineer.id))).toBe(true);
   });
 

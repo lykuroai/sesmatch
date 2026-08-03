@@ -11,19 +11,21 @@ import {
 } from "@/lib/constants";
 import { IngestPanel } from "@/components/IngestPanel";
 import { PendingIngestions } from "@/components/PendingIngestions";
+import { Pager, parsePage } from "@/components/Pager";
 
 export default async function EngineersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ scope?: string; q?: string }>;
+  searchParams: Promise<{ scope?: string; q?: string; page?: string }>;
 }) {
   const auth = await getAuth();
   if (!auth) redirect("/login");
-  const { scope: scopeParam, q } = await searchParams;
+  const { scope: scopeParam, q, page: pageParam } = await searchParams;
   const scope = scopeParam === "public" ? "public" : "own";
   const query = q?.trim() || undefined;
-  const [engineers, pendingJobs] = await Promise.all([
-    listEngineers(auth, scope, query),
+  const page = parsePage(pageParam);
+  const [{ items: engineers, total }, pendingJobs] = await Promise.all([
+    listEngineers(auth, scope, query, page),
     prisma.ingestionJob.findMany({
       where: {
         tenantCompanyId: auth.companyId,
@@ -153,6 +155,7 @@ export default async function EngineersPage({
           </tbody>
         </table>
       </div>
+      <Pager total={total} page={page} basePath="/engineers" params={{ scope: scopeParam, q }} />
     </div>
   );
 }

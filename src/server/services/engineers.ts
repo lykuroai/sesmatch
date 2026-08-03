@@ -2,7 +2,7 @@ import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
 import { hasPermission } from "@/server/auth/rbac";
-import { ageBandLabel, rateBand } from "@/lib/constants";
+import { ageBandLabel, rateBand, LIST_PAGE_SIZE } from "@/lib/constants";
 import type { Engineer, EngineerSkill, PersonConsent } from "@prisma/client";
 
 export function hasValidConsent(consents: PersonConsent[]): boolean {
@@ -55,7 +55,13 @@ export function serializeEngineer(e: EngineerWithRels, auth: AuthContext) {
   };
 }
 
-export async function listEngineers(auth: AuthContext, scope: "own" | "public", query?: string) {
+// page 指定時は 50件/ページでページングし、未指定時は全件を返す（詳細画面の候補選択用）
+export async function listEngineers(
+  auth: AuthContext,
+  scope: "own" | "public",
+  query?: string,
+  page?: number
+) {
   const base =
     scope === "own"
       ? { tenantCompanyId: auth.companyId, deletedAt: null }
@@ -78,14 +84,29 @@ export async function listEngineers(auth: AuthContext, scope: "own" | "public", 
         ],
       }
     : {};
-  const engineers = await prisma.engineer.findMany({
-    where: { ...base, ...search },
-    include: { skills: true, consents: true },
-    orderBy: { createdAt: "desc" },
-  });
-  return engineers
-    .filter((e) => scope === "own" || hasValidConsent(e.consents)) // 同意なしは公開検索に出さない
-    .map((e) => serializeEngineer(e, auth));
+  // 同意なしは公開検索に出さない（hasValidConsent と同じ条件を where で表現し、件数と整合させる）
+  const consentFilter =
+    scope === "public"
+      ? {
+          consents: {
+            some: {
+              revokedAt: null,
+              OR: [{ validUntil: null }, { validUntil: { gte: new Date() } }],
+            },
+          },
+        }
+      : {};
+  const where = { ...base, ...search, ...consentFilter };
+  const [total, engineers] = await Promise.all([
+    prisma.engineer.count({ where }),
+    prisma.engineer.findMany({
+      where,
+      include: { skills: true, consents: true },
+      orderBy: { createdAt: "desc" },
+      ...(page ? { skip: (page - 1) * LIST_PAGE_SIZE, take: LIST_PAGE_SIZE } : {}),
+    }),
+  ]);
+  return { items: engineers.map((e) => serializeEngineer(e, auth)), total };
 }
 
 export async function getEngineer(auth: AuthContext, id: string) {
