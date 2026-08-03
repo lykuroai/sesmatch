@@ -151,7 +151,7 @@ enum EngineerWorkStatus {
 model Engineer {
   id              String @id @default(cuid())
   tenantCompanyId String
-  code            String // 表示用人材ID（例: E000001）
+  code            String @unique // 表示用人材ID（例: E000001。システム全体で連番）
 
   // PII: engineer.read.pii 権限保持者のみ参照可（§10 Level 2 相当）
   name String
@@ -185,7 +185,6 @@ model Engineer {
   consents      PersonConsent[]
   entries       Entry[]
 
-  @@unique([tenantCompanyId, code])
   @@map("engineers")
 }
 
@@ -242,7 +241,7 @@ enum ProjectWorkflowStatus {
 model Project {
   id              String @id @default(cuid())
   tenantCompanyId String
-  code            String // 表示用案件ID（例: P000001）
+  code            String @unique // 表示用案件ID（例: P000001。システム全体で連番）
 
   name              String
   anonymousSummary  String // 匿名化済み概要（エンド企業名は抽象カテゴリ）
@@ -272,7 +271,6 @@ model Project {
   skills        ProjectSkill[]
   entries       Entry[]
 
-  @@unique([tenantCompanyId, code])
   @@map("projects")
 }
 
