@@ -5,7 +5,6 @@ import { hasPermission } from "@/server/auth/rbac";
 import { getContract } from "@/server/services/contracts";
 import { CONTRACT_STATUS_LABELS, FEE_STATUS_LABELS } from "@/lib/constants";
 import { ActionButton } from "@/components/ActionButton";
-import { WorkMonthForm } from "@/components/WorkMonthForm";
 import { WorkControls } from "@/components/WorkControls";
 
 const CHECKLIST_LABELS: Record<string, string> = {
@@ -24,7 +23,6 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
   if (!c) notFound();
 
   const canSign = hasPermission(auth.roles, "contract.sign");
-  const canConfirm = hasPermission(auth.roles, "workmonth.confirm") && c.side === "DEMAND";
   const mySigned = c.side === "DEMAND" ? c.demandSigned : c.supplySigned;
   const signable = canSign && !mySigned && ["DRAFT", "SIGNED_SUPPLY", "SIGNED_DEMAND"].includes(c.status);
 
@@ -128,16 +126,17 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
             ))}
             {c.workMonths.length === 0 && (
               <tr>
-                <td colSpan={c.side === "DEMAND" ? 5 : 2} className="py-4 text-center text-slate-400">月次確認はまだありません</td>
+                <td colSpan={c.side === "DEMAND" ? 5 : 2} className="py-4 text-center text-slate-400">
+                  月次稼働はまだありません（稼働開始後に自動計算されます）
+                </td>
               </tr>
             )}
           </tbody>
         </table>
-        {canConfirm && c.status === "ACTIVE" && (
-          <WorkMonthForm contractId={c.id} defaultAmountYen={c.monthlyRateYen} />
-        )}
-        {c.side === "SUPPLY" && (
-          <p className="text-xs text-slate-400">月次確認・手数料は需要側企業が行います。</p>
+        {c.side === "DEMAND" && c.status === "ACTIVE" && (
+          <p className="text-xs text-slate-400">
+            月次稼働と手数料は、稼働開始月から当月分まで月額契約金額をもとに自動計算されます。
+          </p>
         )}
       </section>
     </div>

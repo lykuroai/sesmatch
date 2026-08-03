@@ -4,8 +4,14 @@ import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
 import { calcTax } from "@/server/billing/fee";
+import { ensureWorkMonths } from "./contracts";
 
 export async function listFees(auth: AuthContext) {
+  // 需要側の稼働中契約の月次手数料を最新化してから返す（自動計算 §23）
+  const active = await prisma.contract.findMany({
+    where: { status: "ACTIVE", demandCompanyId: auth.companyId },
+  });
+  for (const c of active) await ensureWorkMonths(c);
   return prisma.platformFee.findMany({
     where: { demandCompanyId: auth.companyId },
     orderBy: [{ month: "desc" }, { createdAt: "desc" }],

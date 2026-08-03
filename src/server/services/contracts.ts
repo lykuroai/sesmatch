@@ -81,7 +81,78 @@ export function serializeContract(
   };
 }
 
+// 月次稼働・手数料の自動計算（§23）: 稼働中の契約について、稼働開始月から当月までの
+// WorkMonth と手数料を自動生成する。金額は契約の月額（monthlyRateYen）。
+// @@unique([contractId, month]) により冪等（並行アクセスでも二重計上しない）。
+// 契約詳細・契約一覧・請求画面の表示時に呼ばれる（手動の月次確認ボタンは廃止）
+export async function ensureWorkMonths(c: Contract) {
+  if (c.status !== "ACTIVE" || !c.workStartedAt) return;
+  const now = new Date();
+  const months: string[] = [];
+  const cur = new Date(Date.UTC(c.workStartedAt.getUTCFullYear(), c.workStartedAt.getUTCMonth(), 1));
+  const last = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  while (cur <= last) {
+    months.push(cur.toISOString().slice(0, 7));
+    cur.setUTCMonth(cur.getUTCMonth() + 1);
+  }
+  const existing = await prisma.workMonth.findMany({
+    where: { contractId: c.id },
+    select: { month: true },
+  });
+  const have = new Set(existing.map((w) => w.month));
+  for (const month of months.filter((m) => !have.has(m))) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const wm = await tx.workMonth.create({
+          data: { contractId: c.id, month, confirmedAmountYen: c.monthlyRateYen },
+        });
+        // 12か月上限: (案件, 人材, 需要側企業) の組合せで、契約を跨いで課金済み月数を数える（§23）
+        const priorCharged = await tx.platformFee.count({
+          where: {
+            projectId: c.projectId,
+            engineerId: c.engineerId,
+            demandCompanyId: c.demandCompanyId,
+            status: "CHARGED",
+          },
+        });
+        const decision = decideFee(c.monthlyRateYen, priorCharged);
+        await tx.platformFee.create({
+          data: {
+            workMonthId: wm.id,
+            contractId: c.id,
+            demandCompanyId: c.demandCompanyId,
+            projectId: c.projectId,
+            engineerId: c.engineerId,
+            month,
+            baseAmountYen: c.monthlyRateYen,
+            feeExTaxYen: decision.feeExTaxYen,
+            chargeableMonthIndex: decision.chargeableMonthIndex,
+            status: decision.status,
+          },
+        });
+      });
+      await audit({
+        tenantCompanyId: c.demandCompanyId,
+        action: "WorkMonthAutoCalculated",
+        targetType: "Contract",
+        targetId: c.id,
+        metadata: { month },
+      });
+    } catch {
+      // 一意制約違反（並行実行）は無視して継続
+    }
+  }
+}
+
 export async function listContracts(auth: AuthContext) {
+  // 稼働中契約の月次稼働・手数料を最新化してから返す（自動計算）
+  const active = await prisma.contract.findMany({
+    where: {
+      status: "ACTIVE",
+      OR: [{ demandCompanyId: auth.companyId }, { supplyCompanyId: auth.companyId }],
+    },
+  });
+  for (const c of active) await ensureWorkMonths(c);
   const contracts = await prisma.contract.findMany({
     where: { OR: [{ demandCompanyId: auth.companyId }, { supplyCompanyId: auth.companyId }] },
     include: CONTRACT_INCLUDE,
@@ -94,8 +165,14 @@ export async function listContracts(auth: AuthContext) {
 }
 
 export async function getContract(auth: AuthContext, id: string) {
-  const c = await prisma.contract.findUnique({ where: { id }, include: CONTRACT_INCLUDE });
+  let c = await prisma.contract.findUnique({ where: { id }, include: CONTRACT_INCLUDE });
   if (!c) return null;
+  if (c.status === "ACTIVE") {
+    // 表示時に月次稼働・手数料を最新化（自動計算）
+    await ensureWorkMonths(c);
+    c = await prisma.contract.findUnique({ where: { id }, include: CONTRACT_INCLUDE });
+    if (!c) return null;
+  }
   return serializeContract(c, auth, await companyNameMap([c.demandCompanyId, c.supplyCompanyId]));
 }
 
