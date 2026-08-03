@@ -12,14 +12,10 @@ const MENU = [
   { href: "/ingestions", label: "取込履歴" },
   { href: "/entries", label: "エントリー" },
   { href: "/contracts", label: "契約・稼働" },
-  { href: "/billing", label: "請求" },
   { href: "/privacy", label: "プライバシー" },
   { href: "/relationships", label: "企業間関係" },
-  { href: "/reports", label: "通報" },
-  { href: "/settings/members", label: "担当者" },
-  { href: "/settings/company", label: "企業情報" },
-  { href: "/audit", label: "監査" },
 ];
+// 企業情報・担当者・請求・通報・監査は会社マイページ（/company、ヘッダー右の会社名から）に集約
 
 export default async function ConsoleLayout({ children }: { children: React.ReactNode }) {
   const auth = await getAuth();
@@ -32,7 +28,9 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
           Ai-SESマッチング
         </Link>
         <p className="text-sm text-slate-700">
-          <span className="font-bold">{auth.companyName}</span>
+          <Link href="/company" className="font-bold hover:underline" title="会社マイページ">
+            {auth.companyName}
+          </Link>
           <span className="ml-3 text-slate-500">{auth.userName}</span>
         </p>
       </header>
