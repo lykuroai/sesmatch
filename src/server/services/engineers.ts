@@ -3,6 +3,9 @@ import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
 import { hasPermission } from "@/server/auth/rbac";
 import { ageBandLabel, rateBand, LIST_PAGE_SIZE } from "@/lib/constants";
+import { STORAGE_DIR, truncateFilenameBytes } from "@/server/pipeline/ingest";
+import { mkdir, writeFile, readFile } from "fs/promises";
+import path from "path";
 import type { Engineer, EngineerSkill, PersonConsent } from "@prisma/client";
 
 export function hasValidConsent(consents: PersonConsent[]): boolean {
@@ -112,13 +115,85 @@ export async function listEngineers(
 export async function getEngineer(auth: AuthContext, id: string) {
   const e = await prisma.engineer.findUnique({
     where: { id },
-    include: { skills: true, consents: true },
+    include: { skills: true, consents: true, skillSheetDocument: { select: { filename: true } } },
   });
   // 他テナントの非公開データは 404 相当（存在推測を防ぐ §29）
   if (!e) return null;
   if (e.deletedAt && e.tenantCompanyId !== auth.companyId) return null; // 論理削除済み（§26）
   if (e.tenantCompanyId !== auth.companyId && e.status !== "PUBLISHED") return null;
-  return serializeEngineer(e, auth);
+  return {
+    ...serializeEngineer(e, auth),
+    // 業務経歴書（原本・PII含む）: 自社のみファイル名を返す。取得はPII権限で別途制御
+    skillSheetFilename:
+      e.tenantCompanyId === auth.companyId ? (e.skillSheetDocument?.filename ?? null) : null,
+  };
+}
+
+// 業務経歴書（スキルシート）の添付・差し替え。原本は取込と同じストレージに保存し
+// SourceDocument として管理する（PII を含むため LLM には送らない）
+export async function attachSkillSheet(
+  auth: AuthContext,
+  engineerId: string,
+  file: { filename: string; mimeType: string; content: Buffer }
+) {
+  const engineer = await prisma.engineer.findFirst({
+    where: { id: engineerId, tenantCompanyId: auth.companyId, deletedAt: null }, // テナント分離
+  });
+  if (!engineer) return { error: { code: "NOT_FOUND" as const } };
+  if (file.content.length > 10 * 1024 * 1024)
+    return { error: { code: "VALIDATION_ERROR" as const, message: "ファイルは10MB以下にしてください" } };
+
+  await mkdir(path.join(STORAGE_DIR, auth.companyId), { recursive: true });
+  const storagePath = path.join(
+    STORAGE_DIR,
+    auth.companyId,
+    `${Date.now()}_${truncateFilenameBytes(file.filename, 180)}`
+  );
+  await writeFile(storagePath, file.content);
+  const doc = await prisma.sourceDocument.create({
+    data: {
+      tenantCompanyId: auth.companyId,
+      kind: "ENGINEER_SHEET",
+      filename: file.filename,
+      storagePath,
+      mimeType: file.mimeType,
+      size: file.content.length,
+      uploadedByMemberId: auth.memberId,
+    },
+  });
+  await prisma.engineer.update({
+    where: { id: engineer.id },
+    data: { skillSheetDocumentId: doc.id },
+  });
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "SkillSheetAttached",
+    targetType: "Engineer",
+    targetId: engineer.id,
+    metadata: { size: file.content.length }, // ファイル名は氏名を含みうるため監査ログに残さない
+  });
+  return { ok: true as const, documentId: doc.id };
+}
+
+// 業務経歴書のダウンロード（自社 + engineer.read.pii のみ。呼び出し側で権限確認済み）
+export async function getSkillSheetFile(auth: AuthContext, engineerId: string) {
+  const engineer = await prisma.engineer.findFirst({
+    where: { id: engineerId, tenantCompanyId: auth.companyId }, // テナント分離
+    include: { skillSheetDocument: true },
+  });
+  if (!engineer?.skillSheetDocument) return null;
+  const doc = engineer.skillSheetDocument;
+  const content = await readFile(doc.storagePath).catch(() => null);
+  if (!content) return null;
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "SkillSheetDownloaded",
+    targetType: "Engineer",
+    targetId: engineer.id,
+  });
+  return { filename: doc.filename, mimeType: doc.mimeType, content };
 }
 
 export type EngineerInput = {

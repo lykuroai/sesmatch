@@ -20,6 +20,7 @@ export default async function EditEngineerPage({ params }: { params: Promise<{ i
       <h1 className="mb-6 text-2xl font-bold">人材を編集 — {e.code}</h1>
       <EngineerForm
         engineerId={e.id}
+        currentSheetName={e.skillSheetFilename}
         initial={{
           name: e.name, // PII権限がなければ undefined → 氏名は変更不可
           ageBand: Number.isFinite(ageBand) ? ageBand : 30,

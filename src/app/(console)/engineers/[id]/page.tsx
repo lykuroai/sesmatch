@@ -79,6 +79,16 @@ export default async function EngineerDetailPage({
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {/* 業務経歴書（原本・PII含む）: 自社のPII権限保持者のみダウンロード可 */}
+          {e.own && e.skillSheetFilename && hasPermission(auth.roles, "engineer.read.pii") && (
+            <a
+              href={`/api/v1/engineers/${e.id}/skill-sheet`}
+              className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+              title={e.skillSheetFilename}
+            >
+              業務経歴書
+            </a>
+          )}
           {e.own && hasPermission(auth.roles, "engineer.create") && (
             <>
               <a

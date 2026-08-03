@@ -18,7 +18,9 @@ import { audit } from "@/server/audit";
 import {
   addConsent,
   createEngineer,
+  attachSkillSheet,
   getEngineer,
+  getSkillSheetFile,
   listEngineers,
   deleteEngineer,
   publishEngineer,
@@ -559,6 +561,33 @@ app.post("/engineers", requirePermission("engineer.create"), async (c) => {
   return c.json(await createEngineer(c.get("auth"), parsed.data), 201);
 });
 
+// 業務経歴書（スキルシート）の添付・差し替え（自社人材のみ）
+app.post("/engineers/:id/skill-sheet", requirePermission("engineer.create"), async (c) => {
+  const form = await c.req.formData().catch(() => null);
+  const file = form?.get("file");
+  if (!(file instanceof File)) return c.json(err("VALIDATION_ERROR", "file が必要です"), 400);
+  const result = await attachSkillSheet(c.get("auth"), c.req.param("id"), {
+    filename: file.name,
+    mimeType: file.type || "application/octet-stream",
+    content: Buffer.from(await file.arrayBuffer()),
+  });
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result, 201);
+});
+
+// 業務経歴書のダウンロード（原本＝PII を含むため自社 + engineer.read.pii のみ）
+app.get("/engineers/:id/skill-sheet", requirePermission("engineer.read.pii"), async (c) => {
+  const file = await getSkillSheetFile(c.get("auth"), c.req.param("id"));
+  if (!file) return c.json(err("NOT_FOUND"), 404);
+  return new Response(new Uint8Array(file.content), {
+    headers: {
+      "Content-Type": file.mimeType,
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+    },
+  });
+});
+
 app.get("/engineers/:id", requirePermission("engineer.read.masked"), async (c) => {
   const engineer = await getEngineer(c.get("auth"), c.req.param("id"));
   if (!engineer) return c.json(err("NOT_FOUND"), 404);
@@ -850,11 +879,12 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
     createdId = result.project.id;
   }
 
-  // 匿名化済み原文を作成された案件・人材に保存する（詳細表示用）
+  // 匿名化済み原文を作成された案件・人材に保存する（詳細表示用）。
+  // 人材は取込原本を業務経歴書（スキルシート）としてそのまま紐づける
   if (createdId && job.sourceDocument.kind === "ENGINEER_SHEET") {
     await prisma.engineer.update({
       where: { id: createdId },
-      data: { maskedSourceText: job.extraction.maskedText },
+      data: { maskedSourceText: job.extraction.maskedText, skillSheetDocumentId: job.sourceDocumentId },
     });
   } else if (createdId && job.sourceDocument.kind === "PROJECT_DESCRIPTION") {
     await prisma.project.update({

@@ -174,16 +174,18 @@ model Engineer {
   deletedAt            DateTime? // 論理削除（本人削除請求 §26）。全クエリで除外すること
   summary              String          @default("") // 匿名化済み概要
   maskedSourceText     String? // 取込時の匿名化済み原文（PII除去済み。詳細表示用）
+  skillSheetDocumentId String? // 業務経歴書（スキルシート）原本。PII を含むため自社の engineer.read.pii 保持者のみ取得可
   processes            String[] // 要件定義/設計/開発/テスト/運用
   roles                String[] // PM/PMO/リーダー等
   industries           String[]
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
-  tenantCompany Company         @relation(fields: [tenantCompanyId], references: [id])
-  skills        EngineerSkill[]
-  consents      PersonConsent[]
-  entries       Entry[]
+  tenantCompany      Company         @relation(fields: [tenantCompanyId], references: [id])
+  skills             EngineerSkill[]
+  consents           PersonConsent[]
+  entries            Entry[]
+  skillSheetDocument SourceDocument? @relation("EngineerSkillSheet", fields: [skillSheetDocumentId], references: [id])
 
   @@map("engineers")
 }
@@ -334,8 +336,9 @@ model SourceDocument {
   uploadedByMemberId String?
   createdAt          DateTime     @default(now())
 
-  ingestionJobs IngestionJob[]
-  piiTokens     PiiTokenMap[]
+  ingestionJobs      IngestionJob[]
+  piiTokens          PiiTokenMap[]
+  skillSheetOfEngineers Engineer[]  @relation("EngineerSkillSheet")
 
   @@map("source_documents")
 }

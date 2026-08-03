@@ -25,9 +25,11 @@ export type EngineerFormInitial = {
 export function EngineerForm({
   engineerId,
   initial,
+  currentSheetName,
 }: {
   engineerId?: string; // 指定時は編集モード（PUT）
   initial?: EngineerFormInitial;
+  currentSheetName?: string | null; // 編集時: 添付済み業務経歴書のファイル名
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -78,15 +80,35 @@ export function EngineerForm({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    setLoading(false);
-    if (res.ok) {
-      const saved = await res.json();
-      router.push(`/engineers/${saved.id}`);
-      router.refresh();
-    } else {
+    if (!res.ok) {
+      setLoading(false);
       const b = await res.json().catch(() => null);
       setError(b?.error?.message ?? "保存に失敗しました");
+      return;
     }
+    const saved = await res.json();
+
+    // 業務経歴書（スキルシート）が選択されていれば続けてアップロード
+    const sheet = f.get("skillSheet");
+    if (sheet instanceof File && sheet.size > 0) {
+      const fd = new FormData();
+      fd.append("file", sheet);
+      const up = await fetch(`/api/v1/engineers/${saved.id ?? engineerId}/skill-sheet`, {
+        method: "POST",
+        body: fd,
+      });
+      if (!up.ok) {
+        setLoading(false);
+        const b = await up.json().catch(() => null);
+        setError(
+          `人材は保存しましたが、業務経歴書の添付に失敗しました: ${b?.error?.message ?? "エラー"}`
+        );
+        return;
+      }
+    }
+    setLoading(false);
+    router.push(`/engineers/${saved.id ?? engineerId}`);
+    router.refresh();
   }
 
   const skillLines = initial?.skills
@@ -188,6 +210,14 @@ export function EngineerForm({
       <div>
         <label className={label}>匿名概要（企業名・氏名を含めないこと）</label>
         <textarea name="summary" rows={3} defaultValue={initial?.summary ?? ""} className={input} />
+      </div>
+      <div>
+        <label className={label}>業務経歴書（スキルシート）添付（任意・10MBまで）</label>
+        <input type="file" name="skillSheet" className={input} />
+        <p className="mt-1 text-xs text-slate-500">
+          原本ファイルとして保存します（PII を含むため閲覧は自社のPII権限保持者のみ）。
+          {currentSheetName && `現在の添付: ${currentSheetName}（新しいファイルを選ぶと差し替え）`}
+        </p>
       </div>
       <button
         type="submit"
