@@ -3,7 +3,6 @@ import { redirect, notFound } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
 import { hasPermission } from "@/server/auth/rbac";
 import { getInvoiceDocument } from "@/server/services/billing";
-import { FEE_STATUS_LABELS } from "@/lib/constants";
 import { PrintButton } from "@/components/PrintButton";
 
 // 請求書帳票（§23）: 需要側企業向けの印刷・PDF保存用レイアウト
@@ -46,7 +45,7 @@ export default async function InvoiceDocumentPage({
             <p>請求書番号: {inv.id}</p>
             <p>発行日: {fmtDate(inv.issuedAt)}</p>
             <p>対象月: {inv.month}</p>
-            <p className="mt-2 font-medium">Ai-SESマッチング 運営事務局</p>
+            <p className="mt-2 font-medium">株式会社eビジネスソリューション</p>
           </div>
         </div>
 
@@ -73,12 +72,7 @@ export default async function InvoiceDocumentPage({
                 <td className="py-2">{l.projectLabel}</td>
                 <td className="py-2">{l.engineerLabel}</td>
                 <td className="py-2">{l.baseAmountYen.toLocaleString()}円</td>
-                <td className="py-2">
-                  {l.chargeableMonthIndex}稼働月目
-                  {l.status !== "CHARGED" && (
-                    <span className="ml-1 text-xs text-red-600">（{FEE_STATUS_LABELS[l.status]}）</span>
-                  )}
-                </td>
+                <td className="py-2">{l.chargeableMonthIndex}稼働月目</td>
                 <td className="py-2 text-right">{l.feeExTaxYen.toLocaleString()}円</td>
               </tr>
             ))}

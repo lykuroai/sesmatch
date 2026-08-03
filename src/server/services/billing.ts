@@ -74,7 +74,8 @@ export async function getInvoiceDocument(auth: AuthContext, invoiceId: string) {
   const [company, fees] = await Promise.all([
     prisma.company.findUnique({ where: { id: invoice.demandCompanyId } }),
     prisma.platformFee.findMany({
-      where: { invoiceId: invoice.id },
+      // 返金済み（REFUNDED）は請求書に載せない。金額も課金分のみで再計算する
+      where: { invoiceId: invoice.id, status: "CHARGED" },
       orderBy: { createdAt: "asc" },
     }),
   ]);
@@ -90,12 +91,15 @@ export async function getInvoiceDocument(auth: AuthContext, invoiceId: string) {
   ]);
   const projectById = new Map(projects.map((p) => [p.id, p]));
   const engineerById = new Map(engineers.map((e) => [e.id, e]));
+  // 表示金額は課金明細（返金除外後）から再計算する（発行後の返金を反映）
+  const feeExTaxYen = fees.reduce((a, f) => a + f.feeExTaxYen, 0);
+  const taxYen = calcTax(feeExTaxYen);
   return {
     id: invoice.id,
     month: invoice.month,
-    feeExTaxYen: invoice.feeExTaxYen,
-    taxYen: invoice.taxYen,
-    totalYen: invoice.totalYen,
+    feeExTaxYen,
+    taxYen,
+    totalYen: feeExTaxYen + taxYen,
     status: invoice.status,
     issuedAt: invoice.issuedAt,
     paidAt: invoice.paidAt,
