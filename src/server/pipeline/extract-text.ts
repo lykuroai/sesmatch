@@ -1,6 +1,5 @@
 // 取込・添付ファイルからのテキスト抽出（§9.2 OCR相当の前処理）
-// 対応形式: PDF / Word(.docx) / Excel(.xlsx, .xls) / テキスト系（.txt, .csv 等）
-// 旧形式 Word(.doc) は未対応（docx か PDF への変換を案内する）
+// 対応形式: PDF / Word(.doc, .docx) / Excel(.xlsx, .xls) / テキスト系（.txt, .csv 等）
 
 import mammoth from "mammoth";
 import * as XLSX from "xlsx";
@@ -38,8 +37,16 @@ export async function extractDocumentText(filename: string, content: Buffer): Pr
     if (!text) throw new Error("Word ファイルからテキストを抽出できませんでした");
     return text;
   }
-  if (e === ".doc")
-    throw new Error("旧形式の Word（.doc）は未対応です。.docx か PDF に変換してください");
+  if (e === ".doc") {
+    // 旧形式 Word（バイナリ .doc）は word-extractor で抽出する
+    const { default: WordExtractor } = await import("word-extractor");
+    const extractor = new WordExtractor();
+    const result = await extractor.extract(content).catch(() => null);
+    const text = result?.getBody()?.trim();
+    if (!text)
+      throw new Error("Word（.doc）からテキストを抽出できませんでした。.docx か PDF に変換してください");
+    return text;
+  }
   if (e === ".xlsx" || e === ".xls") {
     const wb = XLSX.read(content, { type: "buffer" });
     const parts: string[] = [];

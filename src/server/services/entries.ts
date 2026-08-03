@@ -14,6 +14,7 @@ import {
 } from "@/server/entries/logic";
 import { detectContactInfo } from "@/server/pipeline/pii";
 import { hasValidConsent, serializeEngineer } from "./engineers";
+import { companyNameMap } from "./companies";
 import { serializeProject } from "./projects";
 
 const ENTRY_INCLUDE = {
@@ -29,8 +30,13 @@ type EntryWithRels = Prisma.EntryGetPayload<{ include: typeof ENTRY_INCLUDE }>;
 
 // 開示制御付きシリアライズ:
 // - 双方承認前: 相手企業名は非開示、人材は Level 1（§10, §20.3）
-// - 開示後: Disclosure のスナップショットを双方に同時開示
-export function serializeEntry(e: EntryWithRels, auth: AuthContext) {
+// - 開示後: Disclosure のスナップショットを双方に同時開示。
+//   ただし企業名は社名変更を反映するため常に最新（companyNames）を優先し、スナップショットはフォールバック
+export function serializeEntry(
+  e: EntryWithRels,
+  auth: AuthContext,
+  companyNames?: Map<string, string>
+) {
   const side = sideOf(e, auth.companyId);
   if (!side) return null; // 当事者以外は 404 相当（§29）
   const disclosed = e.disclosure != null;
@@ -61,15 +67,17 @@ export function serializeEntry(e: EntryWithRels, auth: AuthContext) {
       ? {
           engineerName: payload?.engineerName,
           engineerRateYen: payload?.engineerRateYen,
-          demandCompanyName: payload?.demandCompanyName,
-          supplyCompanyName: payload?.supplyCompanyName,
+          demandCompanyName:
+            companyNames?.get(e.demandCompanyId) ?? payload?.demandCompanyName,
+          supplyCompanyName:
+            companyNames?.get(e.supplyCompanyId) ?? payload?.supplyCompanyName,
           disclosedAt: e.disclosure!.createdAt,
         }
       : null,
     counterpartCompanyName: disclosed
       ? side === "DEMAND"
-        ? payload?.supplyCompanyName
-        : payload?.demandCompanyName
+        ? (companyNames?.get(e.supplyCompanyId) ?? payload?.supplyCompanyName)
+        : (companyNames?.get(e.demandCompanyId) ?? payload?.demandCompanyName)
       : null, // 承認前は非開示
     messages: e.messages.map((m) => ({
       id: m.id,
@@ -96,13 +104,17 @@ export async function listEntries(auth: AuthContext) {
     include: ENTRY_INCLUDE,
     orderBy: { updatedAt: "desc" },
   });
-  return entries.map((e) => serializeEntry(e, auth)).filter(Boolean);
+  const names = await companyNameMap(
+    entries.flatMap((e) => [e.demandCompanyId, e.supplyCompanyId])
+  );
+  return entries.map((e) => serializeEntry(e, auth, names)).filter(Boolean);
 }
 
 export async function getEntry(auth: AuthContext, id: string) {
   const e = await prisma.entry.findUnique({ where: { id }, include: ENTRY_INCLUDE });
   if (!e) return null;
-  return serializeEntry(e, auth);
+  const names = await companyNameMap([e.demandCompanyId, e.supplyCompanyId]);
+  return serializeEntry(e, auth, names);
 }
 
 export type CreateEntryInput = {
@@ -206,7 +218,13 @@ export async function createEntry(auth: AuthContext, input: CreateEntryInput) {
       targetId: entry.id,
       metadata: { type: input.type, projectId: project.id, engineerId: engineer.id },
     });
-    return { entry: serializeEntry(entry, auth) };
+    return {
+      entry: serializeEntry(
+        entry,
+        auth,
+        await companyNameMap([entry.demandCompanyId, entry.supplyCompanyId])
+      ),
+    };
   } catch (e) {
     // 重複応募ブロック（§18）
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")

@@ -5,6 +5,7 @@ import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
 import { decideFee, isWithinRefundWindow } from "@/server/billing/fee";
 import type { Contract, PlatformFee, WorkMonth } from "@prisma/client";
+import { companyNameMap } from "./companies";
 
 type Err = { error: { code: string; message?: string } };
 
@@ -28,7 +29,12 @@ type ContractWithRels = Contract & {
   workMonths: (WorkMonth & { fee: PlatformFee | null })[];
 };
 
-export function serializeContract(c: ContractWithRels, auth: AuthContext) {
+// 企業名は社名変更を反映するため常に最新（companyNames）を優先し、開示スナップショットはフォールバック
+export function serializeContract(
+  c: ContractWithRels,
+  auth: AuthContext,
+  companyNames?: Map<string, string>
+) {
   const side = sideOfContract(c, auth.companyId);
   if (!side) return null;
   const payload = (c.entry.disclosure?.payload ?? {}) as Record<string, unknown>;
@@ -53,8 +59,10 @@ export function serializeContract(c: ContractWithRels, auth: AuthContext) {
     projectName: c.entry.project.name,
     engineerCode: c.entry.engineer.code,
     engineerName: c.entry.engineer.name,
-    demandCompanyName: (payload.demandCompanyName as string) ?? "",
-    supplyCompanyName: (payload.supplyCompanyName as string) ?? "",
+    demandCompanyName:
+      companyNames?.get(c.demandCompanyId) ?? (payload.demandCompanyName as string) ?? "",
+    supplyCompanyName:
+      companyNames?.get(c.supplyCompanyId) ?? (payload.supplyCompanyName as string) ?? "",
     workMonths: c.workMonths.map((wm) => ({
       id: wm.id,
       month: wm.month,
@@ -79,13 +87,16 @@ export async function listContracts(auth: AuthContext) {
     include: CONTRACT_INCLUDE,
     orderBy: { createdAt: "desc" },
   });
-  return contracts.map((c) => serializeContract(c, auth)).filter(Boolean);
+  const names = await companyNameMap(
+    contracts.flatMap((c) => [c.demandCompanyId, c.supplyCompanyId])
+  );
+  return contracts.map((c) => serializeContract(c, auth, names)).filter(Boolean);
 }
 
 export async function getContract(auth: AuthContext, id: string) {
   const c = await prisma.contract.findUnique({ where: { id }, include: CONTRACT_INCLUDE });
   if (!c) return null;
-  return serializeContract(c, auth);
+  return serializeContract(c, auth, await companyNameMap([c.demandCompanyId, c.supplyCompanyId]));
 }
 
 const CONTRACTABLE_ENTRY_STATUSES = ["MUTUALLY_APPROVED", "INTERVIEW", "CONDITIONS"];
@@ -150,7 +161,13 @@ export async function createContract(
     targetType: "Contract",
     targetId: contract.id,
   });
-  return { contract: serializeContract(contract, auth)! };
+  return {
+    contract: serializeContract(
+      contract,
+      auth,
+      await companyNameMap([contract.demandCompanyId, contract.supplyCompanyId])
+    )!,
+  };
 }
 
 // 署名（§22）: 相互締結が完了した時点で成約（EXECUTED）。エントリーは CONTRACTED へ。

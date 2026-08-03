@@ -105,6 +105,11 @@ export function EngineerForm({
         );
         return;
       }
+      // 内容の自動反映に失敗した場合は警告を表示してから遷移する（添付自体は保存済み）
+      const ub = await up.json().catch(() => null);
+      if (ub?.extractWarning) {
+        alert(`職務経歴書を添付しましたが、内容の自動反映はできませんでした:\n${ub.extractWarning}`);
+      }
     }
     setLoading(false);
     router.push(`/engineers/${saved.id ?? engineerId}`);

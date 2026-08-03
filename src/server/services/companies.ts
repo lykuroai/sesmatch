@@ -7,6 +7,15 @@ import type { AuthContext } from "@/server/auth/session";
 import { randomBytes } from "crypto";
 import { sendMail, appBaseUrl } from "@/server/mail";
 
+// 企業IDから現在の企業名を引くマップ（社名変更を表示へ即時反映するため。開示スナップショットの代替表示に使う）
+export async function companyNameMap(ids: string[]): Promise<Map<string, string>> {
+  const companies = await prisma.company.findMany({
+    where: { id: { in: [...new Set(ids)] } },
+    select: { id: true, name: true },
+  });
+  return new Map(companies.map((c) => [c.id, c.name]));
+}
+
 // 企業申込（§6.4: 申込 → 事業者情報確認 → 規約同意 → 運営審査 → 開通）
 export async function applyCompany(input: {
   companyName: string;
