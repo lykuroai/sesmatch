@@ -51,7 +51,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
           <LogoutButton />
         </div>
       </ResizableSidebar>
-      <main className="min-w-0 flex-1 p-8">{children}</main>
+      <main className="min-w-0 flex-1 p-8 print:p-0">{children}</main>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
 import { hasPermission } from "@/server/auth/rbac";
@@ -82,6 +83,12 @@ export default async function BillingPage() {
                   <td className="py-1.5">{inv.totalYen.toLocaleString()}円</td>
                   <td className="py-1.5 text-xs">{inv.status === "PAID" ? "入金済み" : "発行済み"}</td>
                   <td className="py-1.5 text-right">
+                    <Link
+                      href={`/billing/invoices/${inv.id}`}
+                      className="mr-2 text-xs text-blue-700 hover:underline"
+                    >
+                      帳票
+                    </Link>
                     {canManage && inv.status === "ISSUED" && (
                       <ActionButton path={`/api/v1/invoices/${inv.id}/pay`} label="入金記録" />
                     )}

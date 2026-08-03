@@ -64,6 +64,59 @@ export async function generateInvoice(auth: AuthContext, month: string) {
   });
 }
 
+// 請求書帳票（§23）: 請求書1件と明細（対象の手数料 + 案件/人材の表示情報）を返す。
+// 需要側企業のみ参照可（テナント分離）
+export async function getInvoiceDocument(auth: AuthContext, invoiceId: string) {
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: invoiceId, demandCompanyId: auth.companyId },
+  });
+  if (!invoice) return null;
+  const [company, fees] = await Promise.all([
+    prisma.company.findUnique({ where: { id: invoice.demandCompanyId } }),
+    prisma.platformFee.findMany({
+      where: { invoiceId: invoice.id },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+  const [projects, engineers] = await Promise.all([
+    prisma.project.findMany({
+      where: { id: { in: fees.map((f) => f.projectId) } },
+      select: { id: true, code: true, name: true },
+    }),
+    prisma.engineer.findMany({
+      where: { id: { in: fees.map((f) => f.engineerId) } },
+      select: { id: true, code: true, name: true }, // 契約段階は Level 3（§10）: 需要側に氏名開示済み
+    }),
+  ]);
+  const projectById = new Map(projects.map((p) => [p.id, p]));
+  const engineerById = new Map(engineers.map((e) => [e.id, e]));
+  return {
+    id: invoice.id,
+    month: invoice.month,
+    feeExTaxYen: invoice.feeExTaxYen,
+    taxYen: invoice.taxYen,
+    totalYen: invoice.totalYen,
+    status: invoice.status,
+    issuedAt: invoice.issuedAt,
+    paidAt: invoice.paidAt,
+    companyName: company?.name ?? "",
+    lines: fees.map((f) => ({
+      id: f.id,
+      month: f.month,
+      projectLabel: projectById.get(f.projectId)
+        ? `${projectById.get(f.projectId)!.code} ${projectById.get(f.projectId)!.name}`
+        : "-",
+      engineerLabel: engineerById.get(f.engineerId)
+        ? `${engineerById.get(f.engineerId)!.code} ${engineerById.get(f.engineerId)!.name}`
+        : "-",
+      baseAmountYen: f.baseAmountYen,
+      feeExTaxYen: f.feeExTaxYen,
+      chargeableMonthIndex: f.chargeableMonthIndex,
+      status: f.status,
+    })),
+  };
+}
+
 // 入金記録
 export async function markInvoicePaid(auth: AuthContext, invoiceId: string) {
   const invoice = await prisma.invoice.findFirst({

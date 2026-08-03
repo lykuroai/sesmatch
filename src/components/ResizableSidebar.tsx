@@ -32,7 +32,7 @@ export function ResizableSidebar({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="relative flex shrink-0" style={{ width }}>
+    <div className="relative flex shrink-0 print:hidden" style={{ width }}>
       <aside className="min-w-0 flex-1 overflow-x-hidden border-r border-slate-200 bg-white">
         {children}
       </aside>
