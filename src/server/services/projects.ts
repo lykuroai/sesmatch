@@ -107,12 +107,13 @@ export function validateProjectInput(input: ProjectInput): string | null {
   return null;
 }
 
-// 表示用コードの採番: 既存の最大番号+1（件数方式だと物理削除で番号が詰まり、既存コードと衝突する）
+// 表示用コードの採番: 既存の最大番号+1（件数方式だと物理削除で番号が詰まり、既存コードと衝突する）。
+// 形式は P+6桁（例: P000001）。旧形式（P-0001）が残っていても番号部分を読んで継続する
 async function nextProjectCode(tenantCompanyId: string): Promise<string> {
   const rows = await prisma.$queryRaw<{ max: number | null }[]>`
-    SELECT MAX(CAST(SUBSTRING(code FROM 3) AS INTEGER)) AS max
-    FROM projects WHERE "tenantCompanyId" = ${tenantCompanyId} AND code ~ '^P-[0-9]+$'`;
-  return `P-${String(Number(rows[0]?.max ?? 0) + 1).padStart(4, "0")}`;
+    SELECT MAX(CAST(SUBSTRING(code FROM '[0-9]+$') AS INTEGER)) AS max
+    FROM projects WHERE "tenantCompanyId" = ${tenantCompanyId} AND code ~ '^P-?[0-9]+$'`;
+  return `P${String(Number(rows[0]?.max ?? 0) + 1).padStart(6, "0")}`;
 }
 
 export async function createProject(auth: AuthContext, input: ProjectInput) {

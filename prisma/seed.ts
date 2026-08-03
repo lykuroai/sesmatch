@@ -62,7 +62,7 @@ async function main() {
   await prisma.project.create({
     data: {
       tenantCompanyId: companyA.id,
-      code: "P-0001",
+      code: "P000001",
       name: "大手金融機関向け 勘定系周辺システム更改",
       anonymousSummary:
         "大手金融機関の勘定系周辺システムの更改案件。Java/Spring Boot によるバックエンド開発。基本設計から結合テストまで。",
@@ -92,7 +92,7 @@ async function main() {
   await prisma.project.create({
     data: {
       tenantCompanyId: companyA.id,
-      code: "P-0002",
+      code: "P000002",
       name: "国内通信事業者向け Webフロント刷新",
       anonymousSummary:
         "国内通信事業者の顧客向けポータルのフロントエンド刷新。React/TypeScript。フルリモート（緊急出社の可能性あり）。",
@@ -134,7 +134,7 @@ async function main() {
   await prisma.engineer.create({
     data: {
       tenantCompanyId: companyB.id,
-      code: "E-0001",
+      code: "E000001",
       name: "谷口 健",
       ageBand: 35,
       affiliationType: "EMPLOYEE",
@@ -165,7 +165,7 @@ async function main() {
   await prisma.engineer.create({
     data: {
       tenantCompanyId: companyB.id,
-      code: "E-0002",
+      code: "E000002",
       name: "内村 沙織",
       ageBand: 30,
       affiliationType: "AFFILIATED",
@@ -196,7 +196,7 @@ async function main() {
   await prisma.engineer.create({
     data: {
       tenantCompanyId: companyB.id,
-      code: "E-0003",
+      code: "E000003",
       name: "江藤 実",
       ageBand: 40,
       affiliationType: "SUBTIER1",
@@ -224,7 +224,7 @@ async function main() {
   await prisma.project.create({
     data: {
       tenantCompanyId: companyB.id,
-      code: "P-0001",
+      code: "P000001",
       name: "製造業向け 生産管理システム保守開発",
       anonymousSummary: "大手製造業の生産管理システムの保守開発。Python 中心。",
       industry: "製造",
@@ -248,7 +248,7 @@ async function main() {
   await prisma.engineer.create({
     data: {
       tenantCompanyId: companyA.id,
-      code: "E-0001",
+      code: "E000001",
       name: "安藤 大輔",
       ageBand: 25,
       affiliationType: "EMPLOYEE",

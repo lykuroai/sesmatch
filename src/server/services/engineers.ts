@@ -120,12 +120,13 @@ export type EngineerInput = {
   skills?: { category: string; name: string; months: number; lastUsedAt?: string }[];
 };
 
-// 表示用コードの採番: 既存の最大番号+1（件数方式だと物理削除で番号が詰まり、既存コードと衝突する）
+// 表示用コードの採番: 既存の最大番号+1（件数方式だと物理削除で番号が詰まり、既存コードと衝突する）。
+// 形式は E+6桁（例: E000001）。旧形式（E-0001）が残っていても番号部分を読んで継続する
 async function nextEngineerCode(tenantCompanyId: string): Promise<string> {
   const rows = await prisma.$queryRaw<{ max: number | null }[]>`
-    SELECT MAX(CAST(SUBSTRING(code FROM 3) AS INTEGER)) AS max
-    FROM engineers WHERE "tenantCompanyId" = ${tenantCompanyId} AND code ~ '^E-[0-9]+$'`;
-  return `E-${String(Number(rows[0]?.max ?? 0) + 1).padStart(4, "0")}`;
+    SELECT MAX(CAST(SUBSTRING(code FROM '[0-9]+$') AS INTEGER)) AS max
+    FROM engineers WHERE "tenantCompanyId" = ${tenantCompanyId} AND code ~ '^E-?[0-9]+$'`;
+  return `E${String(Number(rows[0]?.max ?? 0) + 1).padStart(6, "0")}`;
 }
 
 export async function createEngineer(auth: AuthContext, input: EngineerInput) {
