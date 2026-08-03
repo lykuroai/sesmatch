@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
-import { ROLE_LABELS } from "@/lib/constants";
 import { LogoutButton } from "@/components/LogoutButton";
 import { ResizableSidebar } from "@/components/ResizableSidebar";
 
@@ -27,31 +26,35 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   if (!auth) redirect("/login");
 
   return (
-    <div className="flex min-h-screen">
-      <ResizableSidebar>
-        <div className="border-b border-slate-200 p-4">
-          <p className="text-sm font-bold">{auth.companyName}</p>
-          <p className="mt-1 text-xs text-slate-500">{auth.userName}</p>
-          <p className="mt-1 text-xs text-slate-400">
-            {auth.roles.map((r) => ROLE_LABELS[r] ?? r).join(" / ")}
-          </p>
-        </div>
-        <nav className="p-2">
-          {MENU.map((m) => (
-            <Link
-              key={m.href}
-              href={m.href}
-              className="block rounded px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
-            >
-              {m.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="p-4">
-          <LogoutButton />
-        </div>
-      </ResizableSidebar>
-      <main className="min-w-0 flex-1 p-8 print:p-0">{children}</main>
+    <div className="flex min-h-screen flex-col">
+      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 print:hidden">
+        <Link href="/" className="text-sm font-bold text-slate-800">
+          Ai-SESマッチング
+        </Link>
+        <p className="text-sm text-slate-700">
+          <span className="font-bold">{auth.companyName}</span>
+          <span className="ml-3 text-slate-500">{auth.userName}</span>
+        </p>
+      </header>
+      <div className="flex flex-1">
+        <ResizableSidebar>
+          <nav className="p-2">
+            {MENU.map((m) => (
+              <Link
+                key={m.href}
+                href={m.href}
+                className="block rounded px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                {m.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="p-4">
+            <LogoutButton />
+          </div>
+        </ResizableSidebar>
+        <main className="min-w-0 flex-1 p-8 print:p-0">{children}</main>
+      </div>
     </div>
   );
 }
