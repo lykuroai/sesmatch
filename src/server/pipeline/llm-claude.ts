@@ -71,6 +71,16 @@ const ENGINEER_SCHEMA = {
       },
     },
     processes: { type: "array", items: { type: "string" }, description: "経験工程" },
+    roles: {
+      type: "array",
+      items: { type: "string" },
+      description: "経験役割（PM/PMO/PL/リーダー/テックリード/SE/PG 等。経歴から判断）",
+    },
+    industries: {
+      type: "array",
+      items: { type: "string" },
+      description: "業種経験（金融/製造/EC/通信/公共/医療 等。経歴のプロジェクトから判断）",
+    },
     summary: { type: "string", description: "匿名要約（200字以内・自然な日本語・PIIを含めない）" },
   },
   required: [
@@ -83,6 +93,8 @@ const ENGINEER_SCHEMA = {
     "maxOnsiteDaysPerWeek",
     "skills",
     "processes",
+    "roles",
+    "industries",
     "summary",
   ],
 } as unknown as Record<string, unknown>;

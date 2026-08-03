@@ -857,6 +857,8 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
       maxOnsiteDaysPerWeek: d.maxOnsiteDaysPerWeek ?? undefined,
       summary: d.summary,
       processes: d.processes,
+      roles: d.roles,
+      industries: d.industries,
       // 経験期間不明（null）は 0ヶ月として登録し、担当者が人材編集で補正する
       skills: d.skills.map((s) => ({ ...s, months: s.months ?? 0 })),
     });

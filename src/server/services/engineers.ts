@@ -228,11 +228,20 @@ export async function attachSkillSheet(
           updatedMonths++;
         }
       }
-      if (!engineer.maskedSourceText) {
-        await prisma.engineer.update({
-          where: { id: engineer.id },
-          data: { maskedSourceText: masked },
-        });
+      // プロフィール項目も未入力の場合のみ経歴書から補完する（入力済みは上書きしない）
+      const profile: Record<string, unknown> = {};
+      if (!engineer.residenceCity && extracted.residenceCity)
+        profile.residenceCity = extracted.residenceCity;
+      if (engineer.processes.length === 0 && extracted.processes.length > 0)
+        profile.processes = extracted.processes;
+      if (engineer.roles.length === 0 && extracted.roles.length > 0)
+        profile.roles = extracted.roles;
+      if (engineer.industries.length === 0 && extracted.industries.length > 0)
+        profile.industries = extracted.industries;
+      if (!engineer.summary && extracted.summary) profile.summary = extracted.summary;
+      if (!engineer.maskedSourceText) profile.maskedSourceText = masked;
+      if (Object.keys(profile).length > 0) {
+        await prisma.engineer.update({ where: { id: engineer.id }, data: profile });
       }
       await audit({
         tenantCompanyId: auth.companyId,
@@ -240,7 +249,7 @@ export async function attachSkillSheet(
         action: "SkillSheetExtracted",
         targetType: "Engineer",
         targetId: engineer.id,
-        metadata: { addedSkills, updatedMonths },
+        metadata: { addedSkills, updatedMonths, filledFields: Object.keys(profile) },
       });
     }
   } catch (e) {

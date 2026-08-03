@@ -25,6 +25,9 @@ export const engineerDraftSchema = z.object({
     })
   ),
   processes: z.array(z.string()),
+  // 役割・業種経験（過去の抽出結果には存在しないため default で後方互換）
+  roles: z.array(z.string()).default([]), // PM/PMO/PL/テックリード等
+  industries: z.array(z.string()).default([]), // 金融/製造/EC等
   summary: z.string(),
 });
 
@@ -142,6 +145,8 @@ export class MockLlmGateway implements LlmGateway {
         maxOnsiteDaysPerWeek: onsiteM ? parseInt(onsiteM[1]) : null,
         skills,
         processes,
+        roles: [],
+        industries: [],
         summary: maskedText.slice(0, 200),
       };
       return engineerDraftSchema.parse(draft);

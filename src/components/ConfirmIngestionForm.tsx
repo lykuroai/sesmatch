@@ -18,6 +18,8 @@ type EngineerDraft = {
   maxOnsiteDaysPerWeek: number | null;
   skills: { category: string; name: string; months: number | null; monthsEstimated?: boolean }[];
   processes: string[];
+  roles?: string[];
+  industries?: string[];
   summary: string;
 };
 
@@ -77,6 +79,8 @@ export function ConfirmIngestionForm({
         maxOnsiteDaysPerWeek: num("maxOnsiteDaysPerWeek"),
         skills,
         processes: list("processes"),
+        roles: list("roles"),
+        industries: list("industries"),
         summary: String(f.get("summary") ?? ""),
       };
       body = { name: f.get("name"), confirmed };
@@ -154,6 +158,14 @@ export function ConfirmIngestionForm({
           <div className="col-span-2">
             <label className={label}>工程（カンマ区切り）</label>
             <input name="processes" defaultValue={d.processes.join(", ")} className={input} />
+          </div>
+          <div className="col-span-2">
+            <label className={label}>役割（カンマ区切り: PM, PL 等）</label>
+            <input name="roles" defaultValue={(d.roles ?? []).join(", ")} className={input} />
+          </div>
+          <div>
+            <label className={label}>業種経験（カンマ区切り）</label>
+            <input name="industries" defaultValue={(d.industries ?? []).join(", ")} className={input} />
           </div>
         </div>
         <div>
