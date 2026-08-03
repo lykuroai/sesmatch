@@ -72,9 +72,9 @@ export default function LoginPage() {
             </span>
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-400">
-            Lykuro DirectMatch（AI人材・案件ダイレクトマッチング）は、SES企業同士が案件情報と人材情報を安全に流通させ、
-            双方承認から<span className="text-slate-200">2社間の直接契約</span>までを一気通貫で行える
-            B2Bプラットフォームです。仲介の多段化で失われていたマージンと情報を、現場に取り戻します。
+            Lykuro DirectMatchは、AIが人材情報と案件情報を自動で要約・構造化し、
+            条件やスキルに基づいて最適な組み合わせを提案する企業間マッチングプラットフォームです。
+            マッチング成立後は、需要企業と提供企業が<span className="text-slate-200">直接契約</span>します。
           </p>
 
           <h2 className="mt-8 mb-3 text-sm font-bold uppercase tracking-wide text-blue-300">
