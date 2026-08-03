@@ -29,7 +29,7 @@ export function EngineerForm({
 }: {
   engineerId?: string; // 指定時は編集モード（PUT）
   initial?: EngineerFormInitial;
-  currentSheetName?: string | null; // 編集時: 添付済み業務経歴書のファイル名
+  currentSheetName?: string | null; // 編集時: 添付済み職務経歴書のファイル名
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +88,7 @@ export function EngineerForm({
     }
     const saved = await res.json();
 
-    // 業務経歴書（スキルシート）が選択されていれば続けてアップロード
+    // 職務経歴書（スキルシート）が選択されていれば続けてアップロード
     const sheet = f.get("skillSheet");
     if (sheet instanceof File && sheet.size > 0) {
       const fd = new FormData();
@@ -101,7 +101,7 @@ export function EngineerForm({
         setLoading(false);
         const b = await up.json().catch(() => null);
         setError(
-          `人材は保存しましたが、業務経歴書の添付に失敗しました: ${b?.error?.message ?? "エラー"}`
+          `人材は保存しましたが、職務経歴書の添付に失敗しました: ${b?.error?.message ?? "エラー"}`
         );
         return;
       }
@@ -212,7 +212,7 @@ export function EngineerForm({
         <textarea name="summary" rows={3} defaultValue={initial?.summary ?? ""} className={input} />
       </div>
       <div>
-        <label className={label}>業務経歴書（スキルシート）添付（任意・Excel/Word/PDF・10MBまで）</label>
+        <label className={label}>職務経歴書（スキルシート）添付（任意・Excel/Word/PDF・10MBまで）</label>
         <input type="file" name="skillSheet" accept=".pdf,.doc,.docx,.xls,.xlsx" className={input} />
         <p className="mt-1 text-xs text-slate-500">
           内容を自動解析し、未登録のスキルをマッチング対象に追加します（既存の入力は上書きしません）。

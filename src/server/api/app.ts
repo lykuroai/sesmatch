@@ -561,7 +561,7 @@ app.post("/engineers", requirePermission("engineer.create"), async (c) => {
   return c.json(await createEngineer(c.get("auth"), parsed.data), 201);
 });
 
-// 業務経歴書（スキルシート）の添付・差し替え（自社人材のみ）
+// 職務経歴書（スキルシート）の添付・差し替え（自社人材のみ）
 app.post("/engineers/:id/skill-sheet", requirePermission("engineer.create"), async (c) => {
   const form = await c.req.formData().catch(() => null);
   const file = form?.get("file");
@@ -576,7 +576,7 @@ app.post("/engineers/:id/skill-sheet", requirePermission("engineer.create"), asy
   return c.json(result, 201);
 });
 
-// 業務経歴書のダウンロード（原本＝PII を含むため自社 + engineer.read.pii のみ）
+// 職務経歴書のダウンロード（原本＝PII を含むため自社 + engineer.read.pii のみ）
 app.get("/engineers/:id/skill-sheet", requirePermission("engineer.read.pii"), async (c) => {
   const file = await getSkillSheetFile(c.get("auth"), c.req.param("id"));
   if (!file) return c.json(err("NOT_FOUND"), 404);
@@ -880,7 +880,7 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
   }
 
   // 匿名化済み原文を作成された案件・人材に保存する（詳細表示用）。
-  // 人材は取込原本を業務経歴書（スキルシート）としてそのまま紐づける
+  // 人材は取込原本を職務経歴書（スキルシート）としてそのまま紐づける
   if (createdId && job.sourceDocument.kind === "ENGINEER_SHEET") {
     await prisma.engineer.update({
       where: { id: createdId },

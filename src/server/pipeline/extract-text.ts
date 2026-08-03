@@ -5,7 +5,7 @@
 import mammoth from "mammoth";
 import * as XLSX from "xlsx";
 
-// 業務経歴書として添付を受け付ける拡張子（Excel / Word / PDF 限定）
+// 職務経歴書として添付を受け付ける拡張子（Excel / Word / PDF 限定）
 export const SKILL_SHEET_EXTENSIONS = [".pdf", ".doc", ".docx", ".xls", ".xlsx"];
 
 const ext = (filename: string) => {

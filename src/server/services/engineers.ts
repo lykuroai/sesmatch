@@ -126,13 +126,13 @@ export async function getEngineer(auth: AuthContext, id: string) {
   if (e.tenantCompanyId !== auth.companyId && e.status !== "PUBLISHED") return null;
   return {
     ...serializeEngineer(e, auth),
-    // 業務経歴書（原本・PII含む）: 自社のみファイル名を返す。取得はPII権限で別途制御
+    // 職務経歴書（原本・PII含む）: 自社のみファイル名を返す。取得はPII権限で別途制御
     skillSheetFilename:
       e.tenantCompanyId === auth.companyId ? (e.skillSheetDocument?.filename ?? null) : null,
   };
 }
 
-// 業務経歴書（スキルシート）の添付・差し替え。原本は取込と同じストレージに保存し
+// 職務経歴書（スキルシート）の添付・差し替え。原本は取込と同じストレージに保存し
 // SourceDocument として管理する（PII を含むため LLM には送らない）
 export async function attachSkillSheet(
   auth: AuthContext,
@@ -148,7 +148,7 @@ export async function attachSkillSheet(
     return {
       error: {
         code: "VALIDATION_ERROR" as const,
-        message: "業務経歴書は Excel・Word・PDF のファイルを添付してください",
+        message: "職務経歴書は Excel・Word・PDF のファイルを添付してください",
       },
     };
   if (file.content.length > 10 * 1024 * 1024)
@@ -251,7 +251,7 @@ export async function attachSkillSheet(
   return { ok: true as const, documentId: doc.id, addedSkills, updatedMonths, extractWarning };
 }
 
-// 業務経歴書のダウンロード（自社 + engineer.read.pii のみ。呼び出し側で権限確認済み）
+// 職務経歴書のダウンロード（自社 + engineer.read.pii のみ。呼び出し側で権限確認済み）
 export async function getSkillSheetFile(auth: AuthContext, engineerId: string) {
   const engineer = await prisma.engineer.findFirst({
     where: { id: engineerId, tenantCompanyId: auth.companyId }, // テナント分離
