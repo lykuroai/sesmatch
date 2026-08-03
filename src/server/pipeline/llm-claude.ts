@@ -96,8 +96,17 @@ const PROJECT_SCHEMA = {
     startDate: { ...nullable("string"), description: "開始日 YYYY-MM-DD" },
     rateMaxYen: { ...nullable("integer"), description: "月額単価上限（円）" },
     onsiteDaysPerWeek: { ...nullable("integer"), description: "週出社日数 0-5" },
-    requiredSkills: { type: "array", items: { type: "string" } },
-    preferredSkills: { type: "array", items: { type: "string" } },
+    requiredSkills: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "必須スキル。技術要素（言語・フレームワーク・DB・クラウド・製品・技術領域）のみ、重要な順に最大5個。マッチングで完全一致・全充足が求められるため真に必須の技術だけに絞る。「資料作成」「顧客折衝」「関係者調整」等の職務要件・ソフトスキルは含めない（summary に書く）",
+    },
+    preferredSkills: {
+      type: "array",
+      items: { type: "string" },
+      description: "尚可スキル。「尚可」「歓迎」とされた技術要素と、必須から溢れた技術要素",
+    },
     summary: { type: "string", description: "匿名要約（自然な日本語・エンド企業名は抽象カテゴリに置換）" },
   },
   required: [
