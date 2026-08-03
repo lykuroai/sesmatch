@@ -10,6 +10,8 @@ const SECTIONS = [
   { href: "/billing", label: "請求", desc: "成約手数料・請求書・入金の管理" },
   { href: "/reports", label: "通報", desc: "再転載・無承認再仲介などの通報" },
   { href: "/audit", label: "監査", desc: "監査ログの閲覧" },
+  { href: "/privacy", label: "プライバシー", desc: "本人からの訂正・削除請求の受付と処理" },
+  { href: "/relationships", label: "企業間関係", desc: "取引先・一社下・営業委任の関係管理" },
 ];
 
 export default async function CompanyMyPage() {
