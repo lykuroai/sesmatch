@@ -94,7 +94,13 @@ export default async function InvoiceDocumentPage({
           </div>
         </div>
 
-        <p className="mt-6 text-xs text-slate-500">
+        <div className="mt-6 rounded border border-slate-300 p-3 text-sm">
+          <p className="mb-1 text-xs font-medium text-slate-500">お振込先</p>
+          <p>三菱UFJ銀行 上野中央支店 普通 0720675</p>
+          <p>カ）イービジネスソリューション</p>
+        </div>
+
+        <p className="mt-4 text-xs text-slate-500">
           成約手数料（確定契約金額の3%・§23）のご請求です。
           {inv.status === "PAID" && inv.paidAt && (
             <span className="ml-2 font-medium text-emerald-700">
