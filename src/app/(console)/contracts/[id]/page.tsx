@@ -90,19 +90,26 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
       </div>
 
       <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-1 font-bold">月次稼働・手数料（§23）</h2>
-        <p className="mb-4 text-xs text-slate-500">
-          手数料 = 確定契約金額の3%（切り捨て）。実稼働開始から最大12稼働月、13稼働月目以降は無料。
-          稼働前キャンセルは0円、開始後14日以内の離脱は全額返金。
-        </p>
+        {/* 手数料は需要側企業の負担（§23）のため、供給側には金額・状態を表示しない */}
+        <h2 className="mb-1 font-bold">{c.side === "DEMAND" ? "月次稼働・手数料（§23）" : "月次稼働"}</h2>
+        {c.side === "DEMAND" && (
+          <p className="mb-4 text-xs text-slate-500">
+            手数料 = 確定契約金額の3%（切り捨て）。実稼働開始から最大12稼働月、13稼働月目以降は無料。
+            稼働前キャンセルは0円、開始後14日以内の離脱は全額返金。
+          </p>
+        )}
         <table className="mb-4 w-full text-sm">
           <thead className="text-left text-xs text-slate-500">
             <tr>
               <th className="py-2">対象月</th>
               <th className="py-2">確定契約金額</th>
-              <th className="py-2">手数料（税抜）</th>
-              <th className="py-2">稼働月</th>
-              <th className="py-2">状態</th>
+              {c.side === "DEMAND" && (
+                <>
+                  <th className="py-2">手数料（税抜）</th>
+                  <th className="py-2">稼働月</th>
+                  <th className="py-2">状態</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -110,14 +117,18 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
               <tr key={wm.id} className="border-t border-slate-100">
                 <td className="py-2 font-medium">{wm.month}</td>
                 <td className="py-2">{wm.confirmedAmountYen.toLocaleString()}円</td>
-                <td className="py-2">{wm.fee ? `${wm.fee.feeExTaxYen.toLocaleString()}円` : "-"}</td>
-                <td className="py-2">{wm.fee ? `${wm.fee.chargeableMonthIndex}稼働月目` : "-"}</td>
-                <td className="py-2 text-xs">{wm.fee ? FEE_STATUS_LABELS[wm.fee.status] : "-"}</td>
+                {c.side === "DEMAND" && (
+                  <>
+                    <td className="py-2">{wm.fee ? `${wm.fee.feeExTaxYen.toLocaleString()}円` : "-"}</td>
+                    <td className="py-2">{wm.fee ? `${wm.fee.chargeableMonthIndex}稼働月目` : "-"}</td>
+                    <td className="py-2 text-xs">{wm.fee ? FEE_STATUS_LABELS[wm.fee.status] : "-"}</td>
+                  </>
+                )}
               </tr>
             ))}
             {c.workMonths.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-4 text-center text-slate-400">月次確認はまだありません</td>
+                <td colSpan={c.side === "DEMAND" ? 5 : 2} className="py-4 text-center text-slate-400">月次確認はまだありません</td>
               </tr>
             )}
           </tbody>

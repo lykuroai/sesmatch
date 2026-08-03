@@ -59,13 +59,15 @@ export function serializeContract(c: ContractWithRels, auth: AuthContext) {
       id: wm.id,
       month: wm.month,
       confirmedAmountYen: wm.confirmedAmountYen,
-      fee: wm.fee
-        ? {
-            feeExTaxYen: wm.fee.feeExTaxYen,
-            chargeableMonthIndex: wm.fee.chargeableMonthIndex,
-            status: wm.fee.status,
-          }
-        : null,
+      // 手数料は需要側企業の負担（§23）のため、供給側には金額・状態を返さない
+      fee:
+        side === "DEMAND" && wm.fee
+          ? {
+              feeExTaxYen: wm.fee.feeExTaxYen,
+              chargeableMonthIndex: wm.fee.chargeableMonthIndex,
+              status: wm.fee.status,
+            }
+          : null,
     })),
     createdAt: c.createdAt,
   };
