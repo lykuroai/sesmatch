@@ -66,13 +66,13 @@ export default function LoginPage() {
             SES企業間マッチングプラットフォーム
           </p>
           <h1 className="text-3xl font-bold leading-snug lg:text-4xl">
-            Ai-SESマッチング
+            Lykuro DirectMatch
             <span className="mt-2 block text-lg font-medium text-slate-300 lg:text-xl">
               案件と人材を、余計な商流なしで直接つなぐ。
             </span>
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-400">
-            Ai-SESマッチングは、SES企業同士が案件情報と人材情報を安全に流通させ、
+            Lykuro DirectMatch（AI人材・案件ダイレクトマッチング）は、SES企業同士が案件情報と人材情報を安全に流通させ、
             双方承認から<span className="text-slate-200">2社間の直接契約</span>までを一気通貫で行える
             B2Bプラットフォームです。仲介の多段化で失われていたマージンと情報を、現場に取り戻します。
           </p>

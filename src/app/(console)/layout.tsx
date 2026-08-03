@@ -24,7 +24,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 print:hidden">
         <Link href="/" className="text-sm font-bold text-slate-800">
-          Ai-SESマッチング
+          Lykuro DirectMatch
         </Link>
         <p className="text-sm text-slate-700">
           <Link href="/company" className="font-bold hover:underline" title="会社マイページ">
