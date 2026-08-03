@@ -107,12 +107,19 @@ export function validateProjectInput(input: ProjectInput): string | null {
   return null;
 }
 
+// 表示用コードの採番: 既存の最大番号+1（件数方式だと物理削除で番号が詰まり、既存コードと衝突する）
+async function nextProjectCode(tenantCompanyId: string): Promise<string> {
+  const rows = await prisma.$queryRaw<{ max: number | null }[]>`
+    SELECT MAX(CAST(SUBSTRING(code FROM 3) AS INTEGER)) AS max
+    FROM projects WHERE "tenantCompanyId" = ${tenantCompanyId} AND code ~ '^P-[0-9]+$'`;
+  return `P-${String(Number(rows[0]?.max ?? 0) + 1).padStart(4, "0")}`;
+}
+
 export async function createProject(auth: AuthContext, input: ProjectInput) {
   const validationError = validateProjectInput(input);
   if (validationError) return { error: validationError };
 
-  const count = await prisma.project.count({ where: { tenantCompanyId: auth.companyId } });
-  const code = `P-${String(count + 1).padStart(4, "0")}`;
+  const code = await nextProjectCode(auth.companyId);
   const project = await prisma.project.create({
     data: {
       tenantCompanyId: auth.companyId,
