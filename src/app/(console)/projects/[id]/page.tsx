@@ -173,7 +173,13 @@ export default async function ProjectDetailPage({
         />
       )}
 
-      {canMatch && <MatchPanel direction="project-to-engineers" targetId={p.id} />}
+      {canMatch && (
+        <MatchPanel
+          direction="project-to-engineers"
+          targetId={p.id}
+          canEntry={p.own && hasPermission(auth.roles, "entry.submit")}
+        />
+      )}
     </div>
   );
 }

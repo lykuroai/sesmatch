@@ -188,7 +188,13 @@ export default async function EngineerDetailPage({
         <EntryCreate type="SCOUT" fixedEngineerId={e.id} options={scoutOptions} />
       )}
 
-      {canMatch && <MatchPanel direction="engineer-to-projects" targetId={e.id} />}
+      {canMatch && (
+        <MatchPanel
+          direction="engineer-to-projects"
+          targetId={e.id}
+          canEntry={e.own && hasPermission(auth.roles, "entry.submit")}
+        />
+      )}
     </div>
   );
 }
