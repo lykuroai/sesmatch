@@ -4,6 +4,9 @@ import type { AuthContext } from "@/server/auth/session";
 import { hasPermission } from "@/server/auth/rbac";
 import { ageBandLabel, rateBand, LIST_PAGE_SIZE } from "@/lib/constants";
 import { STORAGE_DIR, truncateFilenameBytes } from "@/server/pipeline/ingest";
+import { extractDocumentText, isSkillSheetFile } from "@/server/pipeline/extract-text";
+import { maskPii, verifyMasked } from "@/server/pipeline/pii";
+import { llmGateway } from "@/server/pipeline/llm";
 import { mkdir, writeFile, readFile } from "fs/promises";
 import path from "path";
 import type { Engineer, EngineerSkill, PersonConsent } from "@prisma/client";
@@ -138,8 +141,16 @@ export async function attachSkillSheet(
 ) {
   const engineer = await prisma.engineer.findFirst({
     where: { id: engineerId, tenantCompanyId: auth.companyId, deletedAt: null }, // テナント分離
+    include: { skills: true },
   });
   if (!engineer) return { error: { code: "NOT_FOUND" as const } };
+  if (!isSkillSheetFile(file.filename))
+    return {
+      error: {
+        code: "VALIDATION_ERROR" as const,
+        message: "業務経歴書は Excel・Word・PDF のファイルを添付してください",
+      },
+    };
   if (file.content.length > 10 * 1024 * 1024)
     return { error: { code: "VALIDATION_ERROR" as const, message: "ファイルは10MB以下にしてください" } };
 
@@ -173,7 +184,71 @@ export async function attachSkillSheet(
     targetId: engineer.id,
     metadata: { size: file.content.length }, // ファイル名は氏名を含みうるため監査ログに残さない
   });
-  return { ok: true as const, documentId: doc.id };
+
+  // 経歴書の内容をマッチングへ反映: テキスト抽出 → PII匿名化 → LLM正規化 → 不足スキルの追加。
+  // 既存スキルは上書きせず、未登録スキルの追加と経験月数0の補完のみ行う（担当者の入力を正とする）
+  let addedSkills = 0;
+  let updatedMonths = 0;
+  let extractWarning: string | null = null;
+  try {
+    const text = await extractDocumentText(file.filename, file.content);
+    const { masked, tokens } = maskPii(text);
+    if (tokens.length > 0) {
+      await prisma.piiTokenMap.createMany({
+        data: tokens.map((t) => ({
+          sourceDocumentId: doc.id,
+          token: t.token,
+          originalValue: t.originalValue,
+          kind: t.kind,
+        })),
+      });
+    }
+    const check = verifyMasked(masked);
+    if (!check.ok) throw new Error("匿名化検査で残存PIIを検出したため内容反映を中止しました");
+    const extracted = await llmGateway.extract(masked, "ENGINEER_SHEET");
+    if (extracted.kind === "ENGINEER_SHEET") {
+      const existing = new Map(engineer.skills.map((s) => [s.name.trim().toLowerCase(), s]));
+      for (const s of extracted.skills) {
+        const cur = existing.get(s.name.trim().toLowerCase());
+        if (!cur) {
+          await prisma.engineerSkill.create({
+            data: {
+              engineerId: engineer.id,
+              name: s.name,
+              category: s.category,
+              months: s.months ?? 0,
+            },
+          });
+          addedSkills++;
+        } else if (cur.months === 0 && (s.months ?? 0) > 0) {
+          await prisma.engineerSkill.update({
+            where: { id: cur.id },
+            data: { months: s.months! },
+          });
+          updatedMonths++;
+        }
+      }
+      if (!engineer.maskedSourceText) {
+        await prisma.engineer.update({
+          where: { id: engineer.id },
+          data: { maskedSourceText: masked },
+        });
+      }
+      await audit({
+        tenantCompanyId: auth.companyId,
+        actorUserId: auth.userAccountId,
+        action: "SkillSheetExtracted",
+        targetType: "Engineer",
+        targetId: engineer.id,
+        metadata: { addedSkills, updatedMonths },
+      });
+    }
+  } catch (e) {
+    // 抽出失敗でも添付自体は成立させる（内容反映のみスキップ）
+    extractWarning = e instanceof Error ? e.message : String(e);
+  }
+
+  return { ok: true as const, documentId: doc.id, addedSkills, updatedMonths, extractWarning };
 }
 
 // 業務経歴書のダウンロード（自社 + engineer.read.pii のみ。呼び出し側で権限確認済み）

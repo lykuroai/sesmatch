@@ -8,6 +8,7 @@ import path from "path";
 import { prisma } from "@/server/db";
 import { maskPii, verifyMasked } from "./pii";
 import { llmGateway } from "./llm";
+import { extractDocumentText } from "./extract-text";
 import { audit } from "@/server/audit";
 
 export const STORAGE_DIR = process.env.STORAGE_DIR ?? "./storage";
@@ -65,14 +66,27 @@ export async function startIngestion(params: {
     metadata: { filename: params.filename },
   });
 
+  // ファイル形式に応じたテキスト抽出（PDF / Word / Excel / テキスト系）
+  let text: string | null = null;
+  try {
+    text = await extractDocumentText(params.filename, params.content);
+  } catch (e) {
+    await prisma.ingestionJob.update({
+      where: { id: job.id },
+      data: { status: "FAILED", error: e instanceof Error ? e.message : String(e) },
+    });
+  }
+
   // MVP は同期実行（本番は非同期ジョブ §5, §32）
-  await runPipeline({
-    tenantCompanyId: params.tenantCompanyId,
-    actorUserId: params.actorUserId,
-    docId: doc.id,
-    jobId: job.id,
-    text: params.content.toString("utf-8"),
-  });
+  if (text !== null) {
+    await runPipeline({
+      tenantCompanyId: params.tenantCompanyId,
+      actorUserId: params.actorUserId,
+      docId: doc.id,
+      jobId: job.id,
+      text,
+    });
+  }
 
   return prisma.ingestionJob.findUniqueOrThrow({
     where: { id: job.id },
@@ -174,9 +188,15 @@ export async function retryIngestion(params: {
   const { readFile } = await import("fs/promises");
   let text: string;
   try {
-    text = (await readFile(job.sourceDocument.storagePath)).toString("utf-8");
-  } catch {
-    return { error: { code: "VALIDATION_ERROR" as const, message: "原本ファイルが見つかりません" } };
+    const content = await readFile(job.sourceDocument.storagePath);
+    text = await extractDocumentText(job.sourceDocument.filename, content);
+  } catch (e) {
+    return {
+      error: {
+        code: "VALIDATION_ERROR" as const,
+        message: e instanceof Error ? e.message : "原本ファイルが見つかりません",
+      },
+    };
   }
   await prisma.piiTokenMap.deleteMany({ where: { sourceDocumentId: job.sourceDocumentId } });
   await prisma.extractionResult.deleteMany({ where: { ingestionJobId: job.id } });

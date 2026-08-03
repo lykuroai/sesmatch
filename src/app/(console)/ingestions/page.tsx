@@ -48,7 +48,7 @@ export default async function IngestionsPage({
       <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="mb-2 font-bold">ファイル取込</h2>
         <p className="mb-4 text-xs text-slate-500">
-          テキスト/CSV ファイルのアップロードにも対応しています。
+          PDF・Word（.docx）・Excel・テキスト/CSV ファイルに対応しています（画像PDFのOCR・旧形式 .doc は未対応）。
         </p>
         <IngestUpload />
       </section>

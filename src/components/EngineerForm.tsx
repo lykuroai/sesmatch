@@ -212,10 +212,11 @@ export function EngineerForm({
         <textarea name="summary" rows={3} defaultValue={initial?.summary ?? ""} className={input} />
       </div>
       <div>
-        <label className={label}>業務経歴書（スキルシート）添付（任意・10MBまで）</label>
-        <input type="file" name="skillSheet" className={input} />
+        <label className={label}>業務経歴書（スキルシート）添付（任意・Excel/Word/PDF・10MBまで）</label>
+        <input type="file" name="skillSheet" accept=".pdf,.doc,.docx,.xls,.xlsx" className={input} />
         <p className="mt-1 text-xs text-slate-500">
-          原本ファイルとして保存します（PII を含むため閲覧は自社のPII権限保持者のみ）。
+          内容を自動解析し、未登録のスキルをマッチング対象に追加します（既存の入力は上書きしません）。
+          原本の閲覧は自社のPII権限保持者のみ。
           {currentSheetName && `現在の添付: ${currentSheetName}（新しいファイルを選ぶと差し替え）`}
         </p>
       </div>

@@ -30,7 +30,13 @@ export function IngestUpload() {
 
   return (
     <form onSubmit={submit} className="flex items-center gap-3 text-sm">
-      <input ref={fileRef} type="file" accept=".txt,.csv,.md" required className="text-sm" />
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".pdf,.docx,.xls,.xlsx,.txt,.csv,.md"
+        required
+        className="text-sm"
+      />
       <button
         type="submit"
         disabled={loading}
