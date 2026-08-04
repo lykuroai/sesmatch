@@ -18,6 +18,33 @@ export async function listFees(auth: AuthContext) {
   });
 }
 
+// 請求画面用の明細（案件×人材のタイトル付き）。需要側企業は契約段階（Level 3）のため実名表示可
+export async function listFeesDetailed(auth: AuthContext) {
+  const fees = await listFees(auth);
+  const [projects, engineers] = await Promise.all([
+    prisma.project.findMany({
+      where: { id: { in: [...new Set(fees.map((f) => f.projectId))] } },
+      select: { id: true, code: true, name: true },
+    }),
+    prisma.engineer.findMany({
+      where: { id: { in: [...new Set(fees.map((f) => f.engineerId))] } },
+      select: { id: true, code: true, name: true },
+    }),
+  ]);
+  const pj = new Map(projects.map((p) => [p.id, p]));
+  const en = new Map(engineers.map((e) => [e.id, e]));
+  return fees.map((f) => ({
+    id: f.id,
+    month: f.month,
+    createdAt: f.createdAt,
+    title: `${pj.get(f.projectId)?.code ?? ""} ${pj.get(f.projectId)?.name ?? ""} ／ ${en.get(f.engineerId)?.code ?? ""} ${en.get(f.engineerId)?.name ?? ""}`.trim(),
+    baseAmountYen: f.baseAmountYen,
+    feeExTaxYen: f.feeExTaxYen,
+    status: f.status,
+    invoiceId: f.invoiceId,
+  }));
+}
+
 export async function listInvoices(auth: AuthContext) {
   return prisma.invoice.findMany({
     where: { demandCompanyId: auth.companyId },
@@ -37,26 +64,25 @@ export async function generateInvoice(auth: AuthContext, month: string) {
     if (fees.length === 0)
       return { error: { code: "NOT_FOUND" as const, message: "対象月の未請求手数料がありません" } };
 
-    const feeExTaxYen = fees.reduce((a, f) => a + f.feeExTaxYen, 0);
-    const taxYen = calcTax(feeExTaxYen);
-    const invoice = await tx.invoice.upsert({
+    const base = await tx.invoice.upsert({
       where: { demandCompanyId_month: { demandCompanyId: auth.companyId, month } },
-      create: {
-        demandCompanyId: auth.companyId,
-        month,
-        feeExTaxYen,
-        taxYen,
-        totalYen: feeExTaxYen + taxYen,
-      },
-      update: {
-        feeExTaxYen: { increment: feeExTaxYen },
-        taxYen: { increment: taxYen },
-        totalYen: { increment: feeExTaxYen + taxYen },
-      },
+      create: { demandCompanyId: auth.companyId, month, feeExTaxYen: 0, taxYen: 0, totalYen: 0 },
+      update: {},
     });
     await tx.platformFee.updateMany({
       where: { id: { in: fees.map((f) => f.id) } },
-      data: { invoiceId: invoice.id },
+      data: { invoiceId: base.id },
+    });
+    // 正式な税額は請求書単位で月計に対して1回だけ端数処理する（インボイス制度の端数処理ルール）。
+    // 明細行ごとの消費税は画面の確認用であり、合算しない
+    const attached = await tx.platformFee.findMany({
+      where: { invoiceId: base.id, status: "CHARGED" },
+    });
+    const feeExTaxYen = attached.reduce((a, f) => a + f.feeExTaxYen, 0);
+    const taxYen = calcTax(feeExTaxYen);
+    const invoice = await tx.invoice.update({
+      where: { id: base.id },
+      data: { feeExTaxYen, taxYen, totalYen: feeExTaxYen + taxYen },
     });
     await audit({
       tenantCompanyId: auth.companyId,

@@ -2,12 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
 import { hasPermission } from "@/server/auth/rbac";
-import { listFees, listInvoices } from "@/server/services/billing";
-import { FEE_STATUS_LABELS } from "@/lib/constants";
+import { listFeesDetailed, listInvoices } from "@/server/services/billing";
+import { calcTax } from "@/server/billing/fee";
 import { ActionButton } from "@/components/ActionButton";
-import { InvoiceGenerateForm } from "@/components/InvoiceGenerateForm";
 
-// 請求（§23）: 手数料は需要側企業負担。月別集計・請求書発行・入金記録。
+// 請求（成約手数料 §23）: 月ごとに明細（日付・タイトル・契約金額・手数料・確認用消費税）と
+// 月計・請求合計を表示し、請求書の発行・PDF再ダウンロードを行う。
+// 明細行の消費税は確認用。正式な税額は請求書単位で月計に対して1回だけ端数処理する
+// （インボイス制度の税率ごと・請求書1枚につき1回の端数処理ルール）
 export default async function BillingPage() {
   const auth = await getAuth();
   if (!auth) redirect("/login");
@@ -19,116 +21,118 @@ export default async function BillingPage() {
       </div>
     );
   }
-  const [fees, invoices] = await Promise.all([listFees(auth), listInvoices(auth)]);
+  const [fees, invoices] = await Promise.all([listFeesDetailed(auth), listInvoices(auth)]);
   const canManage = hasPermission(auth.roles, "billing.manage");
+  const invoiceByMonth = new Map(invoices.map((inv) => [inv.month, inv]));
 
-  // 月別集計
-  const byMonth = new Map<string, { charged: number; cancelled: number; count: number }>();
-  for (const f of fees) {
-    const m = byMonth.get(f.month) ?? { charged: 0, cancelled: 0, count: 0 };
-    if (f.status === "CHARGED") m.charged += f.feeExTaxYen;
-    if (f.status === "CANCELLED" || f.status === "REFUNDED") m.cancelled++;
-    m.count++;
-    byMonth.set(f.month, m);
-  }
+  // 月ごとにグループ化（新しい月が先頭）
+  const months = [...new Set(fees.map((f) => f.month))].sort((a, b) => b.localeCompare(a));
+  const yen = (v: number) => `${v.toLocaleString()}円`;
 
   return (
     <div>
       <h1 className="mb-2 text-2xl font-bold">請求（成約手数料）</h1>
       <p className="mb-6 text-sm text-slate-500">
         需要側企業として負担する手数料の一覧です。料率3%・最大12稼働月・13稼働月目以降無料（§23）。
+        明細の消費税は確認用で、正式な税額は請求書単位で月計に対して算出します。
       </p>
 
-      {canManage && (
-        <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-3 font-bold">請求書発行</h2>
-          <InvoiceGenerateForm />
-        </section>
+      {months.length === 0 && (
+        <p className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-400 shadow-sm">
+          手数料はありません
+        </p>
       )}
 
-      <div className="mb-6 grid grid-cols-2 gap-6">
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-3 font-bold">月別手数料</h2>
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-slate-500">
-              <tr><th className="py-1">月</th><th className="py-1">課金（税抜）</th><th className="py-1">キャンセル</th><th className="py-1">件数</th></tr>
-            </thead>
-            <tbody>
-              {[...byMonth.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([month, m]) => (
-                <tr key={month} className="border-t border-slate-100">
-                  <td className="py-1.5 font-medium">{month}</td>
-                  <td className="py-1.5">{m.charged.toLocaleString()}円</td>
-                  <td className="py-1.5 text-red-600">{m.cancelled > 0 ? `${m.cancelled}件` : "-"}</td>
-                  <td className="py-1.5">{m.count}</td>
-                </tr>
-              ))}
-              {byMonth.size === 0 && (
-                <tr><td colSpan={4} className="py-4 text-center text-slate-400">手数料はありません</td></tr>
-              )}
-            </tbody>
-          </table>
-        </section>
-
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-3 font-bold">請求書</h2>
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-slate-500">
-              <tr><th className="py-1">月</th><th className="py-1">税抜</th><th className="py-1">税込</th><th className="py-1">状態</th><th /></tr>
-            </thead>
-            <tbody>
-              {invoices.map((inv) => (
-                <tr key={inv.id} className="border-t border-slate-100">
-                  <td className="py-1.5 font-medium">{inv.month}</td>
-                  <td className="py-1.5">{inv.feeExTaxYen.toLocaleString()}円</td>
-                  <td className="py-1.5">{inv.totalYen.toLocaleString()}円</td>
-                  <td className="py-1.5 text-xs">{inv.status === "PAID" ? "入金済み" : "発行済み"}</td>
-                  <td className="py-1.5 text-right">
+      {months.map((month) => {
+        const rows = fees.filter((f) => f.month === month);
+        const charged = rows.filter((f) => f.status === "CHARGED");
+        const monthFee = charged.reduce((a, f) => a + f.feeExTaxYen, 0);
+        const monthTax = calcTax(monthFee);
+        const invoice = invoiceByMonth.get(month);
+        const uninvoiced = charged.some((f) => !f.invoiceId);
+        return (
+          <section key={month} className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-bold">{month}</h2>
+              <div className="flex items-center gap-2">
+                {invoice && (
+                  <>
+                    <span className="text-xs text-slate-500">
+                      {invoice.status === "PAID" ? "入金済み" : "請求書発行済み"}
+                    </span>
                     <Link
-                      href={`/billing/invoices/${inv.id}`}
-                      className="mr-2 text-xs text-blue-700 hover:underline"
+                      href={`/billing/invoices/${invoice.id}`}
+                      className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
                     >
-                      帳票
+                      請求書PDF
                     </Link>
-                    {canManage && inv.status === "ISSUED" && (
-                      <ActionButton path={`/api/v1/invoices/${inv.id}/pay`} label="入金記録" />
+                    {canManage && invoice.status === "ISSUED" && (
+                      <ActionButton path={`/api/v1/invoices/${invoice.id}/pay`} label="入金記録" />
                     )}
-                  </td>
+                  </>
+                )}
+                {canManage && uninvoiced && monthFee > 0 && (
+                  <ActionButton
+                    path="/api/v1/invoices"
+                    body={{ month }}
+                    label={invoice ? "請求書を更新" : "請求書発行"}
+                  />
+                )}
+              </div>
+            </div>
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-slate-500">
+                <tr>
+                  <th className="py-1.5">日付</th>
+                  <th className="py-1.5">タイトル</th>
+                  <th className="py-1.5 text-right">契約金額</th>
+                  <th className="py-1.5 text-right">手数料</th>
+                  <th className="py-1.5 text-right">消費税（確認用）</th>
                 </tr>
-              ))}
-              {invoices.length === 0 && (
-                <tr><td colSpan={5} className="py-4 text-center text-slate-400">請求書はありません</td></tr>
-              )}
-            </tbody>
-          </table>
-        </section>
-      </div>
-
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-3 font-bold">手数料明細</h2>
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs text-slate-500">
-            <tr>
-              <th className="py-1">月</th><th className="py-1">基準額</th><th className="py-1">手数料（税抜）</th>
-              <th className="py-1">稼働月</th><th className="py-1">状態</th><th className="py-1">請求</th>
-            </tr>
-          </thead>
-          <tbody>
-            {fees.map((f) => (
-              <tr key={f.id} className="border-t border-slate-100">
-                <td className="py-1.5">{f.month}</td>
-                <td className="py-1.5">{f.baseAmountYen.toLocaleString()}円</td>
-                <td className="py-1.5 font-medium">{f.feeExTaxYen.toLocaleString()}円</td>
-                <td className="py-1.5">{f.chargeableMonthIndex}稼働月目</td>
-                <td className="py-1.5 text-xs">{FEE_STATUS_LABELS[f.status]}</td>
-                <td className="py-1.5 text-xs">{f.invoiceId ? "請求済み" : "未請求"}</td>
-              </tr>
-            ))}
-            {fees.length === 0 && (
-              <tr><td colSpan={6} className="py-4 text-center text-slate-400">手数料はありません</td></tr>
-            )}
-          </tbody>
-        </table>
-      </section>
+              </thead>
+              <tbody>
+                {rows.map((f) => (
+                  <tr
+                    key={f.id}
+                    className={`border-t border-slate-100 ${f.status !== "CHARGED" ? "text-slate-400" : ""}`}
+                  >
+                    <td className="py-1.5">{new Date(f.createdAt).toLocaleDateString("ja-JP")}</td>
+                    <td className="py-1.5">
+                      {f.title}
+                      {f.status === "CANCELLED" && (
+                        <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs">キャンセル</span>
+                      )}
+                      {f.status === "FREE" && (
+                        <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs">無料（13稼働月目以降）</span>
+                      )}
+                    </td>
+                    <td className="py-1.5 text-right">{yen(f.baseAmountYen)}</td>
+                    <td className="py-1.5 text-right">{yen(f.feeExTaxYen)}</td>
+                    <td className="py-1.5 text-right">{yen(calcTax(f.feeExTaxYen))}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t-2 border-slate-300 text-sm font-medium">
+                <tr>
+                  <td colSpan={3} className="py-2 text-right text-slate-500">月計金額</td>
+                  <td className="py-2 text-right">{yen(monthFee)}</td>
+                  <td />
+                </tr>
+                <tr>
+                  <td colSpan={3} className="py-1 text-right text-slate-500">月計消費税</td>
+                  <td className="py-1 text-right">{yen(monthTax)}</td>
+                  <td />
+                </tr>
+                <tr>
+                  <td colSpan={3} className="py-1 text-right text-slate-500">請求合計</td>
+                  <td className="py-1 text-right text-base font-bold">{yen(monthFee + monthTax)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </section>
+        );
+      })}
     </div>
   );
 }
