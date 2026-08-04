@@ -106,6 +106,21 @@ export default function LoginPage() {
             ))}
           </div>
 
+          {/* 関連サービスの宣伝: AI Gateway */}
+          <a
+            href="https://app.lykuro.ai"
+            target="_blank"
+            rel="noopener"
+            className="mt-8 block rounded-lg border border-blue-500/40 bg-blue-500/10 p-4 transition hover:bg-blue-500/20"
+          >
+            <p className="text-sm font-bold text-blue-300">
+              AI Gateway <span className="ml-1 text-xs font-normal text-slate-400">app.lykuro.ai ↗</span>
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-400">
+              本サービスのAI機能を支えるLLMゲートウェイ。複数のAIモデルをひとつのAPIで利用できます。
+            </p>
+          </a>
+
           <p className="mt-6 text-xs text-slate-500">
             ご利用には企業（法人・個人事業者）としての登録と運営審査が必要です。
             <Link href="/terms" className="underline hover:text-slate-300">利用規約</Link>・
