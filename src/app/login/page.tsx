@@ -66,7 +66,11 @@ export default function LoginPage() {
             SES企業間マッチングプラットフォーム
           </p>
           <h1 className="text-3xl font-bold leading-snug lg:text-4xl">
-            Lykuro DirectMatch
+            <span className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-mark.svg" alt="Lykuro DirectMatch ロゴ" className="h-10 w-10 lg:h-12 lg:w-12" />
+              Lykuro DirectMatch
+            </span>
             <span className="mt-2 block text-lg font-medium text-slate-300 lg:text-xl">
               案件と人材を、余計な商流なしで直接つなぐ。
             </span>

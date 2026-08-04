@@ -24,7 +24,9 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 print:hidden">
-        <Link href="/" className="text-sm font-bold text-slate-800">
+        <Link href="/" className="flex items-center gap-2 text-sm font-bold text-slate-800">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-mark.svg" alt="" className="h-6 w-6" />
           Lykuro DirectMatch
         </Link>
         <p className="text-sm text-slate-700">
