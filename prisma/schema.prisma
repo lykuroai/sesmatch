@@ -564,7 +564,8 @@ model WorkMonth {
 enum FeeStatus {
   CHARGED
   FREE // 13稼働月目以降
-  REFUNDED // 開始後14日以内離脱の全額返金（§23）
+  REFUNDED // 旧仕様（未使用。過去データはマイグレーションで CANCELLED へ変換済み）
+  CANCELLED // 稼働開始後14日以内の契約終了（手数料0円 §23）
 }
 
 model PlatformFee {

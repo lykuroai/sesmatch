@@ -23,11 +23,11 @@ export default async function BillingPage() {
   const canManage = hasPermission(auth.roles, "billing.manage");
 
   // 月別集計
-  const byMonth = new Map<string, { charged: number; refunded: number; count: number }>();
+  const byMonth = new Map<string, { charged: number; cancelled: number; count: number }>();
   for (const f of fees) {
-    const m = byMonth.get(f.month) ?? { charged: 0, refunded: 0, count: 0 };
+    const m = byMonth.get(f.month) ?? { charged: 0, cancelled: 0, count: 0 };
     if (f.status === "CHARGED") m.charged += f.feeExTaxYen;
-    if (f.status === "REFUNDED") m.refunded += f.feeExTaxYen;
+    if (f.status === "CANCELLED" || f.status === "REFUNDED") m.cancelled++;
     m.count++;
     byMonth.set(f.month, m);
   }
@@ -51,14 +51,14 @@ export default async function BillingPage() {
           <h2 className="mb-3 font-bold">月別手数料</h2>
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-slate-500">
-              <tr><th className="py-1">月</th><th className="py-1">課金（税抜）</th><th className="py-1">返金</th><th className="py-1">件数</th></tr>
+              <tr><th className="py-1">月</th><th className="py-1">課金（税抜）</th><th className="py-1">キャンセル</th><th className="py-1">件数</th></tr>
             </thead>
             <tbody>
               {[...byMonth.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([month, m]) => (
                 <tr key={month} className="border-t border-slate-100">
                   <td className="py-1.5 font-medium">{month}</td>
                   <td className="py-1.5">{m.charged.toLocaleString()}円</td>
-                  <td className="py-1.5 text-red-600">{m.refunded > 0 ? `-${m.refunded.toLocaleString()}円` : "-"}</td>
+                  <td className="py-1.5 text-red-600">{m.cancelled > 0 ? `${m.cancelled}件` : "-"}</td>
                   <td className="py-1.5">{m.count}</td>
                 </tr>
               ))}

@@ -80,7 +80,7 @@ export async function getInvoiceDocument(auth: AuthContext, invoiceId: string) {
   const [company, fees] = await Promise.all([
     prisma.company.findUnique({ where: { id: invoice.demandCompanyId } }),
     prisma.platformFee.findMany({
-      // 返金済み（REFUNDED）は請求書に載せない。金額も課金分のみで再計算する
+      // キャンセル（14日以内終了）・無料は請求書に載せない。金額も課金分のみで再計算する
       where: { invoiceId: invoice.id, status: "CHARGED" },
       orderBy: { createdAt: "asc" },
     }),

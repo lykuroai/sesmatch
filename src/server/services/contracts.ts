@@ -377,9 +377,10 @@ export async function terminateContract(
       });
     }
     if (!refund) return 0;
+    // 稼働開始後14日以内の終了: 手数料はキャンセル（0円）にする（§23）
     const updated = await tx.platformFee.updateMany({
       where: { contractId, status: "CHARGED" },
-      data: { status: "REFUNDED" },
+      data: { status: "CANCELLED", feeExTaxYen: 0 },
     });
     return updated.count;
   });

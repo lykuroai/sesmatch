@@ -291,13 +291,13 @@ describe("契約・手数料（§22, §23, §34）", () => {
     expect(await prisma.platformFee.count({ where: { contractId } })).toBe(0);
   });
 
-  it("開始後14日以内の離脱は徴収済み手数料を全額返金する（§23, §34）", async () => {
+  it("開始後14日以内の離脱は手数料をキャンセル（0円）にする（§23, §34）", async () => {
     const { demand, contractId } = await makeActiveContract();
     await confirmWorkMonth(demand, contractId, { month: "2026-08", amountYen: 700_000 });
     const result = await terminateContract(demand, contractId, { date: "2026-08-10" });
     expect("ok" in result && result.refund).toBe(true);
     const fees = await prisma.platformFee.findMany({ where: { contractId } });
-    expect(fees.every((f) => f.status === "REFUNDED")).toBe(true);
+    expect(fees.every((f) => f.status === "CANCELLED" && f.feeExTaxYen === 0)).toBe(true);
   });
 
   it("15日以降の終了は返金しない", async () => {
