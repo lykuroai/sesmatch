@@ -9,7 +9,9 @@ type PendingCompany = {
   name: string;
   companyType: string;
   corporateNumber: string | null;
+  address: string | null;
   createdAt: string;
+  members: { name: string; email: string; roles: string[] }[];
 };
 
 type AdminCompany = {
@@ -291,17 +293,26 @@ function CompanyReviewSection({
           )}
           <div className="space-y-2">
             {companies.map((co) => (
-              <div key={co.id} className="flex items-center justify-between rounded border border-slate-100 p-3">
-                <div>
+              <div key={co.id} className="flex items-start justify-between rounded border border-slate-100 p-3">
+                <div className="min-w-0">
                   <p className="text-sm font-medium">{co.name}</p>
                   <p className="text-xs text-slate-500">
-                    {co.companyType === "CORPORATION" ? `法人（法人番号: ${co.corporateNumber ?? "-"}）` : "個人事業者"}
+                    {co.companyType === "CORPORATION" ? `法人（法人番号: ${co.corporateNumber ?? "未入力"}）` : "個人事業者"}
+                    ／ 所在地: {co.address ?? "未入力"}
                     ／ 申込: {new Date(co.createdAt).toLocaleString("ja-JP")}
                   </p>
+                  <div className="mt-1 text-xs text-slate-600">
+                    {co.members.map((m) => (
+                      <p key={m.email}>
+                        申込者: {m.name}（{m.email}）
+                        {m.roles.length > 0 && ` ／ ロール: ${m.roles.join(", ")}`}
+                      </p>
+                    ))}
+                  </div>
                 </div>
                 <button
                   onClick={() => approveOne(co)}
-                  className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+                  className="ml-3 shrink-0 rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
                 >
                   承認して開通
                 </button>

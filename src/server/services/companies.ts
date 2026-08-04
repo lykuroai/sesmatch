@@ -235,10 +235,25 @@ ${appBaseUrl()}/login`,
 }
 
 export async function listPendingCompanies() {
-  return prisma.company.findMany({
+  // 審査に必要な詳細（所在地・申込担当者の氏名/メール/ロール）を含めて返す
+  const companies = await prisma.company.findMany({
     where: { status: "APPLIED" },
     orderBy: { createdAt: "asc" },
+    include: { members: { include: { userAccount: true, roles: true } } },
   });
+  return companies.map((c) => ({
+    id: c.id,
+    name: c.name,
+    companyType: c.companyType,
+    corporateNumber: c.corporateNumber,
+    address: c.address,
+    createdAt: c.createdAt,
+    members: c.members.map((m) => ({
+      name: m.userAccount.name,
+      email: m.userAccount.email,
+      roles: m.roles.map((r) => r.role),
+    })),
+  }));
 }
 
 // 運営: 全企業の一覧（企業修正画面用）
