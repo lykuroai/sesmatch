@@ -26,6 +26,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup -S app && adduser -S app -G app
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
 RUN mkdir -p /data/storage && chown -R app:app /data
 USER app
 EXPOSE 3000
