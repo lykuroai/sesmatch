@@ -150,18 +150,18 @@ describe("本人同意（§11.3, §34）", () => {
   });
 });
 
-// ---- 国籍条件の公開拒否 ----
+// ---- 案件内容の記載制限（2026-08-04 撤廃）----
 
-describe("国籍条件入力の公開拒否（§15, §34）", () => {
-  it("国籍・性別を条件とする案件は登録できない", async () => {
+describe("案件内容の記載制限（撤廃済み）", () => {
+  it("国籍等に言及する記載があっても案件は登録できる（キーワード拒否は行わない）", async () => {
     const a = await makeCompany("A社");
     const result = await createProject(a, {
-      name: "外国籍不可の案件",
+      name: "外国籍可の案件",
       anonymousSummary: "概要",
       startDate: iso(futureDate(30)),
       rateMaxYen: 800_000,
     });
-    expect("error" in result).toBe(true);
+    expect("error" in result).toBe(false);
   });
 });
 

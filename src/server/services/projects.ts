@@ -108,14 +108,9 @@ export type ProjectInput = {
   preferredSkills?: { name: string }[];
 };
 
-// 国籍・出身国・民族等を条件に使用しない（§15）。入力バリデーションで拒否する。
-const FORBIDDEN_CONDITION_RE = /(外国籍|国籍|出身国|民族|日本人限定|性別|男性のみ|女性のみ)/;
-
-export function validateProjectInput(input: ProjectInput): string | null {
-  const target = `${input.name} ${input.anonymousSummary}`;
-  if (FORBIDDEN_CONDITION_RE.test(target)) {
-    return "国籍・出身国・民族・性別を条件とする記載は登録できません（就労可否・言語能力等へ分解してください）";
-  }
+// 案件内容の記載制限は2026-08-04に撤廃（国籍・性別等のキーワード拒否を行わない）。
+// なおマッチングエンジン自体はこれらの属性を条件として扱わない（§15/§19 の設計は不変）
+export function validateProjectInput(_input: ProjectInput): string | null {
   return null;
 }
 
