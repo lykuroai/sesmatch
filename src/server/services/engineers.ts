@@ -245,9 +245,11 @@ async function extractSheetIntoEngineer(
     if (extracted.kind === "ENGINEER_SHEET") {
       const existing = new Map(engineer.skills.map((s) => [s.name.trim().toLowerCase(), s]));
       for (const s of extracted.skills) {
-        const cur = existing.get(s.name.trim().toLowerCase());
+        const key = s.name.trim().toLowerCase();
+        const cur = existing.get(key);
         if (!cur) {
-          await prisma.engineerSkill.create({
+          // LLM が同名スキルを重複して返すことがあるため、作成分もマップに登録して一意制約違反を防ぐ
+          const created = await prisma.engineerSkill.create({
             data: {
               engineerId: engineer.id,
               name: s.name,
@@ -255,12 +257,14 @@ async function extractSheetIntoEngineer(
               months: s.months ?? 0,
             },
           });
+          existing.set(key, created);
           addedSkills++;
         } else if (cur.months === 0 && (s.months ?? 0) > 0) {
           await prisma.engineerSkill.update({
             where: { id: cur.id },
             data: { months: s.months! },
           });
+          existing.set(key, { ...cur, months: s.months! });
           updatedMonths++;
         }
       }
