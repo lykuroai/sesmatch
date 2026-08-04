@@ -34,7 +34,36 @@ export function EngineerForm({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [reExtracting, setReExtracting] = useState(false);
   const isEdit = !!engineerId;
+
+  // 添付済みの職務経歴書から匿名化テキスト・抽出値を再抽出する（LLM再抽出ボタン）
+  async function reExtract() {
+    if (
+      !confirm(
+        "添付済みの職務経歴書からLLMで再抽出します。\n未登録スキルの追加・経験月数0の補完・未入力プロフィール項目の反映を行います（入力済みの値は上書きしません）。よろしいですか？"
+      )
+    )
+      return;
+    setReExtracting(true);
+    const rx = await fetch(`/api/v1/engineers/${engineerId}/skill-sheet/re-extract`, {
+      method: "POST",
+    });
+    setReExtracting(false);
+    const rb = await rx.json().catch(() => null);
+    if (!rx.ok) {
+      alert(`再抽出に失敗しました: ${rb?.error?.message ?? "エラー"}`);
+    } else if (rb?.extractWarning) {
+      alert(`再抽出できませんでした: ${rb.extractWarning}`);
+    } else {
+      alert(
+        `再抽出しました（スキル追加 ${rb?.addedSkills ?? 0}件 / 経験月数補完 ${rb?.updatedMonths ?? 0}件）`
+      );
+      router.refresh();
+      // 編集フォームの初期値を再抽出後の値に更新するためリロード
+      window.location.reload();
+    }
+  }
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -90,32 +119,7 @@ export function EngineerForm({
 
     // 職務経歴書（スキルシート）が選択されていれば続けてアップロード
     const sheet = f.get("skillSheet");
-    const newSheetSelected = sheet instanceof File && sheet.size > 0;
-
-    // 編集モードで添付済み・新しいファイル未選択の場合は、保存済みの経歴書からの再抽出を選択できる
-    if (isEdit && currentSheetName && !newSheetSelected) {
-      if (
-        confirm(
-          "匿名化済みテキスト・抽出値を再抽出しますか？\n（添付済みの職務経歴書から、未登録スキルの追加・経験月数0の補完・未入力プロフィール項目の反映を行います。入力済みの値は上書きしません）"
-        )
-      ) {
-        const rx = await fetch(`/api/v1/engineers/${engineerId}/skill-sheet/re-extract`, {
-          method: "POST",
-        });
-        const rb = await rx.json().catch(() => null);
-        if (!rx.ok) {
-          alert(`再抽出に失敗しました: ${rb?.error?.message ?? "エラー"}`);
-        } else if (rb?.extractWarning) {
-          alert(`再抽出できませんでした: ${rb.extractWarning}`);
-        } else {
-          alert(
-            `再抽出しました（スキル追加 ${rb?.addedSkills ?? 0}件 / 経験月数補完 ${rb?.updatedMonths ?? 0}件）`
-          );
-        }
-      }
-    }
-
-    if (newSheetSelected && sheet instanceof File) {
+    if (sheet instanceof File && sheet.size > 0) {
       const fd = new FormData();
       fd.append("file", sheet);
       const up = await fetch(`/api/v1/engineers/${saved.id ?? engineerId}/skill-sheet`, {
@@ -250,13 +254,26 @@ export function EngineerForm({
           {currentSheetName && `現在の添付: ${currentSheetName}（新しいファイルを選ぶと差し替え）`}
         </p>
       </div>
-      <button
-        type="submit"
-        disabled={loading}
-        className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-      >
-        {loading ? "保存中..." : isEdit ? "更新する" : "登録する"}
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={loading || reExtracting}
+          className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? "保存中..." : isEdit ? "更新する" : "登録する"}
+        </button>
+        {isEdit && currentSheetName && (
+          <button
+            type="button"
+            onClick={reExtract}
+            disabled={loading || reExtracting}
+            className="rounded border border-emerald-600 bg-white px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+            title="添付済みの職務経歴書から匿名化テキスト・抽出値を再抽出します"
+          >
+            {reExtracting ? "再抽出中..." : "LLM再抽出"}
+          </button>
+        )}
+      </div>
     </form>
   );
 }
