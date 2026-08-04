@@ -76,6 +76,7 @@ import {
 import {
   applyCompany,
   approveCompany,
+  rejectCompany,
   sendEmailVerificationCode,
   deleteCompanyByOperations,
   deleteMember,
@@ -201,6 +202,20 @@ app.post("/operations/companies/:id/approve", requireAdminToken, async (c) => {
   const result = await approveCompany(
     c.req.param("id"),
     parsed.success ? parsed.data.initialPassword : undefined
+  );
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+// 審査却下（申込者へ通知して申込データを削除）
+app.post("/operations/companies/:id/reject", requireAdminToken, async (c) => {
+  const parsed = z
+    .object({ reason: z.string().optional() })
+    .safeParse(await c.req.json().catch(() => ({})));
+  const result = await rejectCompany(
+    c.req.param("id"),
+    parsed.success ? parsed.data.reason : undefined
   );
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));

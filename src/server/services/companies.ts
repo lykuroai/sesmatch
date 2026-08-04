@@ -256,6 +256,61 @@ export async function listPendingCompanies() {
   }));
 }
 
+// 運営審査: 却下。申込者へ通知メールを送り、申込データ（企業・担当者・アカウント）を削除する
+export async function rejectCompany(companyId: string, reason?: string) {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    include: { members: { include: { userAccount: true } } },
+  });
+  if (!company) return { error: { code: "NOT_FOUND" as const } };
+  if (company.status !== "APPLIED")
+    return { error: { code: "VERSION_CONFLICT" as const, message: "審査待ちの企業ではありません" } };
+
+  const recipients = company.members.map((m) => ({
+    email: m.userAccount.email,
+    name: m.userAccount.name,
+  }));
+  // 監査ログは削除前に記録（PII は含めない）
+  await audit({
+    tenantCompanyId: companyId,
+    action: "CompanyRejected",
+    targetType: "Company",
+    targetId: companyId,
+    metadata: { reason: (reason ?? "").slice(0, 200) },
+  });
+  await prisma.$transaction(async (tx) => {
+    const members = await tx.companyMember.findMany({ where: { companyId } });
+    await tx.companyMemberRole.deleteMany({
+      where: { memberId: { in: members.map((m) => m.id) } },
+    });
+    await tx.companyMember.deleteMany({ where: { companyId } });
+    for (const m of members) {
+      const remaining = await tx.companyMember.count({
+        where: { userAccountId: m.userAccountId },
+      });
+      if (remaining === 0) {
+        await tx.session.deleteMany({ where: { userAccountId: m.userAccountId } });
+        await tx.userAccount.delete({ where: { id: m.userAccountId } });
+      }
+    }
+    await tx.company.delete({ where: { id: companyId } });
+  });
+  for (const r of recipients) {
+    await sendMail({
+      to: r.email,
+      subject: "【Lykuro DirectMatch】企業登録審査の結果について",
+      body: `${r.name} 様
+
+${company.name} の企業登録につきまして、審査の結果、今回はご登録を見送らせていただくことになりました。${reason ? `
+
+理由: ${reason}` : ""}
+
+ご不明な点は運営までお問い合わせください。`,
+    });
+  }
+  return { ok: true as const };
+}
+
 // 運営: 全企業の一覧（企業修正画面用）
 export async function listAllCompanies() {
   return prisma.company.findMany({

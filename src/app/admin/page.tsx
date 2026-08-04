@@ -210,9 +210,32 @@ function CompanyReviewSection({
   const [approvePassword, setApprovePassword] = useState("");
   const [bulkApproving, setBulkApproving] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(0);
+  const [openId, setOpenId] = useState<string | null>(null); // 詳細を開いている企業
 
   function approveBody() {
     return approvePassword.trim() ? { initialPassword: approvePassword.trim() } : {};
+  }
+
+  // 却下: 理由（任意）を入力し、申込者へ通知メールを送って申込データを削除する
+  async function rejectOne(co: PendingCompany) {
+    const reason = window.prompt(
+      `${co.name} を却下しますか？\n却下理由（任意・申込者への通知メールに記載されます）:`,
+      ""
+    );
+    if (reason === null) return; // キャンセル
+    setError(null);
+    const res = await fetch(`/api/v1/operations/companies/${co.id}/reject`, {
+      method: "POST",
+      headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: reason.trim() || undefined }),
+    });
+    if (!res.ok) {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "却下に失敗しました");
+      return;
+    }
+    setOpenId(null);
+    await reload();
   }
 
   async function approveOne(co: PendingCompany) {
@@ -293,29 +316,73 @@ function CompanyReviewSection({
           )}
           <div className="space-y-2">
             {companies.map((co) => (
-              <div key={co.id} className="flex items-start justify-between rounded border border-slate-100 p-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">{co.name}</p>
-                  <p className="text-xs text-slate-500">
-                    {co.companyType === "CORPORATION" ? `法人（法人番号: ${co.corporateNumber ?? "未入力"}）` : "個人事業者"}
-                    ／ 所在地: {co.address ?? "未入力"}
-                    ／ 申込: {new Date(co.createdAt).toLocaleString("ja-JP")}
-                  </p>
-                  <div className="mt-1 text-xs text-slate-600">
-                    {co.members.map((m) => (
-                      <p key={m.email}>
-                        申込者: {m.name}（{m.email}）
-                        {m.roles.length > 0 && ` ／ ロール: ${m.roles.join(", ")}`}
-                      </p>
-                    ))}
+              <div key={co.id} className="rounded border border-slate-100 p-3">
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{co.name}</p>
+                    <p className="text-xs text-slate-500">
+                      {co.companyType === "CORPORATION" ? "法人" : "個人事業者"}
+                      ／ 申込: {new Date(co.createdAt).toLocaleString("ja-JP")}
+                    </p>
                   </div>
+                  <button
+                    onClick={() => setOpenId(openId === co.id ? null : co.id)}
+                    className="ml-3 shrink-0 rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    {openId === co.id ? "閉じる" : "入力内容を確認"}
+                  </button>
                 </div>
-                <button
-                  onClick={() => approveOne(co)}
-                  className="ml-3 shrink-0 rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
-                >
-                  承認して開通
-                </button>
+                {openId === co.id && (
+                  <div className="mt-3 rounded bg-slate-50 p-4">
+                    <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                      <div>
+                        <dt className="text-xs text-slate-500">企業名</dt>
+                        <dd className="font-medium">{co.name}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-slate-500">企業形態</dt>
+                        <dd>{co.companyType === "CORPORATION" ? "法人" : "個人事業者"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-slate-500">法人番号</dt>
+                        <dd>{co.corporateNumber ?? "未入力"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-slate-500">所在地</dt>
+                        <dd>{co.address ?? "未入力"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-slate-500">申込日時</dt>
+                        <dd>{new Date(co.createdAt).toLocaleString("ja-JP")}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-slate-500">申込者</dt>
+                        <dd>
+                          {co.members.map((m) => (
+                            <p key={m.email}>
+                              {m.name}（{m.email}）
+                              {m.roles.length > 0 && ` ／ ${m.roles.join(", ")}`}
+                            </p>
+                          ))}
+                        </dd>
+                      </div>
+                    </dl>
+                    <div className="mt-4 flex gap-3">
+                      <button
+                        onClick={() => approveOne(co)}
+                        className="rounded bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+                      >
+                        許可（承認して開通）
+                      </button>
+                      <button
+                        onClick={() => rejectOne(co)}
+                        className="rounded border border-red-300 bg-white px-4 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+                      >
+                        却下
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
