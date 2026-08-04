@@ -58,6 +58,20 @@ describe("ハードフィルター（§19.1）", () => {
     expect(failures.some((f) => f.includes("同意"))).toBe(true);
   });
 
+  it("外国籍不可の案件では外国籍の人材は候補外", () => {
+    const failures = hardFilter(
+      baseProject({ noForeignNational: true }),
+      baseEngineer({ foreignNational: true })
+    );
+    expect(failures.some((f) => f.includes("外国籍不可"))).toBe(true);
+    // 外国籍可の案件では通過する
+    expect(hardFilter(baseProject(), baseEngineer({ foreignNational: true }))).toEqual([]);
+    // 日本国籍（未指定）は外国籍不可の案件でも通過する
+    expect(
+      hardFilter(baseProject({ noForeignNational: true }), baseEngineer({ foreignNational: false }))
+    ).toEqual([]);
+  });
+
   it("必須スキル不足は候補外", () => {
     const failures = hardFilter(
       baseProject(),

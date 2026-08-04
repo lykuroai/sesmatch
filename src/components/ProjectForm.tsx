@@ -23,6 +23,7 @@ export type ProjectFormInitial = {
   processes: string[];
   acceptedTypes: string[];
   allowSubtier: boolean;
+  noForeignNational?: boolean;
 };
 
 export function ProjectForm({
@@ -62,6 +63,7 @@ export function ProjectForm({
         rateMaxYen: parseInt(String(f.get("rateMaxYen"))) * 10_000,
         contractType: f.get("contractType") || undefined,
         allowSubtier: f.get("allowSubtier") === "on",
+        noForeignNational: f.get("noForeignNational") === "on",
         acceptedTypes,
         processes: parseList(String(f.get("processes") ?? "")),
         requiredSkills: parseList(String(f.get("requiredSkills") ?? "")).map((name) => ({ name })),
@@ -161,6 +163,14 @@ export function ProjectForm({
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="allowSubtier" defaultChecked={initial?.allowSubtier ?? false} />
         一社下可（最大商流1）
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="noForeignNational"
+          defaultChecked={initial?.noForeignNational ?? false}
+        />
+        外国籍不可（外国籍の人材をマッチング対象外にする）
       </label>
       <button
         type="submit"

@@ -12,6 +12,7 @@ export type EngineerFormInitial = {
   ageBand: number;
   affiliationType: string;
   residenceCity?: string | null;
+  nationality?: string | null;
   availableFrom?: string | null; // YYYY-MM-DD
   desiredRateMan?: number; // 万円
   maxOnsiteDaysPerWeek?: number | null;
@@ -86,6 +87,7 @@ export function EngineerForm({
       ageBand: parseInt(String(f.get("ageBand"))),
       affiliationType: f.get("affiliationType"),
       residenceCity: f.get("residenceCity") || undefined,
+      nationality: f.get("nationality") || undefined,
       availableFrom: f.get("availableFrom") || undefined,
       desiredRateYen: parseInt(String(f.get("desiredRateYen"))) * 10_000,
       maxOnsiteDaysPerWeek: f.get("maxOnsiteDaysPerWeek")
@@ -183,6 +185,15 @@ export function EngineerForm({
         <div>
           <label className={label}>居住市区町村</label>
           <input name="residenceCity" defaultValue={initial?.residenceCity ?? ""} className={input} placeholder="例: 川崎市" />
+        </div>
+        <div>
+          <label className={label}>国籍（外国籍の場合は国名を明記）</label>
+          <input
+            name="nationality"
+            defaultValue={initial?.nationality ?? ""}
+            className={input}
+            placeholder="未入力の場合は日本国籍とみなします"
+          />
         </div>
         <div>
           <label className={label}>稼働可能日</label>

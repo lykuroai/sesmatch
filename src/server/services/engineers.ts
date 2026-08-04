@@ -11,6 +11,12 @@ import { mkdir, writeFile, readFile } from "fs/promises";
 import path from "path";
 import type { Engineer, EngineerSkill, PersonConsent } from "@prisma/client";
 
+// 外国籍か（国名の明記があり日本以外なら外国籍。未指定は日本国籍とみなす）
+export function isForeignNationality(nationality: string | null | undefined): boolean {
+  const n = (nationality ?? "").trim().toLowerCase();
+  return n !== "" && !["日本", "日本国", "japan", "jp"].includes(n);
+}
+
 export function hasValidConsent(consents: PersonConsent[]): boolean {
   const now = new Date();
   return consents.some(
@@ -54,6 +60,8 @@ export function serializeEngineer(e: EngineerWithRels, auth: AuthContext) {
     })),
     hasValidConsent: hasValidConsent(e.consents),
     workAuthStatus: own ? e.workAuthStatus : undefined,
+    nationality: own ? e.nationality : undefined, // 国籍は自社のみ表示（未指定=日本国籍）
+    foreignNational: isForeignNationality(e.nationality), // マッチ条件表示用
     maskedSourceText: own ? e.maskedSourceText : undefined, // 取込時の匿名化済み原文（自社のみ）
     // ---- Level 2 相当（自社 + PII権限のみ）----
     name: canPii ? e.name : undefined,
@@ -346,6 +354,7 @@ export type EngineerInput = {
   affiliationType: "EMPLOYEE" | "AFFILIATED" | "FREELANCER" | "SUBTIER1";
   residenceCity?: string;
   nearestStation?: string;
+  nationality?: string; // 国籍（国名。未指定は日本国籍とみなす）
   availableFrom?: string;
   availabilityRate?: number;
   desiredRateYen: number;
@@ -379,6 +388,7 @@ export async function createEngineer(auth: AuthContext, input: EngineerInput) {
       ageBand: input.ageBand,
       affiliationType: input.affiliationType,
       residenceCity: input.residenceCity,
+      nationality: input.nationality?.trim() || null,
       nearestStation: input.nearestStation,
       availableFrom: input.availableFrom ? new Date(input.availableFrom) : null,
       availabilityRate: input.availabilityRate ?? 100,
@@ -432,6 +442,7 @@ export async function updateEngineer(
         ageBand: input.ageBand,
         affiliationType: input.affiliationType,
         residenceCity: input.residenceCity ?? null,
+        nationality: input.nationality?.trim() || null,
         nearestStation: input.nearestStation ?? null,
         availableFrom: input.availableFrom ? new Date(input.availableFrom) : null,
         availabilityRate: input.availabilityRate ?? 100,

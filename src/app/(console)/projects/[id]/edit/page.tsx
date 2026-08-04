@@ -33,6 +33,7 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
           processes: p.processes,
           acceptedTypes: p.acceptedTypes,
           allowSubtier: p.allowSubtier,
+          noForeignNational: p.noForeignNational,
         }}
       />
     </div>

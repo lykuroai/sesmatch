@@ -26,6 +26,7 @@ export default async function EditEngineerPage({ params }: { params: Promise<{ i
           ageBand: Number.isFinite(ageBand) ? ageBand : 30,
           affiliationType: e.affiliationType,
           residenceCity: e.residenceCity,
+          nationality: e.nationality,
           availableFrom: e.availableFrom
             ? new Date(e.availableFrom).toISOString().slice(0, 10)
             : null,

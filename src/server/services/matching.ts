@@ -5,7 +5,7 @@ import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
 import { score, type EngineerForMatch, type ProjectForMatch } from "@/server/matching/engine";
-import { hasValidConsent, serializeEngineer } from "./engineers";
+import { hasValidConsent, isForeignNationality, serializeEngineer } from "./engineers";
 import { serializeProject } from "./projects";
 import type { Engineer, EngineerSkill, PersonConsent, Project, ProjectSkill } from "@prisma/client";
 
@@ -20,6 +20,7 @@ function toEngineerForMatch(e: Engineer & { skills: EngineerSkill[]; consents: P
     maxOnsiteDaysPerWeek: e.maxOnsiteDaysPerWeek,
     remotePreference: e.remotePreference,
     workAuthStatus: e.workAuthStatus,
+    foreignNational: isForeignNationality(e.nationality),
     hasValidConsent: hasValidConsent(e.consents),
     skills: e.skills.map((s) => ({ name: s.name, months: s.months, lastUsedAt: s.lastUsedAt })),
     processes: e.processes,
@@ -38,6 +39,7 @@ function toProjectForMatch(p: Project & { skills: ProjectSkill[] }): ProjectForM
     onsiteDaysPerWeek: p.onsiteDaysPerWeek,
     remoteLevel: p.remoteLevel,
     allowSubtier: p.allowSubtier,
+    noForeignNational: p.noForeignNational,
     acceptedTypes: p.acceptedTypes,
     industry: p.industry,
     processes: p.processes,

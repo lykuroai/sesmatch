@@ -181,6 +181,7 @@ model Engineer {
   travelOk             Boolean         @default(false)
   workAuthStatus       WorkAuthStatus  @default(NOT_REQUIRED)
   workAuthExpiry       DateTime?
+  nationality          String? // 国籍（国名を明記。未指定は日本国籍とみなす。手動入力のみ・LLM抽出/送信の対象外）
   status               PublishStatus   @default(DRAFT)
   workStatus           EngineerWorkStatus @default(PROPOSING) // 稼働状態（手動設定）
   deletedAt            DateTime? // 論理削除（本人削除請求 §26）。全クエリで除外すること
@@ -273,6 +274,7 @@ model Project {
   rateMaxYen        Int // 月額上限（ハードフィルター対象）
   contractType      String? // 準委任/請負 等
   allowSubtier      Boolean           @default(false) // 一社下可（最大商流1 §12.4）
+  noForeignNational Boolean           @default(false) // 外国籍不可（SES案件の受入条件）
   acceptedTypes     AffiliationType[] // 受入所属区分
   interviewCount    Int               @default(1)
   processes         String[]

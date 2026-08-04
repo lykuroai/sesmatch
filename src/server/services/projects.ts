@@ -28,6 +28,7 @@ export function serializeProject(p: ProjectWithRels, auth: AuthContext) {
     rateMaxYen: p.rateMaxYen,
     contractType: p.contractType,
     allowSubtier: p.allowSubtier,
+    noForeignNational: p.noForeignNational,
     acceptedTypes: p.acceptedTypes,
     interviewCount: p.interviewCount,
     processes: p.processes,
@@ -101,6 +102,7 @@ export type ProjectInput = {
   rateMaxYen: number;
   contractType?: string;
   allowSubtier?: boolean;
+  noForeignNational?: boolean; // 外国籍不可（SES案件の受入条件）
   acceptedTypes?: ("EMPLOYEE" | "AFFILIATED" | "FREELANCER" | "SUBTIER1")[];
   interviewCount?: number;
   processes?: string[];
@@ -147,6 +149,7 @@ export async function createProject(auth: AuthContext, input: ProjectInput) {
       rateMaxYen: input.rateMaxYen,
       contractType: input.contractType,
       allowSubtier: input.allowSubtier ?? false,
+      noForeignNational: input.noForeignNational ?? false,
       acceptedTypes: input.acceptedTypes ?? ["EMPLOYEE", "AFFILIATED", "FREELANCER"],
       interviewCount: input.interviewCount ?? 1,
       processes: input.processes ?? [],
@@ -202,6 +205,7 @@ export async function updateProject(auth: AuthContext, projectId: string, input:
         rateMaxYen: input.rateMaxYen,
         contractType: input.contractType ?? null,
         allowSubtier: input.allowSubtier ?? false,
+        noForeignNational: input.noForeignNational ?? false,
         acceptedTypes: input.acceptedTypes ?? ["EMPLOYEE", "AFFILIATED", "FREELANCER"],
         interviewCount: input.interviewCount ?? 1,
         processes: input.processes ?? [],

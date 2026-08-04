@@ -13,6 +13,7 @@ export type EngineerForMatch = {
   maxOnsiteDaysPerWeek: number | null;
   remotePreference: string; // 許容できる最低出社条件
   workAuthStatus: string;
+  foreignNational?: boolean; // 外国籍か（国名指定から算出。未指定は日本国籍=false）
   hasValidConsent: boolean;
   skills: { name: string; months: number; lastUsedAt: Date | null }[];
   processes: string[];
@@ -29,6 +30,7 @@ export type ProjectForMatch = {
   onsiteDaysPerWeek: number;
   remoteLevel: string;
   allowSubtier: boolean;
+  noForeignNational?: boolean; // 外国籍不可（SES案件の受入条件）
   acceptedTypes: string[];
   industry: string | null;
   processes: string[];
@@ -86,6 +88,10 @@ export function hardFilter(project: ProjectForMatch, engineer: EngineerForMatch)
 
   // 就労資格（§15）: 期限切れは候補外
   if (engineer.workAuthStatus === "EXPIRED") failures.push("就労資格の有効期限切れ");
+
+  // 外国籍不可の案件: 外国籍（国名指定あり）の人材は対象外
+  if (project.noForeignNational && engineer.foreignNational)
+    failures.push("外国籍不可の案件");
 
   // 受入所属区分（§12）
   if (

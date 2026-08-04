@@ -119,6 +119,7 @@ export default async function ProjectDetailPage({
             <Row label="業種" value={p.industry ?? "-"} />
             <Row label="工程" value={p.processes.join(", ") || "-"} />
             <Row label="一社下" value={p.allowSubtier ? "可（最大商流1）" : "不可"} />
+            <Row label="外国籍" value={p.noForeignNational ? "不可" : "可"} />
             <Row
               label="受入所属区分"
               value={p.acceptedTypes.map((t) => AFFILIATION_LABELS[t]).join(", ")}

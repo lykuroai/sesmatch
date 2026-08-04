@@ -135,6 +135,9 @@ export default async function EngineerDetailPage({
             <Row label="役割" value={e.roles.join(", ") || "-"} />
             <Row label="業種経験" value={e.industries.join(", ") || "-"} />
             <Row label="本人同意" value={e.hasValidConsent ? "有効" : "なし"} />
+            {e.own && (
+              <Row label="国籍" value={e.nationality?.trim() ? e.nationality : "日本（未指定）"} />
+            )}
           </dl>
           {e.summary && <p className="mt-4 whitespace-pre-wrap text-sm text-slate-600">{e.summary}</p>}
           </section>
