@@ -12,8 +12,9 @@ const MENU = [
   { href: "/ingestions", label: "取込履歴" },
   { href: "/entries", label: "エントリー" },
   { href: "/contracts", label: "契約・稼働" },
+  { href: "/billing", label: "請求" },
 ];
-// 企業情報・担当者・請求・通報・監査・プライバシー・企業間関係は
+// 企業情報・担当者・通報・監査・プライバシー・企業間関係は
 // 会社マイページ（/company、ヘッダー右の会社名から）に集約
 
 export default async function ConsoleLayout({ children }: { children: React.ReactNode }) {

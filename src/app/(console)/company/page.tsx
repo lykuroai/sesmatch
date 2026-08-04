@@ -7,7 +7,6 @@ import { prisma } from "@/server/db";
 const SECTIONS = [
   { href: "/settings/company", label: "企業情報", desc: "企業名・事業者種別・法人番号の確認と修正" },
   { href: "/settings/members", label: "担当者", desc: "担当者の招待・ロール変更・停止" },
-  { href: "/billing", label: "請求", desc: "成約手数料・請求書・入金の管理" },
   { href: "/reports", label: "通報", desc: "再転載・無承認再仲介などの通報" },
   { href: "/audit", label: "監査", desc: "監査ログの閲覧" },
   { href: "/privacy", label: "プライバシー", desc: "本人からの訂正・削除請求の受付と処理" },
