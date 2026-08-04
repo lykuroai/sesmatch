@@ -305,8 +305,16 @@ async function extractSheetIntoEngineer(
       });
     }
   } catch (e) {
-    // 抽出失敗でも添付自体は成立させる（内容反映のみスキップ）
+    // 抽出失敗でも添付自体は成立させる（内容反映のみスキップ）。原因調査用に監査ログへ記録
     extractWarning = e instanceof Error ? e.message : String(e);
+    await audit({
+      tenantCompanyId: auth.companyId,
+      actorUserId: auth.userAccountId,
+      action: "SkillSheetExtractFailed",
+      targetType: "Engineer",
+      targetId: engineer.id,
+      metadata: { message: extractWarning.slice(0, 300) },
+    });
   }
 
   return { addedSkills, updatedMonths, extractWarning };
