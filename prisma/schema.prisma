@@ -98,6 +98,17 @@ model CompanyMemberRole {
   @@map("company_member_roles")
 }
 
+// 企業申込の代表メール検証（確認コード §6.4）
+model EmailVerification {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  code       String // 6桁確認コード
+  expiresAt  DateTime // 有効期限（発行から15分）
+  createdAt  DateTime  @default(now())
+
+  @@map("email_verifications")
+}
+
 model Session {
   id            String   @id @default(cuid())
   token         String   @unique

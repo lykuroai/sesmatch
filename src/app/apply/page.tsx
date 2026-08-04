@@ -12,6 +12,30 @@ export default function ApplyPage() {
   const [done, setDone] = useState(false);
   const [companyType, setCompanyType] = useState("CORPORATION");
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+
+  // 代表メールへ確認コードを送付する
+  async function sendCode() {
+    if (!email.trim()) {
+      setError("メールアドレスを入力してから確認コードを送信してください");
+      return;
+    }
+    setSendingCode(true);
+    setError(null);
+    const res = await fetch("/api/v1/companies/applications/email-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim() }),
+    });
+    setSendingCode(false);
+    if (res.ok) setCodeSent(true);
+    else {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "確認コードの送信に失敗しました");
+    }
+  }
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -29,6 +53,7 @@ export default function ApplyPage() {
         email: f.get("email"),
         password: f.get("password"),
         agreedToTerms: f.get("agreedToTerms") === "on",
+        emailVerificationCode: f.get("emailVerificationCode"),
       }),
     });
     setLoading(false);
@@ -92,7 +117,40 @@ export default function ApplyPage() {
           </div>
           <div>
             <label className={label}>メールアドレス</label>
-            <input type="email" name="email" required className={input} />
+            <div className="flex gap-2">
+              <input
+                type="email"
+                name="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={input}
+              />
+              <button
+                type="button"
+                onClick={sendCode}
+                disabled={sendingCode}
+                className="shrink-0 rounded border border-blue-600 bg-white px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+              >
+                {sendingCode ? "送信中..." : codeSent ? "コード再送" : "確認コード送信"}
+              </button>
+            </div>
+            {codeSent && (
+              <p className="mt-1 text-xs text-emerald-700">
+                確認コードを送信しました。メールを確認して下に入力してください（15分有効）
+              </p>
+            )}
+          </div>
+          <div>
+            <label className={label}>メール確認コード（6桁）</label>
+            <input
+              name="emailVerificationCode"
+              required
+              pattern="\d{6}"
+              maxLength={6}
+              className={input}
+              placeholder="メールで届いた6桁の数字"
+            />
           </div>
           <div>
             <label className={label}>パスワード（8文字以上）</label>

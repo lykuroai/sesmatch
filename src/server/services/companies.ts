@@ -16,6 +16,31 @@ export async function companyNameMap(ids: string[]): Promise<Map<string, string>
   return new Map(companies.map((c) => [c.id, c.name]));
 }
 
+// 代表メールの検証コード送付（企業申込 §6.4）。15分有効の6桁コードをメールで送る
+export async function sendEmailVerificationCode(email: string) {
+  const existing = await prisma.userAccount.findUnique({ where: { email } });
+  if (existing)
+    return { error: { code: "DUPLICATE_ENTRY" as const, message: "このメールアドレスは登録済みです" } };
+  const code = String(randomBytes(4).readUInt32BE() % 900000 + 100000); // 6桁（暗号学的乱数）
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+  await prisma.emailVerification.upsert({
+    where: { email },
+    create: { email, code, expiresAt },
+    update: { code, expiresAt },
+  });
+  await sendMail({
+    to: email,
+    subject: "【Lykuro DirectMatch】メールアドレス確認コード",
+    body: `企業申込のメールアドレス確認コードです。
+
+確認コード: ${code}
+
+15分以内に申込画面へ入力してください。
+このメールに心当たりがない場合は破棄してください。`,
+  });
+  return { ok: true as const };
+}
+
 // 企業申込（§6.4: 申込 → 事業者情報確認 → 規約同意 → 運営審査 → 開通）
 export async function applyCompany(input: {
   companyName: string;
@@ -25,9 +50,25 @@ export async function applyCompany(input: {
   email: string;
   password: string;
   agreedToTerms: boolean;
+  emailVerificationCode: string;
 }) {
   if (!input.agreedToTerms)
     return { error: { code: "VALIDATION_ERROR" as const, message: "規約・基本契約への同意が必要です" } };
+  // 代表メールの検証（確認コード）
+  const verification = await prisma.emailVerification.findUnique({
+    where: { email: input.email },
+  });
+  if (
+    !verification ||
+    verification.code !== input.emailVerificationCode.trim() ||
+    verification.expiresAt < new Date()
+  )
+    return {
+      error: {
+        code: "VALIDATION_ERROR" as const,
+        message: "メール確認コードが正しくないか期限切れです。コードを再送して入力し直してください",
+      },
+    };
   // 法人は法人番号必須（§6.4: 法人番号または事業者情報確認）
   if (input.companyType === "CORPORATION" && !/^\d{13}$/.test(input.corporateNumber ?? ""))
     return { error: { code: "VALIDATION_ERROR" as const, message: "法人番号（13桁）を入力してください" } };
@@ -53,6 +94,7 @@ export async function applyCompany(input: {
       data: { companyId: company.id, userAccountId: account.id },
     });
     await tx.companyMemberRole.create({ data: { memberId: member.id, role: "OWNER" } });
+    await tx.emailVerification.delete({ where: { email: input.email } }); // 使用済みコードを破棄
     return company;
   });
   await audit({

@@ -76,6 +76,7 @@ import {
 import {
   applyCompany,
   approveCompany,
+  sendEmailVerificationCode,
   deleteCompanyByOperations,
   deleteMember,
   deleteMemberByOperations,
@@ -141,6 +142,18 @@ app.get("/health", async (c) => {
 
 // ---- 企業申込（§6.4, §28）: 未認証で受け付ける ----
 
+// 代表メールの確認コード送付
+app.post("/companies/applications/email-verification", async (c) => {
+  const parsed = z
+    .object({ email: z.string().email() })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR", "メールアドレスを確認してください"), 400);
+  const result = await sendEmailVerificationCode(parsed.data.email);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
 app.post("/companies/applications", async (c) => {
   const parsed = z
     .object({
@@ -151,6 +164,7 @@ app.post("/companies/applications", async (c) => {
       email: z.string().email(),
       password: z.string().min(8),
       agreedToTerms: z.boolean(),
+      emailVerificationCode: z.string().min(1),
     })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR", "入力内容を確認してください（パスワードは8文字以上）"), 400);
