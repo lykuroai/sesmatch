@@ -185,18 +185,54 @@ export async function attachSkillSheet(
     metadata: { size: file.content.length }, // ファイル名は氏名を含みうるため監査ログに残さない
   });
 
-  // 経歴書の内容をマッチングへ反映: テキスト抽出 → PII匿名化 → LLM正規化 → 不足スキルの追加。
-  // 既存スキルは上書きせず、未登録スキルの追加と経験月数0の補完のみ行う（担当者の入力を正とする）
+  const result = await extractSheetIntoEngineer(auth, engineer, doc.id, file.filename, file.content);
+  return { ok: true as const, documentId: doc.id, ...result };
+}
+
+// 添付済みの職務経歴書から再抽出（人材編集の「更新する」時に選択可）。
+// 保存済みの原本ファイルを読み直して抽出・反映する（ファイルの再アップロード不要）
+export async function reExtractSkillSheet(auth: AuthContext, engineerId: string) {
+  const engineer = await prisma.engineer.findFirst({
+    where: { id: engineerId, tenantCompanyId: auth.companyId, deletedAt: null }, // テナント分離
+    include: { skills: true, skillSheetDocument: true },
+  });
+  if (!engineer) return { error: { code: "NOT_FOUND" as const } };
+  if (!engineer.skillSheetDocument)
+    return { error: { code: "VALIDATION_ERROR" as const, message: "職務経歴書が添付されていません" } };
+  const content = await readFile(engineer.skillSheetDocument.storagePath).catch(() => null);
+  if (!content)
+    return { error: { code: "NOT_FOUND" as const, message: "原本ファイルが見つかりません" } };
+  const result = await extractSheetIntoEngineer(
+    auth,
+    engineer,
+    engineer.skillSheetDocument.id,
+    engineer.skillSheetDocument.filename,
+    content
+  );
+  return { ok: true as const, ...result };
+}
+
+// 経歴書の内容をマッチングへ反映: テキスト抽出 → PII匿名化 → LLM正規化 → 不足スキルの追加。
+// 既存スキルは上書きせず、未登録スキルの追加と経験月数0の補完のみ行う（担当者の入力を正とする）
+async function extractSheetIntoEngineer(
+  auth: AuthContext,
+  engineer: Engineer & { skills: EngineerSkill[] },
+  docId: string,
+  filename: string,
+  content: Buffer
+) {
   let addedSkills = 0;
   let updatedMonths = 0;
   let extractWarning: string | null = null;
   try {
-    const text = await extractDocumentText(file.filename, file.content);
+    const text = await extractDocumentText(filename, content);
     const { masked, tokens } = maskPii(text);
+    // 再抽出時の重複を避けるため置換表は入れ替える
+    await prisma.piiTokenMap.deleteMany({ where: { sourceDocumentId: docId } });
     if (tokens.length > 0) {
       await prisma.piiTokenMap.createMany({
         data: tokens.map((t) => ({
-          sourceDocumentId: doc.id,
+          sourceDocumentId: docId,
           token: t.token,
           originalValue: t.originalValue,
           kind: t.kind,
@@ -257,7 +293,7 @@ export async function attachSkillSheet(
     extractWarning = e instanceof Error ? e.message : String(e);
   }
 
-  return { ok: true as const, documentId: doc.id, addedSkills, updatedMonths, extractWarning };
+  return { addedSkills, updatedMonths, extractWarning };
 }
 
 // 職務経歴書のダウンロード（自社 + engineer.read.pii のみ。呼び出し側で権限確認済み）

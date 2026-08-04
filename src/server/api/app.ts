@@ -21,6 +21,7 @@ import {
   attachSkillSheet,
   getEngineer,
   getSkillSheetFile,
+  reExtractSkillSheet,
   listEngineers,
   deleteEngineer,
   publishEngineer,
@@ -573,6 +574,14 @@ app.post("/engineers/:id/skill-sheet", requirePermission("engineer.create"), asy
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result, 201);
+});
+
+// 添付済み職務経歴書からの再抽出（匿名化テキスト・抽出値を再反映）
+app.post("/engineers/:id/skill-sheet/re-extract", requirePermission("engineer.create"), async (c) => {
+  const result = await reExtractSkillSheet(c.get("auth"), c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
 });
 
 // 職務経歴書のダウンロード（原本＝PII を含むため自社 + engineer.read.pii のみ）

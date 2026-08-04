@@ -90,7 +90,32 @@ export function EngineerForm({
 
     // 職務経歴書（スキルシート）が選択されていれば続けてアップロード
     const sheet = f.get("skillSheet");
-    if (sheet instanceof File && sheet.size > 0) {
+    const newSheetSelected = sheet instanceof File && sheet.size > 0;
+
+    // 編集モードで添付済み・新しいファイル未選択の場合は、保存済みの経歴書からの再抽出を選択できる
+    if (isEdit && currentSheetName && !newSheetSelected) {
+      if (
+        confirm(
+          "匿名化済みテキスト・抽出値を再抽出しますか？\n（添付済みの職務経歴書から、未登録スキルの追加・経験月数0の補完・未入力プロフィール項目の反映を行います。入力済みの値は上書きしません）"
+        )
+      ) {
+        const rx = await fetch(`/api/v1/engineers/${engineerId}/skill-sheet/re-extract`, {
+          method: "POST",
+        });
+        const rb = await rx.json().catch(() => null);
+        if (!rx.ok) {
+          alert(`再抽出に失敗しました: ${rb?.error?.message ?? "エラー"}`);
+        } else if (rb?.extractWarning) {
+          alert(`再抽出できませんでした: ${rb.extractWarning}`);
+        } else {
+          alert(
+            `再抽出しました（スキル追加 ${rb?.addedSkills ?? 0}件 / 経験月数補完 ${rb?.updatedMonths ?? 0}件）`
+          );
+        }
+      }
+    }
+
+    if (newSheetSelected && sheet instanceof File) {
       const fd = new FormData();
       fd.append("file", sheet);
       const up = await fetch(`/api/v1/engineers/${saved.id ?? engineerId}/skill-sheet`, {
