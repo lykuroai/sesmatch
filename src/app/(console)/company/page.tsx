@@ -27,6 +27,7 @@ export default async function CompanyMyPage() {
       <p className="mb-6 text-sm text-slate-500">
         {company?.companyType === "CORPORATION" ? "法人" : "個人事業主"}
         {company?.corporateNumber && ` ／ 法人番号 ${company.corporateNumber}`}
+        {company?.address && ` ／ ${company.address}`}
         {` ／ 担当者 ${memberCount}名`}
       </p>
       <div className="grid grid-cols-3 gap-4">

@@ -6,6 +6,7 @@ import { hashPassword } from "@/server/auth/password";
 import type { AuthContext } from "@/server/auth/session";
 import { randomBytes } from "crypto";
 import { sendMail, appBaseUrl } from "@/server/mail";
+import { checkCompanyDuplicate } from "@/server/pipeline/llm-company-check";
 
 // 企業IDから現在の企業名を引くマップ（社名変更を表示へ即時反映するため。開示スナップショットの代替表示に使う）
 export async function companyNameMap(ids: string[]): Promise<Map<string, string>> {
@@ -46,6 +47,7 @@ export async function applyCompany(input: {
   companyName: string;
   companyType: "CORPORATION" | "SOLE_PROPRIETOR";
   corporateNumber?: string;
+  address?: string;
   ownerName: string;
   email: string;
   password: string;
@@ -69,13 +71,58 @@ export async function applyCompany(input: {
         message: "メール確認コードが正しくないか期限切れです。コードを再送して入力し直してください",
       },
     };
-  // 法人は法人番号必須（§6.4: 法人番号または事業者情報確認）
-  if (input.companyType === "CORPORATION" && !/^\d{13}$/.test(input.corporateNumber ?? ""))
-    return { error: { code: "VALIDATION_ERROR" as const, message: "法人番号（13桁）を入力してください" } };
+  // 法人番号は任意入力。指定時のみ形式を検査（§6.4 の事業者情報確認は運営審査で行う）
+  if (input.corporateNumber && !/^\d{13}$/.test(input.corporateNumber))
+    return { error: { code: "VALIDATION_ERROR" as const, message: "法人番号は13桁で入力してください" } };
 
   const existing = await prisma.userAccount.findUnique({ where: { email: input.email } });
   if (existing)
     return { error: { code: "DUPLICATE_ENTRY" as const, message: "このメールアドレスは登録済みです" } };
+
+  // ---- 企業の重複チェック ----
+  const allCompanies = await prisma.company.findMany({
+    select: { name: true, address: true, corporateNumber: true },
+    take: 300,
+  });
+  // ① 法人番号の完全一致（決定的）
+  if (
+    input.corporateNumber &&
+    allCompanies.some((c) => c.corporateNumber === input.corporateNumber)
+  )
+    return {
+      error: {
+        code: "DUPLICATE_ENTRY" as const,
+        message:
+          "この法人番号の企業は既に登録されています。担当者として参加する場合は既存企業のオーナーから招待を受けてください",
+      },
+    };
+  // ② 企業名の完全一致（決定的）
+  if (allCompanies.some((c) => c.name.trim() === input.companyName.trim()))
+    return {
+      error: {
+        code: "DUPLICATE_ENTRY" as const,
+        message:
+          "同名の企業が既に登録されています。担当者として参加する場合は既存企業のオーナーから招待を受けてください（別企業の場合は運営へお問い合わせください）",
+      },
+    };
+  // ③ LLM による表記ゆれ・同一企業判定（名称＋所在地。障害時はスキップ）
+  const llmCheck = await checkCompanyDuplicate(
+    { name: input.companyName, address: input.address },
+    allCompanies
+  );
+  if (llmCheck?.duplicate) {
+    await audit({
+      action: "CompanyDuplicateDetected",
+      targetType: "Company",
+      metadata: { matchedName: llmCheck.matchedName, reason: llmCheck.reason.slice(0, 200) },
+    });
+    return {
+      error: {
+        code: "DUPLICATE_ENTRY" as const,
+        message: `既に登録されている企業（${llmCheck.matchedName ?? "既存企業"}）と同一と判断されました。担当者として参加する場合は既存企業のオーナーから招待を受けてください（別企業の場合は運営へお問い合わせください）`,
+      },
+    };
+  }
 
   const passwordHash = await hashPassword(input.password);
   const company = await prisma.$transaction(async (tx) => {
@@ -84,6 +131,7 @@ export async function applyCompany(input: {
         name: input.companyName,
         companyType: input.companyType,
         corporateNumber: input.corporateNumber,
+        address: input.address,
         status: "APPLIED", // 運営審査待ち
       },
     });
@@ -229,15 +277,18 @@ export async function updateCompanyByOperations(
   return { ok: true as const };
 }
 
-// 企業情報の修正（企業オーナー・企業管理者）。名称・種別・法人番号を自社分のみ変更できる
+// 企業情報の修正（企業オーナー・企業管理者）。名称・種別・法人番号・所在地を自社分のみ変更できる
 export async function updateOwnCompany(
   auth: AuthContext,
-  input: { name: string; companyType: "CORPORATION" | "SOLE_PROPRIETOR"; corporateNumber?: string }
+  input: {
+    name: string;
+    companyType: "CORPORATION" | "SOLE_PROPRIETOR";
+    corporateNumber?: string;
+    address?: string;
+  }
 ) {
   const corporateNumber = (input.corporateNumber ?? "").replace(/\D/g, "");
-  // 法人は法人番号必須（§6.4 の申込時と同じ基準）
-  if (input.companyType === "CORPORATION" && !/^\d{13}$/.test(corporateNumber))
-    return { error: { code: "VALIDATION_ERROR" as const, message: "法人番号（13桁）を入力してください" } };
+  // 法人番号は任意入力。指定時のみ形式を検査
   if (corporateNumber && !/^\d{13}$/.test(corporateNumber))
     return { error: { code: "VALIDATION_ERROR" as const, message: "法人番号は13桁で入力してください" } };
   await prisma.company.update({
@@ -246,6 +297,7 @@ export async function updateOwnCompany(
       name: input.name,
       companyType: input.companyType,
       corporateNumber: corporateNumber || null,
+      address: input.address?.trim() || null,
     },
   });
   await audit({

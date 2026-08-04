@@ -29,6 +29,7 @@ model Company {
   name            String
   companyType     CompanyType
   corporateNumber String?
+  address         String? // 企業所在地（重複判定・審査に使用）
   status          CompanyStatus @default(APPLIED)
   createdAt       DateTime      @default(now())
 

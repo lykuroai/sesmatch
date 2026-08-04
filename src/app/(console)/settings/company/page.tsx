@@ -22,6 +22,7 @@ export default async function CompanySettingsPage() {
               name: company.name,
               companyType: company.companyType,
               corporateNumber: company.corporateNumber,
+              address: company.address,
             }}
           />
         ) : (
@@ -39,6 +40,10 @@ export default async function CompanySettingsPage() {
             <div>
               <dt className="text-xs text-slate-500">法人番号</dt>
               <dd className="mt-0.5">{company.corporateNumber ?? "未登録"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">所在地</dt>
+              <dd className="mt-0.5">{company.address ?? "未登録"}</dd>
             </div>
           </dl>
         )}

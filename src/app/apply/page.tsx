@@ -49,6 +49,7 @@ export default function ApplyPage() {
         companyName: f.get("companyName"),
         companyType: f.get("companyType"),
         corporateNumber: f.get("corporateNumber") || undefined,
+        address: f.get("address"),
         ownerName: f.get("ownerName"),
         email: f.get("email"),
         password: f.get("password"),
@@ -107,10 +108,14 @@ export default function ApplyPage() {
           </div>
           {companyType === "CORPORATION" && (
             <div>
-              <label className={label}>法人番号（13桁）</label>
-              <input name="corporateNumber" required pattern="\d{13}" className={input} placeholder="1234567890123" />
+              <label className={label}>法人番号（13桁・任意）</label>
+              <input name="corporateNumber" pattern="\d{13}" className={input} placeholder="1234567890123" />
             </div>
           )}
+          <div>
+            <label className={label}>所在地</label>
+            <input name="address" required className={input} placeholder="例: 東京都台東区上野1-1-1" />
+          </div>
           <div>
             <label className={label}>代表者・企業オーナー氏名</label>
             <input name="ownerName" required className={input} />

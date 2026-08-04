@@ -7,12 +7,18 @@ import { useRouter } from "next/navigation";
 export function CompanyProfileForm({
   company,
 }: {
-  company: { name: string; companyType: string; corporateNumber: string | null };
+  company: {
+    name: string;
+    companyType: string;
+    corporateNumber: string | null;
+    address: string | null;
+  };
 }) {
   const router = useRouter();
   const [name, setName] = useState(company.name);
   const [companyType, setCompanyType] = useState(company.companyType);
   const [corporateNumber, setCorporateNumber] = useState(company.corporateNumber ?? "");
+  const [address, setAddress] = useState(company.address ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -23,7 +29,7 @@ export function CompanyProfileForm({
     const res = await fetch("/api/v1/company/profile", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, companyType, corporateNumber }),
+      body: JSON.stringify({ name, companyType, corporateNumber, address }),
     });
     if (res.ok) {
       setSaved(true);
@@ -66,6 +72,15 @@ export function CompanyProfileForm({
           value={corporateNumber}
           onChange={(e) => setCorporateNumber(e.target.value)}
           placeholder="1234567890123"
+          className="w-full rounded border border-slate-300 px-2 py-1.5"
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs text-slate-500">所在地</label>
+        <input
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="例: 東京都台東区上野1-1-1"
           className="w-full rounded border border-slate-300 px-2 py-1.5"
         />
       </div>

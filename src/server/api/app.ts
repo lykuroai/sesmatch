@@ -160,6 +160,7 @@ app.post("/companies/applications", async (c) => {
       companyName: z.string().min(1),
       companyType: z.enum(["CORPORATION", "SOLE_PROPRIETOR"]),
       corporateNumber: z.string().optional(),
+      address: z.string().min(1),
       ownerName: z.string().min(1),
       email: z.string().email(),
       password: z.string().min(8),
@@ -453,6 +454,7 @@ app.put("/company/profile", requirePermission("company.manage"), async (c) => {
       name: z.string().min(1),
       companyType: z.enum(["CORPORATION", "SOLE_PROPRIETOR"]),
       corporateNumber: z.string().optional(),
+      address: z.string().optional(),
     })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
