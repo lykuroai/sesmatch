@@ -185,7 +185,14 @@ export async function attachSkillSheet(
     metadata: { size: file.content.length }, // ファイル名は氏名を含みうるため監査ログに残さない
   });
 
-  const result = await extractSheetIntoEngineer(auth, engineer, doc.id, file.filename, file.content);
+  const result = await extractSheetIntoEngineer(
+    auth,
+    engineer,
+    doc.id,
+    file.filename,
+    file.content,
+    false // 添付時は控えめに反映（既存の入力を上書きしない）
+  );
   return { ok: true as const, documentId: doc.id, ...result };
 }
 
@@ -207,7 +214,8 @@ export async function reExtractSkillSheet(auth: AuthContext, engineerId: string)
     engineer,
     engineer.skillSheetDocument.id,
     engineer.skillSheetDocument.filename,
-    content
+    content,
+    true // 明示的な再抽出では経験月数を推定値で上書きする（誤った月数の修正手段）
   );
   return { ok: true as const, ...result };
 }
@@ -219,7 +227,8 @@ async function extractSheetIntoEngineer(
   engineer: Engineer & { skills: EngineerSkill[] },
   docId: string,
   filename: string,
-  content: Buffer
+  content: Buffer,
+  overwriteMonths: boolean // true=再抽出: 既存スキルの月数を抽出値で上書き / false=添付: 月数0のみ補完
 ) {
   let addedSkills = 0;
   let updatedMonths = 0;
@@ -259,7 +268,10 @@ async function extractSheetIntoEngineer(
           });
           existing.set(key, created);
           addedSkills++;
-        } else if (cur.months === 0 && (s.months ?? 0) > 0) {
+        } else if (
+          (s.months ?? 0) > 0 &&
+          (overwriteMonths ? cur.months !== s.months : cur.months === 0)
+        ) {
           await prisma.engineerSkill.update({
             where: { id: cur.id },
             data: { months: s.months! },

@@ -48,7 +48,9 @@ const ENGINEER_SCHEMA = `{
   "maxOnsiteDaysPerWeek": number | null, // 週あたり最大出社日数 0-5
   "skills": [{"category": "LANGUAGE"|"FRAMEWORK"|"DATABASE"|"CLOUD"|"OS"|"TOOL"|"CERTIFICATION", "name": string, "months": number | null, "monthsEstimated": boolean}],
                                        // months: スキル一覧に経験年数・月数の明記があればその値（monthsEstimated=false）。
-                                       // 明記がない場合は、経歴・職務経歴欄の各プロジェクトの期間と使用技術からそのスキルの使用月数を合算して推定し monthsEstimated=true とする。
+                                       // 明記がない場合は、【そのスキルが使用技術として登場するプロジェクトの期間だけ】を合算して推定し monthsEstimated=true とする。
+                                       // 登場しないプロジェクトの期間は含めない。業界経験・経歴全体の年数（例:「エンジニア歴15年」）をスキルの月数として使ってはいけない。
+                                       // 使用したプロジェクトが異なれば月数もスキルごとに異なるのが自然（全スキルが同じ月数になるのは経歴全体を使った誤り）。
                                        // 期間が重複するプロジェクトは重複期間を二重に数えない。経歴からも判断できない場合のみ months=null
   "processes": string[],               // 経験工程（要件定義/基本設計/詳細設計/開発/テスト/運用/保守）
   "roles": string[],                   // 経験役割（PM/PMO/PL/リーダー/テックリード/SE/PG 等。経歴から判断）
