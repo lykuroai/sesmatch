@@ -68,15 +68,15 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold leading-snug lg:text-4xl">
             <span className="flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-mark.svg" alt="Lykuro DirectMatch ロゴ" className="h-10 w-10 lg:h-12 lg:w-12" />
-              Lykuro DirectMatch
+              <img src="/logo-mark.svg" alt="SES DirectMatch ロゴ" className="h-10 w-10 lg:h-12 lg:w-12" />
+              SES DirectMatch
             </span>
             <span className="mt-2 block text-lg font-medium text-slate-300 lg:text-xl">
               案件と人材を、余計な商流なしで直接つなぐ。
             </span>
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-400">
-            Lykuro DirectMatchは、AIが人材情報と案件情報を自動で要約・構造化し、
+            SES DirectMatchは、AIが人材情報と案件情報を自動で要約・構造化し、
             条件やスキルに基づいて最適な組み合わせを提案する企業間マッチングプラットフォームです。
             マッチング成立後は、需要企業と提供企業が<span className="text-slate-200">直接契約</span>します。
           </p>

@@ -27,7 +27,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
         <Link href="/" className="flex items-center gap-2 text-sm font-bold text-slate-800">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-mark.svg" alt="" className="h-6 w-6" />
-          Lykuro DirectMatch
+          SES DirectMatch
         </Link>
         <p className="text-sm text-slate-700">
           <Link href="/company" className="font-bold hover:underline" title="会社マイページ">

@@ -3,7 +3,7 @@ const h2 = "mt-8 mb-2 text-base font-bold text-slate-800";
 const p = "mb-2 text-sm leading-relaxed text-slate-700";
 const li = "mb-1 text-sm leading-relaxed text-slate-700";
 
-export const metadata = { title: "プライバシーポリシー | Lykuro DirectMatch" };
+export const metadata = { title: "プライバシーポリシー | SES DirectMatch" };
 
 export default function PrivacyPage() {
   return (
@@ -11,7 +11,7 @@ export default function PrivacyPage() {
       <h1 className="text-xl font-bold text-slate-900">プライバシーポリシー</h1>
       <p className="mt-2 text-xs text-slate-400">制定日: 2026年7月31日／最終改定日: 2026年7月31日</p>
       <p className={p + " mt-4"}>
-        株式会社eビジネスソリューション（以下「当社」といいます）は、AI人材・案件ダイレクトマッチングプラットフォーム「Lykuro DirectMatch」
+        株式会社eビジネスソリューション（以下「当社」といいます）は、AI人材・案件ダイレクトマッチングプラットフォーム「SES DirectMatch」
         （以下「本サービス」といいます）における個人情報その他の情報の取扱いについて、
         以下のとおり定めます。
       </p>

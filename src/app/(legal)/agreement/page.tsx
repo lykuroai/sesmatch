@@ -3,7 +3,7 @@ const h2 = "mt-8 mb-2 text-base font-bold text-slate-800";
 const p = "mb-2 text-sm leading-relaxed text-slate-700";
 const li = "mb-1 text-sm leading-relaxed text-slate-700";
 
-export const metadata = { title: "サービス利用基本契約 | Lykuro DirectMatch" };
+export const metadata = { title: "サービス利用基本契約 | SES DirectMatch" };
 
 export default function AgreementPage() {
   return (
@@ -12,7 +12,7 @@ export default function AgreementPage() {
       <p className="mt-2 text-xs text-slate-400">制定日: 2026年7月31日／最終改定日: 2026年7月31日</p>
       <p className={p + " mt-4"}>
         本契約は、株式会社eビジネスソリューション（以下「当社」といいます）と、AI人材・案件ダイレクトマッチングプラットフォーム
-        「Lykuro DirectMatch」（以下「本サービス」といいます）の利用を申し込んだ企業（以下「利用企業」と
+        「SES DirectMatch」（以下「本サービス」といいます）の利用を申し込んだ企業（以下「利用企業」と
         いいます）との間の、本サービスの利用に関する基本的な契約条件を定めるものです。
         利用企業が登録申込時に本契約への同意を表明し、当社が登録を承認した時点で本契約は成立します。
       </p>
