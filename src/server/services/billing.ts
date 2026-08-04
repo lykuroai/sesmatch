@@ -153,24 +153,3 @@ export async function getInvoiceDocument(auth: AuthContext, invoiceId: string) {
   };
 }
 
-// 入金記録
-export async function markInvoicePaid(auth: AuthContext, invoiceId: string) {
-  const invoice = await prisma.invoice.findFirst({
-    where: { id: invoiceId, demandCompanyId: auth.companyId },
-  });
-  if (!invoice) return { error: { code: "NOT_FOUND" as const } };
-  if (invoice.status === "PAID")
-    return { error: { code: "VERSION_CONFLICT" as const, message: "既に入金済みです" } };
-  await prisma.invoice.update({
-    where: { id: invoiceId },
-    data: { status: "PAID", paidAt: new Date() },
-  });
-  await audit({
-    tenantCompanyId: auth.companyId,
-    actorUserId: auth.userAccountId,
-    action: "InvoicePaid",
-    targetType: "Invoice",
-    targetId: invoiceId,
-  });
-  return { ok: true as const };
-}

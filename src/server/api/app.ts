@@ -65,7 +65,6 @@ import {
   generateInvoice,
   listFees,
   listInvoices,
-  markInvoicePaid,
 } from "@/server/services/billing";
 import {
   createPrivacyRequest,
@@ -1088,13 +1087,6 @@ app.post("/invoices", requirePermission("billing.manage"), async (c) => {
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json((result as { invoice: unknown }).invoice, 201);
-});
-
-app.post("/invoices/:id/pay", requirePermission("billing.manage"), async (c) => {
-  const result = await markInvoicePaid(c.get("auth"), c.req.param("id"));
-  const er = svcError(result);
-  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
-  return c.json(result);
 });
 
 // ---- 本人訂正・削除請求（§26, §28）----

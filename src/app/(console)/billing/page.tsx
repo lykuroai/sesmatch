@@ -57,18 +57,13 @@ export default async function BillingPage() {
               <div className="flex items-center gap-2">
                 {invoice && (
                   <>
-                    <span className="text-xs text-slate-500">
-                      {invoice.status === "PAID" ? "入金済み" : "請求書発行済み"}
-                    </span>
+                    <span className="text-xs text-slate-500">請求書発行済み</span>
                     <Link
                       href={`/billing/invoices/${invoice.id}`}
                       className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
                     >
                       請求書PDF
                     </Link>
-                    {canManage && invoice.status === "ISSUED" && (
-                      <ActionButton path={`/api/v1/invoices/${invoice.id}/pay`} label="入金記録" />
-                    )}
                   </>
                 )}
                 {canManage && uninvoiced && monthFee > 0 && (
