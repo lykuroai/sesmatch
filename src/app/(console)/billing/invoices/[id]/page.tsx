@@ -45,7 +45,7 @@ export default async function InvoiceDocumentPage({
             <p>請求書番号: {inv.id}</p>
             <p>発行日: {fmtDate(inv.issuedAt)}</p>
             <p>対象月: {inv.month}</p>
-            <p className="mt-2 font-medium">株式会社eビジネスソリューション</p>
+            <p className="mt-2 font-medium">株式会社ｅビジネスソリューション</p>
             <p>登録番号: T3-0111-0104-6589</p>
           </div>
         </div>
