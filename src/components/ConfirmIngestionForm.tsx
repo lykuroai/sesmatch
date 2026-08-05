@@ -12,6 +12,7 @@ type EngineerDraft = {
   kind: "ENGINEER_SHEET";
   affiliationType: string | null;
   ageBand: number | null;
+  nationality?: string | null; // 国籍（国名。未指定は日本国籍とみなす）
   residenceCity: string | null;
   availableFrom: string | null;
   desiredRateYen: number | null;
@@ -73,6 +74,7 @@ export function ConfirmIngestionForm({
         kind: "ENGINEER_SHEET",
         affiliationType: String(f.get("affiliationType")) || null,
         ageBand: num("ageBand"),
+        nationality: String(f.get("nationality") ?? "").trim() || null,
         residenceCity: String(f.get("residenceCity") ?? "").trim() || null,
         availableFrom: String(f.get("availableFrom") ?? "").trim() || null,
         desiredRateYen: num("desiredRateYen"),
@@ -134,6 +136,10 @@ export function ConfirmIngestionForm({
                 <option key={k} value={k}>{v}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className={label}>国籍（国名。空欄は日本国籍とみなす）</label>
+            <input name="nationality" defaultValue={d.nationality ?? ""} className={input} placeholder="例: 韓国" />
           </div>
           <div>
             <label className={label}>年代（5歳刻み下限）</label>

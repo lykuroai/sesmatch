@@ -899,6 +899,7 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
       name: typeof body?.name === "string" && body.name ? body.name : "（未入力）",
       ageBand: d.ageBand ?? 30,
       affiliationType: bodyAffiliation ?? d.affiliationType ?? "AFFILIATED",
+      nationality: d.nationality ?? undefined, // 国籍（国名。未指定は日本国籍とみなす）
       residenceCity: d.residenceCity ?? undefined,
       availableFrom: d.availableFrom ?? undefined,
       desiredRateYen: d.desiredRateYen ?? 600_000,

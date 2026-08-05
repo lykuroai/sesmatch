@@ -10,6 +10,9 @@ export const engineerDraftSchema = z.object({
   // 所属区分（§12）: 文書から判断できない場合は null（確定時は自社所属が既定）
   affiliationType: z.enum(["EMPLOYEE", "AFFILIATED", "FREELANCER", "SUBTIER1"]).nullable(),
   ageBand: z.number().int().min(20).max(70).nullable(),
+  // 国籍（国名。例: 韓国）。記載がなければ null＝日本国籍とみなす。国名不明の「外国籍」記載は "外国籍"
+  // （過去の抽出結果には存在しないため default で後方互換）
+  nationality: z.string().nullable().default(null),
   residenceCity: z.string().nullable(),
   availableFrom: z.string().nullable(), // ISO date
   desiredRateYen: z.number().int().nullable(),
@@ -131,6 +134,16 @@ export class MockLlmGateway implements LlmGateway {
       const ageM = maskedText.match(/(\d{2})\s*[歳代]/);
       const age = ageM ? Math.floor(parseInt(ageM[1]) / 5) * 5 : null;
       const cityM = maskedText.match(/(?:居住|住まい|在住)[^\n]*?([^\s　、。]+?[市区町村])/);
+      // 国籍: 「国籍：ベトナム」「韓国籍」等から国名を抽出。「外国籍」のみで国名不明なら "外国籍"
+      const natLabeled = maskedText.match(/国籍[:：][\s　]*([一-龥ァ-ヶーA-Za-z]{1,15})/);
+      const natSuffix = maskedText.match(/([一-龥]{1,3}国|[ァ-ヶーA-Za-z]{2,15})籍/);
+      const nationality = natLabeled
+        ? natLabeled[1]
+        : natSuffix
+          ? natSuffix[1] === "外国"
+            ? "外国籍"
+            : natSuffix[1]
+          : null;
       const draft: EngineerDraft = {
         kind: "ENGINEER_SHEET",
         affiliationType: /個人事業主|フリーランス/.test(maskedText)
@@ -139,6 +152,7 @@ export class MockLlmGateway implements LlmGateway {
             ? "EMPLOYEE"
             : null,
         ageBand: age,
+        nationality,
         residenceCity: cityM ? cityM[1] : null,
         availableFrom: isoDate,
         desiredRateYen: rateYen,

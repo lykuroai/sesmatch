@@ -42,6 +42,11 @@ const ENGINEER_SCHEMA = {
         "所属区分: EMPLOYEE=自社社員(雇用) / AFFILIATED=自社所属(業務委託) / FREELANCER=個人事業主・フリーランス / SUBTIER1=一社下(協力会社所属)。不明は null",
     },
     ageBand: { ...nullable("integer"), description: "5歳刻み年代の下限（例: 35）" },
+    nationality: {
+      ...nullable("string"),
+      description:
+        "国籍（国名。例: 韓国、中国、ベトナム）。「外国籍」のみで国名不明なら「外国籍」。記載がなければ null（=日本国籍とみなす）",
+    },
     residenceCity: { ...nullable("string"), description: "居住市区町村" },
     availableFrom: { ...nullable("string"), description: "稼働可能日 YYYY-MM-DD" },
     desiredRateYen: { ...nullable("integer"), description: "希望月額単価（円）" },
@@ -87,6 +92,7 @@ const ENGINEER_SCHEMA = {
     "kind",
     "affiliationType",
     "ageBand",
+    "nationality",
     "residenceCity",
     "availableFrom",
     "desiredRateYen",

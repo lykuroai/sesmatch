@@ -42,6 +42,7 @@ const ENGINEER_SCHEMA = `{
   "affiliationType": "EMPLOYEE" | "AFFILIATED" | "FREELANCER" | "SUBTIER1" | null,
                                        // 所属区分: 自社社員(正社員・雇用) / 自社所属(業務委託) / 個人事業主(フリーランス・弊社直個人) / 一社下(協力会社所属)。判断できなければ null
   "ageBand": number | null,            // 5歳刻み年代の下限（例: 35）
+  "nationality": string | null,        // 国籍（国名。例: 韓国、中国、ベトナム）。「外国籍」のみで国名不明なら "外国籍"。記載がなければ null（=日本国籍とみなす）
   "residenceCity": string | null,      // 居住市区町村
   "availableFrom": string | null,      // 稼働可能日 YYYY-MM-DD
   "desiredRateYen": number | null,     // 希望月額単価（円整数）
