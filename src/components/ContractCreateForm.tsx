@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const input = "w-full rounded border border-slate-300 px-2 py-1.5 text-sm";
+const input = "w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm";
 
 // 個別契約の作成（§22）。指揮命令・検収の確認事項は必須。
 export function ContractCreateForm({
