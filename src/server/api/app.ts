@@ -1075,7 +1075,8 @@ app.post("/contracts", requirePermission("contract.create"), async (c) => {
   return c.json((result as { contract: unknown }).contract, 201);
 });
 
-// 署名完了前の契約修正（§22）。修正すると既存署名は取り消され双方の再署名が必要
+// 署名完了前の契約修正（§22）。修正すると既存署名は取り消され双方の再署名が必要。
+// version は編集開始時に取得した版数（他の担当者の修正を知らないままの上書き防止に必須）
 app.put("/contracts/:id", requirePermission("contract.create"), async (c) => {
   const parsed = z
     .object({
@@ -1085,6 +1086,7 @@ app.put("/contracts/:id", requirePermission("contract.create"), async (c) => {
       endDate: z.string().optional(),
       commandChecklist: z.record(z.string(), z.string()),
       notes: z.string().max(2000).optional(),
+      version: z.number().int().positive(),
     })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);

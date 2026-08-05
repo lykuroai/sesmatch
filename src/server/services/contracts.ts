@@ -305,7 +305,9 @@ export async function createContract(
 
 // 署名完了前の契約修正（§22）: 相互締結（EXECUTED）前のみ可。修正すると既存の署名は取り消され、
 // 双方の再署名が必要になる（変更後の内容に対する署名の有効性を担保）。
-// 条件付き updateMany により、並行する署名操作と競合した場合はどちらか一方のみ成功する
+// expectedVersion は修正者が編集を開始した時点の版数。相手方が先に修正していた場合は版数不一致で
+// 拒否し、他方の修正内容を知らないまま上書きしてしまうことを防ぐ。
+// 条件付き updateMany により、並行する署名・修正操作と競合した場合はどちらか一方のみ成功する
 export async function updateContract(
   auth: AuthContext,
   contractId: string,
@@ -316,6 +318,7 @@ export async function updateContract(
     endDate?: string;
     commandChecklist: Record<string, string>;
     notes?: string;
+    version: number;
   }
 ): Promise<Err | { contract: NonNullable<ReturnType<typeof serializeContract>> }> {
   const c = await prisma.contract.findUnique({
@@ -325,6 +328,13 @@ export async function updateContract(
   if (!c || !sideOfContract(c, auth.companyId)) return { error: { code: "NOT_FOUND" } };
   if (!["DRAFT", "SIGNED_SUPPLY", "SIGNED_DEMAND"].includes(c.status))
     return { error: { code: "VERSION_CONFLICT", message: "双方署名の完了後（成約以降）は修正できません" } };
+  if (c.version !== input.version)
+    return {
+      error: {
+        code: "VERSION_CONFLICT",
+        message: "契約内容が他の担当者により修正されています。最新の内容を読み込み直してから修正してください",
+      },
+    };
 
   const checklistError = validateChecklist(input.commandChecklist);
   if (checklistError) return checklistError;
@@ -337,7 +347,7 @@ export async function updateContract(
 
   const signaturesReset = c.supplySignedAt != null || c.demandSignedAt != null;
   const updated = await prisma.contract.updateMany({
-    where: { id: contractId, status: c.status },
+    where: { id: contractId, status: c.status, version: input.version },
     data: {
       contractType: input.contractType,
       monthlyRateYen: input.monthlyRateYen,

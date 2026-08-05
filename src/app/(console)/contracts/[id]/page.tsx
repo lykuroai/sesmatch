@@ -58,18 +58,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
 
       {editable && (
         <div className="mb-6">
-          <ContractEditForm
-            contractId={c.id}
-            initial={{
-              contractType: c.contractType,
-              monthlyRateYen: c.monthlyRateYen,
-              startDate: new Date(c.startDate).toISOString().slice(0, 10),
-              endDate: c.endDate ? new Date(c.endDate).toISOString().slice(0, 10) : null,
-              commandChecklist: c.commandChecklist,
-              notes: c.notes,
-              anySigned: c.supplySigned || c.demandSigned,
-            }}
-          />
+          <ContractEditForm contractId={c.id} />
         </div>
       )}
 
