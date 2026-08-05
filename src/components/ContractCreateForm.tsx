@@ -9,9 +9,11 @@ const input = "w-full rounded border border-slate-300 px-2 py-1.5 text-sm";
 export function ContractCreateForm({
   entryId,
   defaultRateYen,
+  defaultContractType,
 }: {
   entryId: string;
   defaultRateYen?: number;
+  defaultContractType?: string | null; // 案件の契約形態を初期値にする（基本契約第4条）
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -56,15 +58,17 @@ export function ContractCreateForm({
     <form onSubmit={submit} className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 p-5">
       <h2 className="mb-1 font-bold text-indigo-900">個別契約を作成（§22）</h2>
       <p className="mb-4 text-xs text-indigo-700">
-        準委任・請負では案件保有企業から本人への直接指揮命令を禁止します。以下の確認事項は必須です。
+        準委任・請負では案件保有企業から本人への直接指揮命令を禁止します。労働者派遣では供給側企業の
+        派遣事業許可（番号・有効期限・派遣元責任者）と直接雇用を自動チェックします。以下の確認事項は必須です。
       </p>
       {error && <p className="mb-3 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
       <div className="grid grid-cols-3 gap-3 text-sm">
         <div>
           <label className="mb-1 block text-xs text-slate-600">契約形態</label>
-          <select name="contractType" className={input}>
+          <select name="contractType" className={input} defaultValue={defaultContractType ?? "準委任"}>
             <option value="準委任">準委任</option>
             <option value="請負">請負</option>
+            <option value="労働者派遣">労働者派遣</option>
           </select>
         </div>
         <div>

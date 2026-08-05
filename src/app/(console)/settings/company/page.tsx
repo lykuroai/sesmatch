@@ -23,6 +23,11 @@ export default async function CompanySettingsPage() {
               companyType: company.companyType,
               corporateNumber: company.corporateNumber,
               address: company.address,
+              dispatchLicenseNumber: company.dispatchLicenseNumber,
+              dispatchLicenseExpiry: company.dispatchLicenseExpiry
+                ? company.dispatchLicenseExpiry.toISOString().slice(0, 10)
+                : null,
+              dispatchManagerName: company.dispatchManagerName,
             }}
           />
         ) : (
@@ -44,6 +49,18 @@ export default async function CompanySettingsPage() {
             <div>
               <dt className="text-xs text-slate-500">所在地</dt>
               <dd className="mt-0.5">{company.address ?? "未登録"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">労働者派遣事業許可</dt>
+              <dd className="mt-0.5">
+                {company.dispatchLicenseNumber
+                  ? `${company.dispatchLicenseNumber}（有効期限: ${
+                      company.dispatchLicenseExpiry
+                        ? company.dispatchLicenseExpiry.toLocaleDateString("ja-JP")
+                        : "未登録"
+                    }／派遣元責任者: ${company.dispatchManagerName ?? "未登録"}）`
+                  : "未登録"}
+              </dd>
             </div>
           </dl>
         )}

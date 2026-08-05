@@ -140,7 +140,11 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
         e.disclosure &&
         hasPermission(auth.roles, "contract.create") &&
         ["MUTUALLY_APPROVED", "INTERVIEW", "CONDITIONS"].includes(e.status) && (
-          <ContractCreateForm entryId={e.id} defaultRateYen={e.disclosure.engineerRateYen} />
+          <ContractCreateForm
+            entryId={e.id}
+            defaultRateYen={e.disclosure.engineerRateYen}
+            defaultContractType={e.project.contractType}
+          />
         )
       )}
 

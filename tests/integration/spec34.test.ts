@@ -60,6 +60,7 @@ async function makeProject(auth: AuthContext) {
     name: "テスト案件",
     anonymousSummary: "大手金融機関向けの開発案件",
     startDate: iso(futureDate(30)),
+    contractType: "準委任",
     rateMaxYen: 800_000,
     requiredSkills: [{ name: "Java" }],
   });
@@ -159,6 +160,7 @@ describe("案件内容の記載制限（撤廃済み）", () => {
       name: "外国籍可の案件",
       anonymousSummary: "概要",
       startDate: iso(futureDate(30)),
+      contractType: "準委任",
       rateMaxYen: 800_000,
     });
     expect("error" in result).toBe(false);

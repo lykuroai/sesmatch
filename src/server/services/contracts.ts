@@ -4,6 +4,7 @@ import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
 import { decideFee, isWithinRefundWindow } from "@/server/billing/fee";
+import { DISPATCH_CONTRACT_TYPE } from "@/lib/constants";
 import type { Contract, PlatformFee, WorkMonth } from "@prisma/client";
 import { companyNameMap } from "./companies";
 
@@ -193,7 +194,7 @@ export async function createContract(
 ): Promise<Err | { contract: NonNullable<ReturnType<typeof serializeContract>> }> {
   const entry = await prisma.entry.findUnique({
     where: { id: input.entryId },
-    include: { disclosure: true, contract: true },
+    include: { disclosure: true, contract: true, engineer: true },
   });
   if (!entry || !sideOfContract(entry, auth.companyId))
     return { error: { code: "NOT_FOUND" } };
@@ -203,6 +204,34 @@ export async function createContract(
     return { error: { code: "DUPLICATE_ENTRY", message: "このエントリーには既に契約があります" } };
   if (!CONTRACTABLE_ENTRY_STATUSES.includes(entry.status))
     return { error: { code: "VERSION_CONFLICT", message: "この状態のエントリーからは契約を作成できません" } };
+
+  // 労働者派遣契約（基本契約第4条）: 契約時点でも供給側の派遣事業許可の有効性と
+  // 直接雇用（自社社員）であることを確認する（提案時から状況が変わり得るため再検査）
+  if (input.contractType === DISPATCH_CONTRACT_TYPE) {
+    if (entry.engineer.affiliationType !== "EMPLOYEE")
+      return {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "労働者派遣契約は供給側企業が直接雇用する人材（自社社員）のみ締結できます",
+        },
+      };
+    const supplyCompany = await prisma.company.findUniqueOrThrow({
+      where: { id: entry.supplyCompanyId },
+    });
+    if (
+      !supplyCompany.dispatchLicenseNumber ||
+      !supplyCompany.dispatchLicenseExpiry ||
+      supplyCompany.dispatchLicenseExpiry < new Date()
+    )
+      return {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "供給側企業の労働者派遣事業許可（番号・有効期限）が未登録または期限切れです",
+        },
+      };
+    if (!supplyCompany.dispatchManagerName)
+      return { error: { code: "VALIDATION_ERROR", message: "供給側企業の派遣元責任者が未登録です" } };
+  }
 
   // 準委任・請負では指揮命令系統の確認が必須（§22）
   const required = ["instructionManager", "attendanceManager", "assignmentDecider", "acceptanceMethod", "resubcontractApproval"];

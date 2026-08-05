@@ -13,6 +13,7 @@ import {
   type Side,
 } from "@/server/entries/logic";
 import { detectContactInfo } from "@/server/pipeline/pii";
+import { DISPATCH_CONTRACT_TYPE } from "@/lib/constants";
 import { hasValidConsent, serializeEngineer } from "./engineers";
 import { companyNameMap } from "./companies";
 import { serializeProject } from "./projects";
@@ -164,6 +165,44 @@ export async function createEntry(auth: AuthContext, input: CreateEntryInput) {
     return {
       error: { code: "VALIDATION_ERROR" as const, message: "この案件の受入所属区分の対象外です" },
     };
+
+  // 労働者派遣の案件（基本契約第4条）: 供給側企業の直接雇用（自社社員）のみ提案可。
+  // 一社下・再委託先・個人事業主の人材は派遣できない（二重派遣・違法な労働者供給の防止）。
+  // 供給側企業には有効な労働者派遣事業許可（番号・有効期限）と派遣元責任者の登録が必須
+  if (project.contractType === DISPATCH_CONTRACT_TYPE) {
+    if (engineer.affiliationType !== "EMPLOYEE")
+      return {
+        error: {
+          code: "VALIDATION_ERROR" as const,
+          message:
+            "労働者派遣の案件には供給側企業が直接雇用する人材（自社社員）のみ提案できます（一社下・再委託先等の人材は派遣できません）",
+        },
+      };
+    const supplyCompany = await prisma.company.findUniqueOrThrow({
+      where: { id: engineer.tenantCompanyId },
+    });
+    if (!supplyCompany.dispatchLicenseNumber)
+      return {
+        error: {
+          code: "VALIDATION_ERROR" as const,
+          message: "労働者派遣事業許可番号が未登録です（設定 > 企業情報で登録してください）",
+        },
+      };
+    if (!supplyCompany.dispatchLicenseExpiry || supplyCompany.dispatchLicenseExpiry < new Date())
+      return {
+        error: {
+          code: "VALIDATION_ERROR" as const,
+          message: "労働者派遣事業許可の有効期限が未登録または期限切れです",
+        },
+      };
+    if (!supplyCompany.dispatchManagerName)
+      return {
+        error: {
+          code: "VALIDATION_ERROR" as const,
+          message: "派遣元責任者が未登録です（設定 > 企業情報で登録してください）",
+        },
+      };
+  }
 
   // 一社下（§12.4）: 案件側の一社下可、直接契約確認済みの一社下関係、案件単位の承認が必須
   if (engineer.affiliationType === "SUBTIER1") {

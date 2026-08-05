@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AFFILIATION_LABELS, REMOTE_LEVEL_LABELS } from "@/lib/constants";
+import {
+  AFFILIATION_LABELS,
+  DISPATCH_CONTRACT_TYPE,
+  PROJECT_CONTRACT_TYPES,
+  REMOTE_LEVEL_LABELS,
+} from "@/lib/constants";
 
 const input = "w-full rounded border border-slate-300 px-3 py-2 text-sm";
 const label = "mb-1 block text-sm font-medium";
@@ -15,6 +20,9 @@ export type ProjectFormInitial = {
   startDate: string; // YYYY-MM-DD
   locationCity?: string | null;
   contractType?: string | null;
+  dispatchConflictDate?: string | null; // YYYY-MM-DD
+  dispatchDemandManager?: string | null;
+  dispatchProhibitedConfirmed?: boolean;
   onsiteDaysPerWeek: number;
   remoteLevel: string;
   rateMaxMan: number; // 万円
@@ -36,7 +44,9 @@ export function ProjectForm({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [contractType, setContractType] = useState(initial?.contractType ?? "準委任");
   const isEdit = !!projectId;
+  const isDispatch = contractType === DISPATCH_CONTRACT_TYPE;
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -61,10 +71,16 @@ export function ProjectForm({
         onsiteDaysPerWeek: parseInt(String(f.get("onsiteDaysPerWeek"))) || 0,
         remoteLevel: f.get("remoteLevel"),
         rateMaxYen: parseInt(String(f.get("rateMaxYen"))) * 10_000,
-        contractType: f.get("contractType") || undefined,
-        allowSubtier: f.get("allowSubtier") === "on",
+        contractType,
+        // 労働者派遣（基本契約第4条）: 追加項目を送信。一社下不可・自社社員のみはサーバー側でも強制される
+        dispatchConflictDate: isDispatch ? f.get("dispatchConflictDate") || undefined : undefined,
+        dispatchDemandManager: isDispatch ? f.get("dispatchDemandManager") || undefined : undefined,
+        dispatchProhibitedConfirmed: isDispatch
+          ? f.get("dispatchProhibitedConfirmed") === "on"
+          : undefined,
+        allowSubtier: !isDispatch && f.get("allowSubtier") === "on",
         noForeignNational: f.get("noForeignNational") === "on",
-        acceptedTypes,
+        acceptedTypes: isDispatch ? ["EMPLOYEE"] : acceptedTypes,
         processes: parseList(String(f.get("processes") ?? "")),
         requiredSkills: parseList(String(f.get("requiredSkills") ?? "")).map((name) => ({ name })),
         preferredSkills: parseList(String(f.get("preferredSkills") ?? "")).map((name) => ({ name })),
@@ -114,10 +130,17 @@ export function ProjectForm({
           <input name="locationCity" defaultValue={initial?.locationCity ?? ""} className={input} placeholder="千代田区" />
         </div>
         <div>
-          <label className={label}>契約形態</label>
-          <select name="contractType" className={input} defaultValue={initial?.contractType ?? "準委任"}>
-            <option value="準委任">準委任</option>
-            <option value="請負">請負</option>
+          <label className={label}>契約形態（必須）</label>
+          <select
+            name="contractType"
+            required
+            className={input}
+            value={contractType}
+            onChange={(e) => setContractType(e.target.value)}
+          >
+            {PROJECT_CONTRACT_TYPES.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
           </select>
         </div>
         <div>
@@ -133,6 +156,47 @@ export function ProjectForm({
           </select>
         </div>
       </div>
+      {isDispatch && (
+        <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-bold text-amber-900">労働者派遣の確認事項（基本契約第4条）</p>
+          <p className="text-xs text-amber-800">
+            労働者派遣では、供給側企業が直接雇用する人材（自社社員）のみ提案可能・一社下不可が
+            自動適用されます。提案時に供給側企業の労働者派遣事業許可（許可番号・有効期限・派遣元責任者）を
+            自動チェックします。
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={label}>抵触日（事業所単位）</label>
+              <input
+                type="date"
+                name="dispatchConflictDate"
+                required
+                defaultValue={initial?.dispatchConflictDate ?? ""}
+                className={input}
+              />
+            </div>
+            <div>
+              <label className={label}>派遣先責任者</label>
+              <input
+                name="dispatchDemandManager"
+                required
+                defaultValue={initial?.dispatchDemandManager ?? ""}
+                className={input}
+                placeholder="例: 開発部長 ○○"
+              />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-amber-900">
+            <input
+              type="checkbox"
+              name="dispatchProhibitedConfirmed"
+              required
+              defaultChecked={initial?.dispatchProhibitedConfirmed ?? false}
+            />
+            派遣禁止業務（港湾運送・建設・警備・医療関係等）に該当しないことを確認しました
+          </label>
+        </div>
+      )}
       <div>
         <label className={label}>必須スキル（カンマ区切り）</label>
         <input name="requiredSkills" defaultValue={initial?.requiredSkills.join(", ") ?? ""} className={input} placeholder="Java, Spring Boot" />
@@ -145,25 +209,33 @@ export function ProjectForm({
         <label className={label}>工程（カンマ区切り）</label>
         <input name="processes" defaultValue={initial?.processes.join(", ") ?? ""} className={input} placeholder="基本設計, 開発" />
       </div>
-      <div>
-        <p className={label}>受入所属区分</p>
-        <div className="flex gap-4 text-sm">
-          {Object.entries(AFFILIATION_LABELS).map(([k, v]) => (
-            <label key={k} className="flex items-center gap-1">
-              <input
-                type="checkbox"
-                name={`accept_${k}`}
-                defaultChecked={initial ? initial.acceptedTypes.includes(k) : k !== "SUBTIER1"}
-              />
-              {v}
-            </label>
-          ))}
-        </div>
-      </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="allowSubtier" defaultChecked={initial?.allowSubtier ?? false} />
-        一社下可（最大商流1）
-      </label>
+      {isDispatch ? (
+        <p className="text-xs text-slate-500">
+          受入所属区分: 自社社員（直接雇用）のみ／一社下不可（労働者派遣のため自動適用）
+        </p>
+      ) : (
+        <>
+          <div>
+            <p className={label}>受入所属区分</p>
+            <div className="flex gap-4 text-sm">
+              {Object.entries(AFFILIATION_LABELS).map(([k, v]) => (
+                <label key={k} className="flex items-center gap-1">
+                  <input
+                    type="checkbox"
+                    name={`accept_${k}`}
+                    defaultChecked={initial ? initial.acceptedTypes.includes(k) : k !== "SUBTIER1"}
+                  />
+                  {v}
+                </label>
+              ))}
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="allowSubtier" defaultChecked={initial?.allowSubtier ?? false} />
+            一社下可（最大商流1）
+          </label>
+        </>
+      )}
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"

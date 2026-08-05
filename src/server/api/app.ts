@@ -470,6 +470,9 @@ app.put("/company/profile", requirePermission("company.manage"), async (c) => {
       companyType: z.enum(["CORPORATION", "SOLE_PROPRIETOR"]),
       corporateNumber: z.string().optional(),
       address: z.string().optional(),
+      dispatchLicenseNumber: z.string().optional(),
+      dispatchLicenseExpiry: z.string().optional(),
+      dispatchManagerName: z.string().optional(),
     })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
@@ -711,7 +714,10 @@ const projectInputSchema = z.object({
   remoteLevel: z.enum(["R0", "R1", "R2", "R3", "R4", "R5"]).optional(),
   rateMinYen: z.number().int().positive().optional(),
   rateMaxYen: z.number().int().positive(),
-  contractType: z.string().optional(),
+  contractType: z.enum(["準委任", "請負", "労働者派遣"]),
+  dispatchConflictDate: z.string().optional(),
+  dispatchDemandManager: z.string().optional(),
+  dispatchProhibitedConfirmed: z.boolean().optional(),
   allowSubtier: z.boolean().optional(),
   noForeignNational: z.boolean().optional(),
   acceptedTypes: z.array(z.enum(["EMPLOYEE", "AFFILIATED", "FREELANCER", "SUBTIER1"])).optional(),
@@ -913,6 +919,8 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
       name: d.name ?? job.sourceDocument.filename.replace(/\.[^.]+$/, ""),
       anonymousSummary: d.summary,
       startDate: d.startDate ?? new Date().toISOString().slice(0, 10),
+      // 取込確定時は準委任として登録し、労働者派遣等は案件編集で設定する（派遣の必須項目は取込値に含まれないため）
+      contractType: "準委任",
       rateMaxYen: d.rateMaxYen ?? 800_000,
       onsiteDaysPerWeek: d.onsiteDaysPerWeek ?? undefined,
       requiredSkills: d.requiredSkills.map((name) => ({ name })),
@@ -1051,7 +1059,7 @@ app.post("/contracts", requirePermission("contract.create"), async (c) => {
   const parsed = z
     .object({
       entryId: z.string(),
-      contractType: z.enum(["準委任", "請負"]),
+      contractType: z.enum(["準委任", "請負", "労働者派遣"]),
       monthlyRateYen: z.number().int().positive(),
       startDate: z.string(),
       endDate: z.string().optional(),

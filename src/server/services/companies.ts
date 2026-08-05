@@ -347,7 +347,7 @@ export async function updateCompanyByOperations(
   return { ok: true as const };
 }
 
-// 企業情報の修正（企業オーナー・企業管理者）。名称・種別・法人番号・所在地を自社分のみ変更できる
+// 企業情報の修正（企業オーナー・企業管理者）。名称・種別・法人番号・所在地・派遣許可情報を自社分のみ変更できる
 export async function updateOwnCompany(
   auth: AuthContext,
   input: {
@@ -355,12 +355,29 @@ export async function updateOwnCompany(
     companyType: "CORPORATION" | "SOLE_PROPRIETOR";
     corporateNumber?: string;
     address?: string;
+    dispatchLicenseNumber?: string;
+    dispatchLicenseExpiry?: string;
+    dispatchManagerName?: string;
   }
 ) {
   const corporateNumber = (input.corporateNumber ?? "").replace(/\D/g, "");
   // 法人番号は任意入力。指定時のみ形式を検査
   if (corporateNumber && !/^\d{13}$/.test(corporateNumber))
     return { error: { code: "VALIDATION_ERROR" as const, message: "法人番号は13桁で入力してください" } };
+  // 派遣許可情報は任意入力だが、番号を登録する場合は有効期限も必須（労働者派遣案件への提案時に有効性を検査）
+  const dispatchLicenseNumber = input.dispatchLicenseNumber?.trim() || null;
+  const dispatchLicenseExpiry = input.dispatchLicenseExpiry
+    ? new Date(input.dispatchLicenseExpiry)
+    : null;
+  if (dispatchLicenseNumber && !dispatchLicenseExpiry)
+    return {
+      error: {
+        code: "VALIDATION_ERROR" as const,
+        message: "労働者派遣事業許可番号を登録する場合は許可有効期限も入力してください",
+      },
+    };
+  if (dispatchLicenseExpiry && isNaN(dispatchLicenseExpiry.getTime()))
+    return { error: { code: "VALIDATION_ERROR" as const, message: "許可有効期限の日付が不正です" } };
   await prisma.company.update({
     where: { id: auth.companyId }, // 自社のみ（テナント分離）
     data: {
@@ -368,6 +385,9 @@ export async function updateOwnCompany(
       companyType: input.companyType,
       corporateNumber: corporateNumber || null,
       address: input.address?.trim() || null,
+      dispatchLicenseNumber,
+      dispatchLicenseExpiry,
+      dispatchManagerName: input.dispatchManagerName?.trim() || null,
     },
   });
   await audit({

@@ -1,7 +1,7 @@
 import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
-import { LIST_PAGE_SIZE } from "@/lib/constants";
+import { DISPATCH_CONTRACT_TYPE, LIST_PAGE_SIZE, type ProjectContractType } from "@/lib/constants";
 import type { Project, ProjectSkill } from "@prisma/client";
 
 type ProjectWithRels = Project & { skills: ProjectSkill[] };
@@ -27,6 +27,9 @@ export function serializeProject(p: ProjectWithRels, auth: AuthContext) {
     rateMinYen: p.rateMinYen,
     rateMaxYen: p.rateMaxYen,
     contractType: p.contractType,
+    dispatchConflictDate: p.dispatchConflictDate,
+    dispatchDemandManager: p.dispatchDemandManager,
+    dispatchProhibitedConfirmed: p.dispatchProhibitedConfirmed,
     allowSubtier: p.allowSubtier,
     noForeignNational: p.noForeignNational,
     acceptedTypes: p.acceptedTypes,
@@ -100,7 +103,10 @@ export type ProjectInput = {
   remoteLevel?: "R0" | "R1" | "R2" | "R3" | "R4" | "R5";
   rateMinYen?: number;
   rateMaxYen: number;
-  contractType?: string;
+  contractType: ProjectContractType;
+  dispatchConflictDate?: string; // 労働者派遣: 抵触日
+  dispatchDemandManager?: string; // 労働者派遣: 派遣先責任者
+  dispatchProhibitedConfirmed?: boolean; // 労働者派遣: 派遣禁止業務に該当しないことの確認
   allowSubtier?: boolean;
   noForeignNational?: boolean; // 外国籍不可（SES案件の受入条件）
   acceptedTypes?: ("EMPLOYEE" | "AFFILIATED" | "FREELANCER" | "SUBTIER1")[];
@@ -112,8 +118,31 @@ export type ProjectInput = {
 
 // 案件内容の記載制限は2026-08-04に撤廃（国籍・性別等のキーワード拒否を行わない）。
 // なおマッチングエンジン自体はこれらの属性を条件として扱わない（§15/§19 の設計は不変）
-export function validateProjectInput(_input: ProjectInput): string | null {
+export function validateProjectInput(input: ProjectInput): string | null {
+  // 労働者派遣（基本契約第4条）: 抵触日・派遣先責任者・派遣禁止業務非該当の確認が必須
+  if (input.contractType === DISPATCH_CONTRACT_TYPE) {
+    if (!input.dispatchConflictDate) return "労働者派遣では抵触日の入力が必要です";
+    if (!input.dispatchDemandManager?.trim()) return "労働者派遣では派遣先責任者の入力が必要です";
+    if (!input.dispatchProhibitedConfirmed)
+      return "労働者派遣では派遣禁止業務に該当しないことの確認が必要です";
+  }
   return null;
+}
+
+// 労働者派遣では一社下不可・直接雇用（自社社員）のみ受入を自動適用する（基本契約第4条）
+function dispatchGuardedFields(input: ProjectInput) {
+  const isDispatch = input.contractType === DISPATCH_CONTRACT_TYPE;
+  return {
+    contractType: input.contractType,
+    dispatchConflictDate:
+      isDispatch && input.dispatchConflictDate ? new Date(input.dispatchConflictDate) : null,
+    dispatchDemandManager: isDispatch ? (input.dispatchDemandManager?.trim() ?? null) : null,
+    dispatchProhibitedConfirmed: isDispatch,
+    allowSubtier: isDispatch ? false : (input.allowSubtier ?? false),
+    acceptedTypes: isDispatch
+      ? ["EMPLOYEE" as const]
+      : (input.acceptedTypes ?? ["EMPLOYEE" as const, "AFFILIATED" as const, "FREELANCER" as const]),
+  };
 }
 
 // 表示用コードの採番: システム全体の最大番号+1（企業をまたいで一意。件数方式だと物理削除で
@@ -147,10 +176,8 @@ export async function createProject(auth: AuthContext, input: ProjectInput) {
       remoteLevel: input.remoteLevel ?? "R0",
       rateMinYen: input.rateMinYen,
       rateMaxYen: input.rateMaxYen,
-      contractType: input.contractType,
-      allowSubtier: input.allowSubtier ?? false,
+      ...dispatchGuardedFields(input),
       noForeignNational: input.noForeignNational ?? false,
-      acceptedTypes: input.acceptedTypes ?? ["EMPLOYEE", "AFFILIATED", "FREELANCER"],
       interviewCount: input.interviewCount ?? 1,
       processes: input.processes ?? [],
       skills: {
@@ -203,10 +230,8 @@ export async function updateProject(auth: AuthContext, projectId: string, input:
         remoteLevel: input.remoteLevel ?? "R0",
         rateMinYen: input.rateMinYen ?? null,
         rateMaxYen: input.rateMaxYen,
-        contractType: input.contractType ?? null,
-        allowSubtier: input.allowSubtier ?? false,
+        ...dispatchGuardedFields(input),
         noForeignNational: input.noForeignNational ?? false,
-        acceptedTypes: input.acceptedTypes ?? ["EMPLOYEE", "AFFILIATED", "FREELANCER"],
         interviewCount: input.interviewCount ?? 1,
         processes: input.processes ?? [],
         skills: {

@@ -116,6 +116,23 @@ export default async function ProjectDetailPage({
             <Row label="勤務地" value={p.locationCity ?? "-"} />
             <Row label="出社" value={`週${p.onsiteDaysPerWeek}日 / ${REMOTE_LEVEL_LABELS[p.remoteLevel]}`} />
             <Row label="契約形態" value={p.contractType ?? "-"} />
+            {p.contractType === "労働者派遣" && (
+              <>
+                <Row
+                  label="抵触日"
+                  value={
+                    p.dispatchConflictDate
+                      ? new Date(p.dispatchConflictDate).toLocaleDateString("ja-JP")
+                      : "-"
+                  }
+                />
+                <Row label="派遣先責任者" value={p.dispatchDemandManager ?? "-"} />
+                <Row
+                  label="派遣禁止業務"
+                  value={p.dispatchProhibitedConfirmed ? "非該当（確認済み）" : "未確認"}
+                />
+              </>
+            )}
             <Row label="業種" value={p.industry ?? "-"} />
             <Row label="工程" value={p.processes.join(", ") || "-"} />
             <Row label="一社下" value={p.allowSubtier ? "可（最大商流1）" : "不可"} />

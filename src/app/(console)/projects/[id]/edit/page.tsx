@@ -25,6 +25,11 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
           startDate: new Date(p.startDate).toISOString().slice(0, 10),
           locationCity: p.locationCity,
           contractType: p.contractType,
+          dispatchConflictDate: p.dispatchConflictDate
+            ? new Date(p.dispatchConflictDate).toISOString().slice(0, 10)
+            : null,
+          dispatchDemandManager: p.dispatchDemandManager,
+          dispatchProhibitedConfirmed: p.dispatchProhibitedConfirmed,
           onsiteDaysPerWeek: p.onsiteDaysPerWeek,
           remoteLevel: p.remoteLevel,
           rateMaxMan: Math.round(p.rateMaxYen / 10_000),

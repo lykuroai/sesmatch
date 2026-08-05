@@ -31,6 +31,10 @@ model Company {
   corporateNumber String?
   address         String? // 企業所在地（重複判定・審査に使用）
   status          CompanyStatus @default(APPLIED)
+  // 労働者派遣事業の許可情報（基本契約第4条）。労働者派遣契約の案件へ提案する供給側企業に必須
+  dispatchLicenseNumber String? // 労働者派遣事業許可番号（例: 派13-123456）
+  dispatchLicenseExpiry DateTime? // 許可有効期限
+  dispatchManagerName   String? // 派遣元責任者
   createdAt       DateTime      @default(now())
 
   members   CompanyMember[]
@@ -272,8 +276,12 @@ model Project {
   remoteLevel       RemoteLevel       @default(R0)
   rateMinYen        Int?
   rateMaxYen        Int // 月額上限（ハードフィルター対象）
-  contractType      String? // 準委任/請負 等
-  allowSubtier      Boolean           @default(false) // 一社下可（最大商流1 §12.4）
+  contractType      String            @default("準委任") // 契約形態（準委任/請負/労働者派遣。基本契約第4条により必須）
+  // 労働者派遣の場合の必須項目（基本契約第4条）。それ以外の契約形態では未使用
+  dispatchConflictDate        DateTime? // 事業所単位の抵触日
+  dispatchDemandManager       String? // 派遣先責任者
+  dispatchProhibitedConfirmed Boolean   @default(false) // 派遣禁止業務に該当しないことの確認
+  allowSubtier      Boolean           @default(false) // 一社下可（最大商流1 §12.4。労働者派遣では常に不可）
   noForeignNational Boolean           @default(false) // 外国籍不可（SES案件の受入条件）
   acceptedTypes     AffiliationType[] // 受入所属区分
   interviewCount    Int               @default(1)
