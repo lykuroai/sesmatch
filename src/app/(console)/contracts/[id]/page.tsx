@@ -6,6 +6,7 @@ import { getContract } from "@/server/services/contracts";
 import { CONTRACT_STATUS_LABELS, FEE_STATUS_LABELS } from "@/lib/constants";
 import { ActionButton } from "@/components/ActionButton";
 import { WorkControls } from "@/components/WorkControls";
+import { ContractEditForm } from "@/components/ContractEditForm";
 
 const CHECKLIST_LABELS: Record<string, string> = {
   instructionManager: "業務指示責任者・経路",
@@ -24,7 +25,10 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
 
   const canSign = hasPermission(auth.roles, "contract.sign");
   const mySigned = c.side === "DEMAND" ? c.demandSigned : c.supplySigned;
-  const signable = canSign && !mySigned && ["DRAFT", "SIGNED_SUPPLY", "SIGNED_DEMAND"].includes(c.status);
+  const preExecuted = ["DRAFT", "SIGNED_SUPPLY", "SIGNED_DEMAND"].includes(c.status);
+  const signable = canSign && !mySigned && preExecuted;
+  // 署名完了（成約）前は契約担当が内容を修正できる。修正すると既存署名は取り消される（§22）
+  const editable = hasPermission(auth.roles, "contract.create") && preExecuted;
 
   return (
     <div>
@@ -49,6 +53,23 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
           {canSign && <WorkControls contract={{ id: c.id, status: c.status, workStartedAt: c.workStartedAt != null }} />}
         </div>
       </div>
+
+      {editable && (
+        <div className="mb-6">
+          <ContractEditForm
+            contractId={c.id}
+            initial={{
+              contractType: c.contractType,
+              monthlyRateYen: c.monthlyRateYen,
+              startDate: new Date(c.startDate).toISOString().slice(0, 10),
+              endDate: c.endDate ? new Date(c.endDate).toISOString().slice(0, 10) : null,
+              commandChecklist: c.commandChecklist,
+              notes: c.notes,
+              anySigned: c.supplySigned || c.demandSigned,
+            }}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-6">
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

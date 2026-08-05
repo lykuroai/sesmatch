@@ -61,6 +61,7 @@ import {
   signContract,
   startWork,
   terminateContract,
+  updateContract,
 } from "@/server/services/contracts";
 import {
   generateInvoice,
@@ -1072,6 +1073,25 @@ app.post("/contracts", requirePermission("contract.create"), async (c) => {
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json((result as { contract: unknown }).contract, 201);
+});
+
+// 署名完了前の契約修正（§22）。修正すると既存署名は取り消され双方の再署名が必要
+app.put("/contracts/:id", requirePermission("contract.create"), async (c) => {
+  const parsed = z
+    .object({
+      contractType: z.enum(["準委任", "請負", "労働者派遣"]),
+      monthlyRateYen: z.number().int().positive(),
+      startDate: z.string(),
+      endDate: z.string().optional(),
+      commandChecklist: z.record(z.string(), z.string()),
+      notes: z.string().max(2000).optional(),
+    })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await updateContract(c.get("auth"), c.req.param("id"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json((result as { contract: unknown }).contract);
 });
 
 app.post("/contracts/:id/sign", requirePermission("contract.sign"), async (c) => {

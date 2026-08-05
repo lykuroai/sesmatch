@@ -179,6 +179,55 @@ export async function getContract(auth: AuthContext, id: string) {
 
 const CONTRACTABLE_ENTRY_STATUSES = ["MUTUALLY_APPROVED", "INTERVIEW", "CONDITIONS"];
 
+// 指揮命令・検収等の確認事項（§22）。作成・修正の双方で必須
+const CHECKLIST_REQUIRED_KEYS = [
+  "instructionManager",
+  "attendanceManager",
+  "assignmentDecider",
+  "acceptanceMethod",
+  "resubcontractApproval",
+];
+
+function validateChecklist(checklist: Record<string, string>): Err | null {
+  for (const key of CHECKLIST_REQUIRED_KEYS) {
+    if (!checklist[key]?.trim())
+      return { error: { code: "VALIDATION_ERROR", message: "指揮命令・検収等の確認事項をすべて入力してください（§22）" } };
+  }
+  return null;
+}
+
+// 労働者派遣契約（基本契約第4条）: 供給側の派遣事業許可の有効性と直接雇用（自社社員）を確認する。
+// 提案時から状況が変わり得るため、契約の作成・修正のたびに再検査する
+async function validateDispatchContract(
+  contractType: string,
+  engineerAffiliationType: string,
+  supplyCompanyId: string
+): Promise<Err | null> {
+  if (contractType !== DISPATCH_CONTRACT_TYPE) return null;
+  if (engineerAffiliationType !== "EMPLOYEE")
+    return {
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "労働者派遣契約は供給側企業が直接雇用する人材（自社社員）のみ締結できます",
+      },
+    };
+  const supplyCompany = await prisma.company.findUniqueOrThrow({ where: { id: supplyCompanyId } });
+  if (
+    !supplyCompany.dispatchLicenseNumber ||
+    !supplyCompany.dispatchLicenseExpiry ||
+    supplyCompany.dispatchLicenseExpiry < new Date()
+  )
+    return {
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "供給側企業の労働者派遣事業許可（番号・有効期限）が未登録または期限切れです",
+      },
+    };
+  if (!supplyCompany.dispatchManagerName)
+    return { error: { code: "VALIDATION_ERROR", message: "供給側企業の派遣元責任者が未登録です" } };
+  return null;
+}
+
 // 個別契約の作成（§22）。エントリーは双方承認済み（開示済み）であること。
 export async function createContract(
   auth: AuthContext,
@@ -205,40 +254,16 @@ export async function createContract(
   if (!CONTRACTABLE_ENTRY_STATUSES.includes(entry.status))
     return { error: { code: "VERSION_CONFLICT", message: "この状態のエントリーからは契約を作成できません" } };
 
-  // 労働者派遣契約（基本契約第4条）: 契約時点でも供給側の派遣事業許可の有効性と
-  // 直接雇用（自社社員）であることを確認する（提案時から状況が変わり得るため再検査）
-  if (input.contractType === DISPATCH_CONTRACT_TYPE) {
-    if (entry.engineer.affiliationType !== "EMPLOYEE")
-      return {
-        error: {
-          code: "VALIDATION_ERROR",
-          message: "労働者派遣契約は供給側企業が直接雇用する人材（自社社員）のみ締結できます",
-        },
-      };
-    const supplyCompany = await prisma.company.findUniqueOrThrow({
-      where: { id: entry.supplyCompanyId },
-    });
-    if (
-      !supplyCompany.dispatchLicenseNumber ||
-      !supplyCompany.dispatchLicenseExpiry ||
-      supplyCompany.dispatchLicenseExpiry < new Date()
-    )
-      return {
-        error: {
-          code: "VALIDATION_ERROR",
-          message: "供給側企業の労働者派遣事業許可（番号・有効期限）が未登録または期限切れです",
-        },
-      };
-    if (!supplyCompany.dispatchManagerName)
-      return { error: { code: "VALIDATION_ERROR", message: "供給側企業の派遣元責任者が未登録です" } };
-  }
+  const dispatchError = await validateDispatchContract(
+    input.contractType,
+    entry.engineer.affiliationType,
+    entry.supplyCompanyId
+  );
+  if (dispatchError) return dispatchError;
 
   // 準委任・請負では指揮命令系統の確認が必須（§22）
-  const required = ["instructionManager", "attendanceManager", "assignmentDecider", "acceptanceMethod", "resubcontractApproval"];
-  for (const key of required) {
-    if (!input.commandChecklist[key]?.trim())
-      return { error: { code: "VALIDATION_ERROR", message: "指揮命令・検収等の確認事項をすべて入力してください（§22）" } };
-  }
+  const checklistError = validateChecklist(input.commandChecklist);
+  if (checklistError) return checklistError;
 
   const [contract] = await prisma.$transaction([
     prisma.contract.create({
@@ -272,6 +297,79 @@ export async function createContract(
       contract,
       auth,
       await companyNameMap([contract.demandCompanyId, contract.supplyCompanyId])
+    )!,
+  };
+}
+
+// 署名完了前の契約修正（§22）: 相互締結（EXECUTED）前のみ可。修正すると既存の署名は取り消され、
+// 双方の再署名が必要になる（変更後の内容に対する署名の有効性を担保）。
+// 条件付き updateMany により、並行する署名操作と競合した場合はどちらか一方のみ成功する
+export async function updateContract(
+  auth: AuthContext,
+  contractId: string,
+  input: {
+    contractType: string;
+    monthlyRateYen: number;
+    startDate: string;
+    endDate?: string;
+    commandChecklist: Record<string, string>;
+    notes?: string;
+  }
+): Promise<Err | { contract: NonNullable<ReturnType<typeof serializeContract>> }> {
+  const c = await prisma.contract.findUnique({
+    where: { id: contractId },
+    include: { entry: { include: { engineer: true } } },
+  });
+  if (!c || !sideOfContract(c, auth.companyId)) return { error: { code: "NOT_FOUND" } };
+  if (!["DRAFT", "SIGNED_SUPPLY", "SIGNED_DEMAND"].includes(c.status))
+    return { error: { code: "VERSION_CONFLICT", message: "双方署名の完了後（成約以降）は修正できません" } };
+
+  const checklistError = validateChecklist(input.commandChecklist);
+  if (checklistError) return checklistError;
+  const dispatchError = await validateDispatchContract(
+    input.contractType,
+    c.entry.engineer.affiliationType,
+    c.supplyCompanyId
+  );
+  if (dispatchError) return dispatchError;
+
+  const signaturesReset = c.supplySignedAt != null || c.demandSignedAt != null;
+  const updated = await prisma.contract.updateMany({
+    where: { id: contractId, status: c.status },
+    data: {
+      contractType: input.contractType,
+      monthlyRateYen: input.monthlyRateYen,
+      startDate: new Date(input.startDate),
+      endDate: input.endDate ? new Date(input.endDate) : null,
+      commandChecklist: input.commandChecklist,
+      notes: input.notes?.trim() ?? "",
+      status: "DRAFT",
+      supplySignedAt: null,
+      supplySignedBy: null,
+      demandSignedAt: null,
+      demandSignedBy: null,
+    },
+  });
+  if (updated.count !== 1)
+    return { error: { code: "VERSION_CONFLICT", message: "同時更新が発生しました。再読み込みしてください" } };
+
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "ContractUpdated",
+    targetType: "Contract",
+    targetId: contractId,
+    metadata: { signaturesReset },
+  });
+  const fresh = await prisma.contract.findUniqueOrThrow({
+    where: { id: contractId },
+    include: CONTRACT_INCLUDE,
+  });
+  return {
+    contract: serializeContract(
+      fresh,
+      auth,
+      await companyNameMap([fresh.demandCompanyId, fresh.supplyCompanyId])
     )!,
   };
 }
