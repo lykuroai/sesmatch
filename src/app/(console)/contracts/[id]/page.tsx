@@ -40,14 +40,16 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
           </p>
           <p className="mt-1 text-xs text-slate-400">
             供給側署名: {c.supplySigned ? "✓" : "未"} ／ 需要側署名: {c.demandSigned ? "✓" : "未"}
+            ／ 第{c.version}版（最終更新: {new Date(c.updatedAt).toLocaleString("ja-JP")}）
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
           {signable && (
             <ActionButton
               path={`/api/v1/contracts/${c.id}/sign`}
+              body={{ version: c.version }}
               label="署名する"
-              confirmMessage="署名しますか？双方の署名が揃った時点で成約となります。"
+              confirmMessage={`第${c.version}版の契約内容に署名しますか？双方の署名が揃った時点で成約となります。相手方が内容を修正していた場合、署名は拒否されます。`}
             />
           )}
           {canSign && <WorkControls contract={{ id: c.id, status: c.status, workStartedAt: c.workStartedAt != null }} />}

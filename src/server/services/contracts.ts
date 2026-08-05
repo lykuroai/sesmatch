@@ -50,6 +50,8 @@ export function serializeContract(
     endDate: c.endDate,
     commandChecklist: c.commandChecklist as Record<string, string>,
     notes: c.notes,
+    version: c.version,
+    updatedAt: c.updatedAt,
     supplySigned: c.supplySignedAt != null,
     demandSigned: c.demandSignedAt != null,
     workStartedAt: c.workStartedAt,
@@ -343,6 +345,7 @@ export async function updateContract(
       endDate: input.endDate ? new Date(input.endDate) : null,
       commandChecklist: input.commandChecklist,
       notes: input.notes?.trim() ?? "",
+      version: { increment: 1 }, // 版数を上げ、旧版を見たままの署名を無効化する
       status: "DRAFT",
       supplySignedAt: null,
       supplySignedBy: null,
@@ -359,7 +362,7 @@ export async function updateContract(
     action: "ContractUpdated",
     targetType: "Contract",
     targetId: contractId,
-    metadata: { signaturesReset },
+    metadata: { signaturesReset, version: c.version + 1 },
   });
   const fresh = await prisma.contract.findUniqueOrThrow({
     where: { id: contractId },
@@ -375,7 +378,9 @@ export async function updateContract(
 }
 
 // 署名（§22）: 相互締結が完了した時点で成約（EXECUTED）。エントリーは CONTRACTED へ。
-export async function signContract(auth: AuthContext, contractId: string) {
+// expectedVersion は署名者が画面で閲覧していた契約の版数。相手方が先に修正していた場合は
+// 版数不一致で拒否し、修正後の内容に気づかないまま署名してしまうことを防ぐ
+export async function signContract(auth: AuthContext, contractId: string, expectedVersion: number) {
   const result = await prisma.$transaction(async (tx) => {
     const c = await tx.contract.findUnique({ where: { id: contractId } });
     if (!c) return { error: { code: "NOT_FOUND" as const } };
@@ -383,6 +388,13 @@ export async function signContract(auth: AuthContext, contractId: string) {
     if (!side) return { error: { code: "NOT_FOUND" as const } };
     if (!["DRAFT", "SIGNED_SUPPLY", "SIGNED_DEMAND"].includes(c.status))
       return { error: { code: "VERSION_CONFLICT" as const, message: "署名可能な状態ではありません" } };
+    if (c.version !== expectedVersion)
+      return {
+        error: {
+          code: "VERSION_CONFLICT" as const,
+          message: "契約内容が修正されています。最新の内容を確認してから署名してください（再読み込みしてください）",
+        },
+      };
     const field = side === "SUPPLY" ? "supplySignedAt" : "demandSignedAt";
     if (side === "SUPPLY" ? c.supplySignedAt : c.demandSignedAt)
       return { error: { code: "VERSION_CONFLICT" as const, message: "既に署名済みです" } };
@@ -390,7 +402,7 @@ export async function signContract(auth: AuthContext, contractId: string) {
     const other = side === "SUPPLY" ? c.demandSignedAt : c.supplySignedAt;
     const nextStatus = other ? "EXECUTED" : side === "SUPPLY" ? "SIGNED_SUPPLY" : "SIGNED_DEMAND";
     const updated = await tx.contract.updateMany({
-      where: { id: contractId, [field]: null, status: c.status },
+      where: { id: contractId, [field]: null, status: c.status, version: expectedVersion },
       data: {
         [field]: new Date(),
         [side === "SUPPLY" ? "supplySignedBy" : "demandSignedBy"]: auth.memberId,
@@ -416,6 +428,7 @@ export async function signContract(auth: AuthContext, contractId: string) {
     action: result.executed ? "ContractExecuted" : "ContractSigned",
     targetType: "Contract",
     targetId: contractId,
+    metadata: { version: expectedVersion },
   });
   return result;
 }

@@ -1095,7 +1095,13 @@ app.put("/contracts/:id", requirePermission("contract.create"), async (c) => {
 });
 
 app.post("/contracts/:id/sign", requirePermission("contract.sign"), async (c) => {
-  const result = await signContract(c.get("auth"), c.req.param("id"));
+  // version は署名者が画面で閲覧していた契約の版数（修正競合の防止に必須）
+  const parsed = z
+    .object({ version: z.number().int().positive() })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success)
+    return c.json(err("VALIDATION_ERROR", "署名には閲覧中の契約の版数（version）が必要です"), 400);
+  const result = await signContract(c.get("auth"), c.req.param("id"), parsed.data.version);
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);

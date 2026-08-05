@@ -64,7 +64,7 @@ async function makeDraftContract() {
 describe("署名完了前の契約修正（§22）", () => {
   it("片側署名後に修正すると署名が取り消され、双方の再署名で成約する", async () => {
     const { demand, supply, contract } = await makeDraftContract();
-    const signed = await signContract(supply, contract.id);
+    const signed = await signContract(supply, contract.id, contract.version);
     expect(signed).not.toHaveProperty("error");
 
     const updated = await updateContract(demand, contract.id, {
@@ -79,17 +79,40 @@ describe("署名完了前の契約修正（§22）", () => {
     expect(updated.contract.supplySigned).toBe(false);
     expect(updated.contract.demandSigned).toBe(false);
     expect(updated.contract.monthlyRateYen).toBe(750_000);
+    expect(updated.contract.version).toBe(contract.version + 1);
 
     // 再署名で成約できる
-    expect(await signContract(supply, contract.id)).not.toHaveProperty("error");
-    const executed = await signContract(demand, contract.id);
+    expect(await signContract(supply, contract.id, updated.contract.version)).not.toHaveProperty("error");
+    const executed = await signContract(demand, contract.id, updated.contract.version);
     expect(executed).toMatchObject({ ok: true, executed: true });
+  });
+
+  it("相手方の修正後は、修正前の版数では署名できない（版数照合）", async () => {
+    const { demand, supply, contract } = await makeDraftContract();
+
+    // 供給側が第1版を閲覧している間に、需要側が契約を修正（第2版になる）
+    const updated = await updateContract(demand, contract.id, {
+      contractType: "準委任",
+      monthlyRateYen: 650_000,
+      startDate: iso(futureDate(30)),
+      commandChecklist: CHECKLIST,
+    });
+    if ("error" in updated) throw new Error(updated.error.message);
+
+    // 修正前の版数（第1版）での署名は拒否される
+    const staleSign = await signContract(supply, contract.id, contract.version);
+    expect(staleSign).toHaveProperty("error");
+    expect((staleSign as { error: { code: string } }).error.code).toBe("VERSION_CONFLICT");
+
+    // 最新版を確認したうえでの署名は成功する
+    const freshSign = await signContract(supply, contract.id, updated.contract.version);
+    expect(freshSign).not.toHaveProperty("error");
   });
 
   it("成約（EXECUTED）後は修正できない", async () => {
     const { demand, supply, contract } = await makeDraftContract();
-    await signContract(supply, contract.id);
-    await signContract(demand, contract.id);
+    await signContract(supply, contract.id, contract.version);
+    await signContract(demand, contract.id, contract.version);
 
     const result = await updateContract(demand, contract.id, {
       contractType: "準委任",

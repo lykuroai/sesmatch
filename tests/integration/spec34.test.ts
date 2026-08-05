@@ -269,8 +269,8 @@ async function makeActiveContract() {
   });
   if ("error" in created) throw new Error(created.error.code);
   const contractId = created.contract.id;
-  await signContract(ctx.demand, contractId);
-  await signContract(ctx.supply, contractId);
+  await signContract(ctx.demand, contractId, 1);
+  await signContract(ctx.supply, contractId, 1);
   await startWork(ctx.demand, contractId, "2026-08-01");
   return { ...ctx, contractId };
 }
@@ -286,8 +286,8 @@ describe("契約・手数料（§22, §23, §34）", () => {
       commandChecklist: CHECKLIST,
     });
     const contractId = ("contract" in created && created.contract.id) as string;
-    await signContract(ctx.demand, contractId);
-    await signContract(ctx.supply, contractId);
+    await signContract(ctx.demand, contractId, 1);
+    await signContract(ctx.supply, contractId, 1);
     const cancelled = await cancelContract(ctx.demand, contractId);
     expect("ok" in cancelled).toBe(true);
     expect(await prisma.platformFee.count({ where: { contractId } })).toBe(0);
