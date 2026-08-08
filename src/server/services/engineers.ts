@@ -384,6 +384,7 @@ export async function createEngineer(auth: AuthContext, input: EngineerInput) {
     data: {
       tenantCompanyId: auth.companyId,
       code,
+      createdByMemberId: auth.memberId,
       name: input.name,
       ageBand: input.ageBand,
       affiliationType: input.affiliationType,
@@ -438,6 +439,7 @@ export async function updateEngineer(
     return tx.engineer.update({
       where: { id: engineerId },
       data: {
+        updatedByMemberId: auth.memberId,
         ...(input.name ? { name: input.name } : {}),
         ageBand: input.ageBand,
         affiliationType: input.affiliationType,
@@ -516,7 +518,10 @@ export async function publishEngineer(auth: AuthContext, engineerId: string) {
   if (!engineer) return { error: "NOT_FOUND" as const };
   if (!hasValidConsent(engineer.consents)) return { error: "CONSENT_REQUIRED" as const };
   if (engineer.workAuthStatus === "EXPIRED") return { error: "WORK_AUTH_EXPIRED" as const };
-  await prisma.engineer.update({ where: { id: engineerId }, data: { status: "PUBLISHED" } });
+  await prisma.engineer.update({
+    where: { id: engineerId },
+    data: { status: "PUBLISHED", updatedByMemberId: auth.memberId },
+  });
   await audit({
     tenantCompanyId: auth.companyId,
     actorUserId: auth.userAccountId,
@@ -537,7 +542,10 @@ export async function setEngineerWorkStatus(
     where: { id: engineerId, tenantCompanyId: auth.companyId, deletedAt: null },
   });
   if (!engineer) return { error: "NOT_FOUND" as const };
-  await prisma.engineer.update({ where: { id: engineerId }, data: { workStatus } });
+  await prisma.engineer.update({
+    where: { id: engineerId },
+    data: { workStatus, updatedByMemberId: auth.memberId },
+  });
   await audit({
     tenantCompanyId: auth.companyId,
     actorUserId: auth.userAccountId,

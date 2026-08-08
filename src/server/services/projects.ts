@@ -163,6 +163,7 @@ export async function createProject(auth: AuthContext, input: ProjectInput) {
     data: {
       tenantCompanyId: auth.companyId,
       code,
+      createdByMemberId: auth.memberId,
       name: input.name,
       anonymousSummary: input.anonymousSummary,
       industry: input.industry,
@@ -217,6 +218,7 @@ export async function updateProject(auth: AuthContext, projectId: string, input:
     return tx.project.update({
       where: { id: projectId },
       data: {
+        updatedByMemberId: auth.memberId,
         name: input.name,
         anonymousSummary: input.anonymousSummary,
         industry: input.industry ?? null,
@@ -263,7 +265,10 @@ export async function publishProject(auth: AuthContext, projectId: string) {
     where: { id: projectId, tenantCompanyId: auth.companyId },
   });
   if (!project) return { error: "NOT_FOUND" as const };
-  await prisma.project.update({ where: { id: projectId }, data: { status: "PUBLISHED" } });
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { status: "PUBLISHED", updatedByMemberId: auth.memberId },
+  });
   await audit({
     tenantCompanyId: auth.companyId,
     actorUserId: auth.userAccountId,
@@ -284,7 +289,10 @@ export async function setProjectWorkflowStatus(
     where: { id: projectId, tenantCompanyId: auth.companyId },
   });
   if (!project) return { error: "NOT_FOUND" as const };
-  await prisma.project.update({ where: { id: projectId }, data: { workflowStatus } });
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { workflowStatus, updatedByMemberId: auth.memberId },
+  });
   await audit({
     tenantCompanyId: auth.companyId,
     actorUserId: auth.userAccountId,

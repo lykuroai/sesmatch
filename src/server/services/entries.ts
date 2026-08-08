@@ -120,29 +120,47 @@ export async function getEntry(auth: AuthContext, id: string) {
   return serializeEntry(e, auth, names);
 }
 
-// エントリー受信通知: 受信側企業（提案=需要側、スカウト=供給側）の
-// entry.approve 権限を持つアクティブ担当者へメール。
+// エントリー受信通知: 受信対象（提案=案件、スカウト=人材）の登録者へメール。
+// 登録者が空白（既存データ）なら最終更新者、どちらも無効（未記録・退職等）なら
+// 受信側企業の entry.approve 権限を持つアクティブ担当者全員へフォールバック。
 // 双方承認前のため相手企業名・人材氏名等の Level 2 情報は含めない（§10, §20.3）。
 // 通知の失敗はエントリー作成を失敗させない。
 async function notifyEntryReceived(
   entry: { id: string; type: string; demandCompanyId: string; supplyCompanyId: string },
-  project: { name: string; code: string },
-  engineer: { code: string }
+  project: { name: string; code: string; createdByMemberId: string | null; updatedByMemberId: string | null },
+  engineer: { code: string; createdByMemberId: string | null; updatedByMemberId: string | null }
 ) {
   try {
     const receivingCompanyId =
       entry.type === "PROPOSAL" ? entry.demandCompanyId : entry.supplyCompanyId;
-    const approverRoles = Object.values(RoleCode).filter((role) =>
-      hasPermission([role], "entry.approve")
-    );
-    const members = await prisma.companyMember.findMany({
-      where: {
-        companyId: receivingCompanyId,
-        status: "ACTIVE",
-        roles: { some: { role: { in: approverRoles } } },
-      },
-      include: { userAccount: true },
-    });
+    const target = entry.type === "PROPOSAL" ? project : engineer;
+
+    let members: Prisma.CompanyMemberGetPayload<{ include: { userAccount: true } }>[] = [];
+    for (const memberId of [target.createdByMemberId, target.updatedByMemberId]) {
+      if (!memberId) continue;
+      members = await prisma.companyMember.findMany({
+        where: {
+          id: memberId,
+          companyId: receivingCompanyId, // 受信側企業に属することを確認
+          status: "ACTIVE",
+        },
+        include: { userAccount: true },
+      });
+      if (members.length > 0) break;
+    }
+    if (members.length === 0) {
+      const approverRoles = Object.values(RoleCode).filter((role) =>
+        hasPermission([role], "entry.approve")
+      );
+      members = await prisma.companyMember.findMany({
+        where: {
+          companyId: receivingCompanyId,
+          status: "ACTIVE",
+          roles: { some: { role: { in: approverRoles } } },
+        },
+        include: { userAccount: true },
+      });
+    }
     const detail =
       entry.type === "PROPOSAL"
         ? `貴社案件「${project.name}」（${project.code}）に人材のご提案が届きました。

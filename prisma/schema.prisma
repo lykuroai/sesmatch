@@ -195,6 +195,8 @@ model Engineer {
   processes            String[] // 要件定義/設計/開発/テスト/運用
   roles                String[] // PM/PMO/リーダー等
   industries           String[]
+  createdByMemberId    String? // 登録者（エントリー受信通知の宛先。既存データは null）
+  updatedByMemberId    String? // 最終更新者（人手操作のみ記録。登録者が空白時の通知宛先）
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
@@ -288,6 +290,8 @@ model Project {
   processes         String[]
   status            PublishStatus     @default(DRAFT)
   workflowStatus    ProjectWorkflowStatus @default(RECRUITING) // 進行状態（手動設定）
+  createdByMemberId String? // 登録者（エントリー受信通知の宛先。既存データは null）
+  updatedByMemberId String? // 最終更新者（人手操作のみ記録。登録者が空白時の通知宛先）
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
