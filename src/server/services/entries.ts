@@ -1,8 +1,10 @@
 // エントリー・双方承認・段階開示・メッセージ・面談（§20, §21）
 
-import { Prisma } from "@prisma/client";
+import { Prisma, RoleCode } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
+import { hasPermission } from "@/server/auth/rbac";
+import { sendMail, appBaseUrl } from "@/server/mail";
 import type { AuthContext } from "@/server/auth/session";
 import {
   applyApproval,
@@ -116,6 +118,57 @@ export async function getEntry(auth: AuthContext, id: string) {
   if (!e) return null;
   const names = await companyNameMap([e.demandCompanyId, e.supplyCompanyId]);
   return serializeEntry(e, auth, names);
+}
+
+// エントリー受信通知: 受信側企業（提案=需要側、スカウト=供給側）の
+// entry.approve 権限を持つアクティブ担当者へメール。
+// 双方承認前のため相手企業名・人材氏名等の Level 2 情報は含めない（§10, §20.3）。
+// 通知の失敗はエントリー作成を失敗させない。
+async function notifyEntryReceived(
+  entry: { id: string; type: string; demandCompanyId: string; supplyCompanyId: string },
+  project: { name: string; code: string },
+  engineer: { code: string }
+) {
+  try {
+    const receivingCompanyId =
+      entry.type === "PROPOSAL" ? entry.demandCompanyId : entry.supplyCompanyId;
+    const approverRoles = Object.values(RoleCode).filter((role) =>
+      hasPermission([role], "entry.approve")
+    );
+    const members = await prisma.companyMember.findMany({
+      where: {
+        companyId: receivingCompanyId,
+        status: "ACTIVE",
+        roles: { some: { role: { in: approverRoles } } },
+      },
+      include: { userAccount: true },
+    });
+    const detail =
+      entry.type === "PROPOSAL"
+        ? `貴社案件「${project.name}」（${project.code}）に人材のご提案が届きました。
+提案人材コード: ${engineer.code}`
+        : `貴社人材（${engineer.code}）へのスカウトが届きました。
+対象案件: 「${project.name}」（${project.code}）`;
+    await Promise.all(
+      members.map((m) =>
+        sendMail({
+          to: m.userAccount.email,
+          subject:
+            entry.type === "PROPOSAL"
+              ? "【SES DirectMatch】案件へのエントリー（提案）が届きました"
+              : "【SES DirectMatch】人材へのスカウトが届きました",
+          body: `${m.userAccount.name} 様
+
+${detail}
+
+以下のURLからエントリー内容をご確認ください。
+${appBaseUrl()}/entries/${entry.id}`,
+        })
+      )
+    );
+  } catch (e) {
+    console.error(`[mail] エントリー受信通知の送信に失敗 entryId=${entry.id}`, e);
+  }
 }
 
 export type CreateEntryInput = {
@@ -257,6 +310,7 @@ export async function createEntry(auth: AuthContext, input: CreateEntryInput) {
       targetId: entry.id,
       metadata: { type: input.type, projectId: project.id, engineerId: engineer.id },
     });
+    await notifyEntryReceived(entry, project, engineer);
     return {
       entry: serializeEntry(
         entry,

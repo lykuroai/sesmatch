@@ -12,6 +12,7 @@ export default defineConfig({
     // 設定ファイル側でもテストDBを強制し、開発DBへの誤接続を防ぐ
     env: {
       DATABASE_URL: "postgresql://sesmatch:sesmatch@localhost:5433/sesmatch_test",
+      MAIL_FROM: "", // メールはモック動作に固定（実送信を防ぐ）
     },
   },
   resolve: {
