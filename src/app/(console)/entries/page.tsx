@@ -74,6 +74,26 @@ function formatUpdated(v: string | Date): string {
   });
 }
 
+// 提案の起点アイコン: 右向き=自社が提案を開始 / 左向き=他社が提案を開始
+function DirectionIcon({ own }: { own: boolean }) {
+  const title = own ? "自社が提案を開始" : "他社が提案を開始";
+  return (
+    <svg
+      viewBox="0 0 18 18"
+      role="img"
+      aria-label={title}
+      className={`inline-block h-[18px] w-[18px] rounded-full align-[-4px] ${own ? "bg-blue-100 text-blue-600" : "bg-emerald-100 text-emerald-600"}`}
+    >
+      <title>{title}</title>
+      {own ? (
+        <path d="M5 9h7M9.5 6l3 3-3 3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <path d="M13 9H6M8.5 6l-3 3 3 3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+    </svg>
+  );
+}
+
 function statusBadgeClass(key: string): string {
   if (key === "PENDING_OWN") return "bg-amber-100 text-amber-800";
   if (key === "PROPOSING") return "bg-blue-50 text-blue-700";
@@ -308,8 +328,8 @@ export default async function EntriesPage({
                       <span className={`rounded px-2 py-0.5 text-xs ${statusBadgeClass(ds.key)}`}>{ds.label}</span>
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className="mr-1.5 font-mono text-slate-400" title={e.createdByOwn ? "自社が提案を開始" : "他社が提案を開始"}>
-                        {e.createdByOwn ? "→" : "←"}
+                      <span className="mr-1.5">
+                        <DirectionIcon own={e.createdByOwn} />
                       </span>
                       {counterpart}
                     </td>
@@ -336,7 +356,9 @@ export default async function EntriesPage({
       )}
 
       <Pager total={groups.length} page={page} basePath="/entries" params={{ ...filterParams, tab: tab !== "all" ? tab : undefined }} />
-      <p className="mt-3 text-xs text-slate-400">→：自社が提案を開始 ／ ←：他社が提案を開始 ／ 相手企業名は双方合意後に表示されます</p>
+      <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
+        <DirectionIcon own={true} />：自社が提案を開始 ／ <DirectionIcon own={false} />：他社が提案を開始 ／ 相手企業名は双方合意後に表示されます
+      </p>
     </div>
   );
 }
