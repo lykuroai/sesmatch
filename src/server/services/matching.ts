@@ -99,12 +99,31 @@ export async function matchProjectToEngineers(auth: AuthContext, projectId: stri
   return { project: serializeProject(project, auth), results };
 }
 
+// 検索フィルター用のマッチ結果概要（マッチ度・一致条件チップの判定に使う）
+export type MatchSummary = {
+  score: number;
+  rateOk: boolean; // 希望単価が案件上限内
+  startOk: boolean; // 稼働開始日が案件開始に適合
+  skillsOk: boolean; // 必須スキルを全て充足
+  remoteOk: boolean; // 案件の出社条件が人材の許容範囲内
+};
+
+function toSummary(r: ReturnType<typeof score>): MatchSummary {
+  return {
+    score: r.score,
+    rateOk: r.matchedConditions.includes("希望単価が案件上限内"),
+    startOk: r.matchedConditions.includes("稼働開始日が案件開始に適合"),
+    skillsOk: r.matchedConditions.includes("必須スキルを全て充足"),
+    remoteOk: (r.breakdown["通勤・在宅"] ?? 0) >= 10,
+  };
+}
+
 // 人材検索の「対象案件」フィルター用: 指定した自社案件のハードフィルターを通過する
-// 人材IDの集合を返す（検索のたびに呼ばれるため、結果の保存・監査記録は行わない）
-export async function passingEngineerIdsForProject(
+// 人材ID→マッチ結果概要の Map を返す（検索のたびに呼ばれるため、結果の保存・監査記録は行わない）
+export async function passingEngineerMatchesForProject(
   auth: AuthContext,
   projectId: string
-): Promise<Set<string> | null> {
+): Promise<Map<string, MatchSummary> | null> {
   const project = await prisma.project.findFirst({
     where: { id: projectId, tenantCompanyId: auth.companyId },
     include: { skills: true },
@@ -116,17 +135,20 @@ export async function passingEngineerIdsForProject(
   });
   // 自社案件は公開前でも計算対象（matchProjectToEngineers と同じ扱い）
   const pm = { ...toProjectForMatch(project), status: "PUBLISHED" };
-  return new Set(
-    candidates.filter((e) => score(pm, toEngineerForMatch(e)).passed).map((e) => e.id)
-  );
+  const map = new Map<string, MatchSummary>();
+  for (const e of candidates) {
+    const r = score(pm, toEngineerForMatch(e));
+    if (r.passed) map.set(e.id, toSummary(r));
+  }
+  return map;
 }
 
 // 案件検索の「対象人材」フィルター用: 指定した自社人材がハードフィルターを通過する
-// 案件IDの集合を返す（検索のたびに呼ばれるため、結果の保存・監査記録は行わない）
-export async function passingProjectIdsForEngineer(
+// 案件ID→マッチ結果概要の Map を返す（検索のたびに呼ばれるため、結果の保存・監査記録は行わない）
+export async function passingProjectMatchesForEngineer(
   auth: AuthContext,
   engineerId: string
-): Promise<Set<string> | null> {
+): Promise<Map<string, MatchSummary> | null> {
   const engineer = await prisma.engineer.findFirst({
     where: { id: engineerId, tenantCompanyId: auth.companyId, deletedAt: null },
     include: { skills: true, consents: true },
@@ -138,9 +160,12 @@ export async function passingProjectIdsForEngineer(
   });
   // 自社人材は公開前でも計算対象（matchEngineerToProjects と同じ扱い）
   const em = { ...toEngineerForMatch(engineer), status: "PUBLISHED" };
-  return new Set(
-    projects.filter((p) => score(toProjectForMatch(p), em).passed).map((p) => p.id)
-  );
+  const map = new Map<string, MatchSummary>();
+  for (const p of projects) {
+    const r = score(toProjectForMatch(p), em);
+    if (r.passed) map.set(p.id, toSummary(r));
+  }
+  return map;
 }
 
 // 人材→案件（自社人材に合う案件を全公開案件から探す）

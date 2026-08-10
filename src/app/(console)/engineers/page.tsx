@@ -4,7 +4,7 @@ import { getAuth } from "@/server/session-rsc";
 import { prisma } from "@/server/db";
 import { listEngineers } from "@/server/services/engineers";
 import { listProjects } from "@/server/services/projects";
-import { passingEngineerIdsForProject } from "@/server/services/matching";
+import { passingEngineerMatchesForProject } from "@/server/services/matching";
 import {
   AFFILIATION_LABELS,
   ENGINEER_WORK_STATUS_LABELS,
@@ -46,6 +46,11 @@ export default async function EngineersPage({
   const remote = sp.remote ?? "all";
   const location = sp.location ?? "all";
   const startWithin = sp.start ?? "all"; // 稼働可能時期（か月以内）
+  // 対象案件選択時のマッチ条件チップ（トグル式）
+  const f90 = sp.f90 === "1"; // マッチ度90%以上
+  const fskill = sp.fskill === "1"; // 必須スキル一致
+  const frate = sp.frate === "1"; // 単価条件一致
+  const fstart = sp.fstart === "1"; // 開始日一致
   const page = parsePage(sp.page);
 
   const [own, pub, ownProjects, pendingJobs] = await Promise.all([
@@ -64,7 +69,8 @@ export default async function EngineersPage({
   ]);
   const all = [...own.items, ...pub.items];
   // 対象案件が選択されていれば、その案件のハードフィルターを通過する人材に絞る
-  const matchIds = projectId ? await passingEngineerIdsForProject(auth, projectId) : null;
+  const matches = projectId ? await passingEngineerMatchesForProject(auth, projectId) : null;
+  const targetProject = projectId ? ownProjects.items.find((p) => p.id === projectId) : null;
 
   const startLimit =
     startWithin !== "all"
@@ -76,7 +82,14 @@ export default async function EngineersPage({
     if (source === "own" && !isOwn) return false;
     if (source === "other" && isOwn) return false;
     if (ws !== "all" && e.workStatus !== ws) return false;
-    if (matchIds && !matchIds.has(e.id)) return false;
+    if (matches) {
+      const m = matches.get(e.id);
+      if (!m) return false;
+      if (f90 && m.score < 90) return false;
+      if (fskill && !m.skillsOk) return false;
+      if (frate && !m.rateOk) return false;
+      if (fstart && !m.startOk) return false;
+    }
     if (skills.length > 0) {
       const names = e.skills.map((s) => s.name.toLowerCase());
       if (!skills.every((s) => names.some((n) => n.includes(s.toLowerCase())))) return false;
@@ -121,25 +134,38 @@ export default async function EngineersPage({
     remote: remote !== "all" ? remote : undefined,
     location: location !== "all" ? location : undefined,
     start: startWithin !== "all" ? startWithin : undefined,
+    f90: f90 ? "1" : undefined,
+    fskill: fskill ? "1" : undefined,
+    frate: frate ? "1" : undefined,
+    fstart: fstart ? "1" : undefined,
   };
+  // マッチ条件チップの切替リンク（対象のフラグだけ反転し、他の条件は維持）
+  const chipHref = (key: string, active: boolean) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries({ ...filterParams, [key]: active ? undefined : "1" })) if (v) p.set(k, v);
+    const qs = p.toString();
+    return qs ? `/engineers?${qs}` : "/engineers";
+  };
+  const chip = (active: boolean) =>
+    `rounded-full border px-3 py-1 text-xs ${active ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"}`;
 
   const select = "rounded border border-slate-300 bg-white px-2 py-1.5 text-sm";
   const label = "w-20 shrink-0 text-xs text-slate-600";
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">人材</h1>
-        <Link
-          href="/engineers/new"
-          className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          人材を登録
-        </Link>
-      </div>
       <IngestPanel
+        title="人材"
         label="スキルシート・紹介メールから取込"
         hint="人材のスキルシートや紹介メールの本文を貼り付け・アップロードするだけで登録できます。"
+        action={
+          <Link
+            href="/engineers/new"
+            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            人材を登録
+          </Link>
+        }
       />
       <PendingIngestions
         jobs={pendingJobs.map((j) => ({
@@ -248,6 +274,19 @@ export default async function EngineersPage({
           </Link>
         </div>
       </form>
+
+      {/* 対象案件選択時: 対象の表示とマッチ条件チップ */}
+      {targetProject && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-4 py-2.5">
+          <span className="text-sm font-medium text-purple-900">
+            対象案件：{targetProject.code} {targetProject.name}
+          </span>
+          <Link href={chipHref("f90", f90)} className={chip(f90)}>マッチ度90%以上</Link>
+          <Link href={chipHref("fskill", fskill)} className={chip(fskill)}>必須スキル一致</Link>
+          <Link href={chipHref("frate", frate)} className={chip(frate)}>単価条件一致</Link>
+          <Link href={chipHref("fstart", fstart)} className={chip(fstart)}>開始日一致</Link>
+        </div>
+      )}
 
       <p className="mb-3 text-xs text-slate-500">{filtered.length}件が該当</p>
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">

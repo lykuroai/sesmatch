@@ -4,7 +4,7 @@ import { getAuth } from "@/server/session-rsc";
 import { prisma } from "@/server/db";
 import { listProjects } from "@/server/services/projects";
 import { listEngineers } from "@/server/services/engineers";
-import { passingProjectIdsForEngineer } from "@/server/services/matching";
+import { passingProjectMatchesForEngineer } from "@/server/services/matching";
 import { PROJECT_WORKFLOW_LABELS, PUBLISH_STATUS_LABELS, REMOTE_LEVEL_LABELS } from "@/lib/constants";
 import { IngestPanel } from "@/components/IngestPanel";
 import { PendingIngestions } from "@/components/PendingIngestions";
@@ -35,6 +35,11 @@ export default async function ProjectsPage({
   const remote = sp.remote ?? "all";
   const location = sp.location ?? "all";
   const startWithin = sp.start ?? "all"; // 開始時期（か月以内）
+  // 対象人材選択時のマッチ条件チップ（トグル式）
+  const f90 = sp.f90 === "1"; // マッチ度90%以上
+  const frate = sp.frate === "1"; // 単価条件一致
+  const fremote = sp.fremote === "1"; // リモート可（出社条件が人材の許容内）
+  const fstart = sp.fstart === "1"; // 開始日一致
   const page = parsePage(sp.page);
 
   const [own, pub, engineers, pendingJobs] = await Promise.all([
@@ -53,7 +58,8 @@ export default async function ProjectsPage({
   ]);
   const all = [...own.items, ...pub.items];
   // 対象人材が選択されていれば、その人材がハードフィルターを通過する案件に絞る
-  const matchIds = engineerId ? await passingProjectIdsForEngineer(auth, engineerId) : null;
+  const matches = engineerId ? await passingProjectMatchesForEngineer(auth, engineerId) : null;
+  const targetEngineer = engineerId ? engineers.items.find((e) => e.id === engineerId) : null;
 
   const startLimit =
     startWithin !== "all"
@@ -64,7 +70,14 @@ export default async function ProjectsPage({
     if (source === "own" && !p.own) return false;
     if (source === "other" && p.own) return false;
     if (wf !== "all" && p.workflowStatus !== wf) return false;
-    if (matchIds && !matchIds.has(p.id)) return false;
+    if (matches) {
+      const m = matches.get(p.id);
+      if (!m) return false;
+      if (f90 && m.score < 90) return false;
+      if (frate && !m.rateOk) return false;
+      if (fremote && !m.remoteOk) return false;
+      if (fstart && !m.startOk) return false;
+    }
     if (skills.length > 0) {
       const names = [...p.requiredSkills, ...p.preferredSkills].map((s) => s.name.toLowerCase());
       if (!skills.every((s) => names.some((n) => n.includes(s.toLowerCase())))) return false;
@@ -107,25 +120,38 @@ export default async function ProjectsPage({
     remote: remote !== "all" ? remote : undefined,
     location: location !== "all" ? location : undefined,
     start: startWithin !== "all" ? startWithin : undefined,
+    f90: f90 ? "1" : undefined,
+    frate: frate ? "1" : undefined,
+    fremote: fremote ? "1" : undefined,
+    fstart: fstart ? "1" : undefined,
   };
+  // マッチ条件チップの切替リンク（対象のフラグだけ反転し、他の条件は維持）
+  const chipHref = (key: string, active: boolean) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries({ ...filterParams, [key]: active ? undefined : "1" })) if (v) p.set(k, v);
+    const qs = p.toString();
+    return qs ? `/projects?${qs}` : "/projects";
+  };
+  const chip = (active: boolean) =>
+    `rounded-full border px-3 py-1 text-xs ${active ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"}`;
 
   const select = "rounded border border-slate-300 bg-white px-2 py-1.5 text-sm";
   const label = "w-20 shrink-0 text-xs text-slate-600";
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">案件</h1>
-        <Link
-          href="/projects/new"
-          className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          案件を登録
-        </Link>
-      </div>
       <IngestPanel
+        title="案件"
         label="案件票・紹介メールから取込"
         hint="案件票や紹介メールの本文を貼り付け・アップロードするだけで登録できます。"
+        action={
+          <Link
+            href="/projects/new"
+            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            案件を登録
+          </Link>
+        }
       />
       <PendingIngestions
         jobs={pendingJobs.map((j) => ({
@@ -236,6 +262,20 @@ export default async function ProjectsPage({
           </Link>
         </div>
       </form>
+
+      {/* 対象人材選択時: 対象の表示とマッチ条件チップ */}
+      {targetEngineer && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5">
+          <span className="text-sm font-medium text-blue-900">
+            対象人材：{targetEngineer.code}
+            {targetEngineer.name ? ` ${targetEngineer.name}` : ""}
+          </span>
+          <Link href={chipHref("f90", f90)} className={chip(f90)}>マッチ度90%以上</Link>
+          <Link href={chipHref("frate", frate)} className={chip(frate)}>単価条件一致</Link>
+          <Link href={chipHref("fremote", fremote)} className={chip(fremote)}>リモート可</Link>
+          <Link href={chipHref("fstart", fstart)} className={chip(fstart)}>開始日一致</Link>
+        </div>
+      )}
 
       <p className="mb-3 text-xs text-slate-500">{filtered.length}件が該当</p>
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">

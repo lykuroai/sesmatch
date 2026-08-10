@@ -7,16 +7,39 @@ import Link from "next/link";
 import { IngestPaste } from "./IngestPaste";
 import { IngestUpload } from "./IngestUpload";
 
-export function IngestPanel({ label, hint }: { label: string; hint: string }) {
+export function IngestPanel({
+  label,
+  hint,
+  title,
+  action,
+}: {
+  label: string;
+  hint: string;
+  title?: string; // 指定時は画面見出し行ごと描画し、取込ボタンを action と同じ行に並べる
+  action?: React.ReactNode; // 「案件を登録」等の主ボタン
+}) {
   const [open, setOpen] = useState(false);
+  const toggle = (
+    <button
+      onClick={() => setOpen(!open)}
+      className="rounded border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
+    >
+      {open ? "取込を閉じる" : label}
+    </button>
+  );
   return (
     <div className="mb-6">
-      <button
-        onClick={() => setOpen(!open)}
-        className="rounded border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
-      >
-        {open ? "取込を閉じる" : label}
-      </button>
+      {title ? (
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">{title}</h1>
+          <div className="flex items-center gap-2">
+            {toggle}
+            {action}
+          </div>
+        </div>
+      ) : (
+        toggle
+      )}
       {open && (
         <div className="mt-3 space-y-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs text-slate-500">
