@@ -925,6 +925,7 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
       contractType: "準委任",
       rateMaxYen: d.rateMaxYen ?? 800_000,
       onsiteDaysPerWeek: d.onsiteDaysPerWeek ?? undefined,
+      noForeignNational: d.noForeignNational ?? false, // 記載なし（null）は可として登録し、確認画面・案件編集で修正する
       requiredSkills: d.requiredSkills.map((name) => ({ name })),
       preferredSkills: d.preferredSkills.map((name) => ({ name })),
     });

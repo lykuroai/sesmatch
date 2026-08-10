@@ -65,6 +65,8 @@ const PROJECT_SCHEMA = `{
   "startDate": string | null,          // 開始日 YYYY-MM-DD
   "rateMaxYen": number | null,         // 月額単価上限（円整数）
   "onsiteDaysPerWeek": number | null,  // 週出社日数 0-5
+  "noForeignNational": boolean | null, // 外国籍の受入条件。「外国籍不可」「外国人NG」「日本国籍の方のみ」等の記載があれば true、
+                                       // 「外国籍可」「国籍不問」等なら false、記載がなければ null
   "requiredSkills": string[],          // 必須スキル。技術要素（言語・フレームワーク・DB・クラウド・製品・技術領域）のみ、重要な順に最大5個。
                                        // マッチングでスキル名の完全一致・全充足が求められるため、真に必須の技術だけに絞る。
                                        // 「資料作成」「顧客折衝」「関係者調整」「会議ファシリテーション」等の職務要件・ソフトスキルは含めない（summary に書く）

@@ -17,7 +17,7 @@ import {
 
 const MODEL = "claude-opus-5";
 
-const nullable = (type: "string" | "integer") => ({ anyOf: [{ type }, { type: "null" }] });
+const nullable = (type: "string" | "integer" | "boolean") => ({ anyOf: [{ type }, { type: "null" }] });
 
 const CLASSIFY_SCHEMA = {
   type: "object",
@@ -114,6 +114,11 @@ const PROJECT_SCHEMA = {
     startDate: { ...nullable("string"), description: "開始日 YYYY-MM-DD" },
     rateMaxYen: { ...nullable("integer"), description: "月額単価上限（円）" },
     onsiteDaysPerWeek: { ...nullable("integer"), description: "週出社日数 0-5" },
+    noForeignNational: {
+      ...nullable("boolean"),
+      description:
+        "外国籍の受入条件。「外国籍不可」「外国人NG」「日本国籍の方のみ」等の記載があれば true、「外国籍可」「国籍不問」等なら false、記載がなければ null",
+    },
     requiredSkills: {
       type: "array",
       items: { type: "string" },
@@ -133,6 +138,7 @@ const PROJECT_SCHEMA = {
     "startDate",
     "rateMaxYen",
     "onsiteDaysPerWeek",
+    "noForeignNational",
     "requiredSkills",
     "preferredSkills",
     "summary",

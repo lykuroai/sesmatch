@@ -30,6 +30,7 @@ type ProjectDraft = {
   startDate: string | null;
   rateMaxYen: number | null;
   onsiteDaysPerWeek: number | null;
+  noForeignNational?: boolean | null; // 外国籍不可（true=不可）。既存の抽出結果には無い場合がある
   requiredSkills: string[];
   preferredSkills: string[];
   summary: string;
@@ -93,6 +94,7 @@ export function ConfirmIngestionForm({
         startDate: String(f.get("startDate") ?? "").trim() || null,
         rateMaxYen: num("rateMaxYen"),
         onsiteDaysPerWeek: num("onsiteDaysPerWeek"),
+        noForeignNational: String(f.get("noForeignNational")) === "true",
         requiredSkills: list("requiredSkills"),
         preferredSkills: list("preferredSkills"),
         summary: String(f.get("summary") ?? ""),
@@ -231,7 +233,13 @@ export function ConfirmIngestionForm({
           <label className={label}>週出社日数</label>
           <input type="number" name="onsiteDaysPerWeek" min={0} max={5} defaultValue={d.onsiteDaysPerWeek ?? ""} className={input} />
         </div>
-        <div />
+        <div>
+          <label className={label}>外国籍の受入</label>
+          <select name="noForeignNational" className={input} defaultValue={d.noForeignNational ? "true" : "false"}>
+            <option value="false">可</option>
+            <option value="true">不可</option>
+          </select>
+        </div>
         <div className="col-span-3">
           <label className={label}>必須スキル（カンマ区切り）</label>
           <input name="requiredSkills" defaultValue={d.requiredSkills.join(", ")} className={input} />

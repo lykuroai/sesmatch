@@ -40,6 +40,9 @@ export const projectDraftSchema = z.object({
   startDate: z.string().nullable(),
   rateMaxYen: z.number().int().nullable(),
   onsiteDaysPerWeek: z.number().int().min(0).max(5).nullable(),
+  // 外国籍不可の受入条件（true=不可 / false=可と明記 / null=記載なし）。
+  // .default(null) は既存の抽出結果（この項目が無い保存済みJSON）を確定できるようにするため
+  noForeignNational: z.boolean().nullable().default(null),
   requiredSkills: z.array(z.string()),
   preferredSkills: z.array(z.string()),
   summary: z.string(),
@@ -167,12 +170,20 @@ export class MockLlmGateway implements LlmGateway {
     }
 
     const nameM = maskedText.match(/(?:案件名|件名)[:：]\s*([^\n]+)/);
+    // 外国籍の受入条件: 「外国籍：不可」「外国人NG」「日本国籍のみ」等 → 不可。
+    // 「不可」が「可」を含むため、不可の判定を先に行う
+    const noForeignNational = /外国[籍人][^\n]{0,10}(不可|NG|ＮＧ|×|✕|ご遠慮)|日本国籍(の方)?のみ|日本人のみ/.test(maskedText)
+      ? true
+      : /外国[籍人][^\n]{0,10}(可|OK|ＯＫ|歓迎)/.test(maskedText)
+        ? false
+        : null;
     const draft: ProjectDraft = {
       kind: "PROJECT_DESCRIPTION",
       name: nameM ? nameM[1].trim() : null,
       startDate: isoDate,
       rateMaxYen: rateYen,
       onsiteDaysPerWeek: onsiteM ? parseInt(onsiteM[1]) : null,
+      noForeignNational,
       requiredSkills: skills.map((s) => s.name),
       preferredSkills: [],
       summary: maskedText.slice(0, 200),
