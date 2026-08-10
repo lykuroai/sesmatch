@@ -39,7 +39,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
             {CONTRACT_STATUS_LABELS[c.status]} ／ 自社の立場: {c.side === "DEMAND" ? "需要側（手数料負担 §23）" : "供給側"}
           </p>
           <p className="mt-1 text-xs text-slate-400">
-            供給側署名: {c.supplySigned ? "✓" : "未"} ／ 需要側署名: {c.demandSigned ? "✓" : "未"}
+            供給側署名: {c.supplySigned ? "〇" : "未"} ／ 需要側署名: {c.demandSigned ? "〇" : "未"}
             ／ 第{c.version}版（最終更新: {new Date(c.updatedAt).toLocaleString("ja-JP")}）
           </p>
         </div>

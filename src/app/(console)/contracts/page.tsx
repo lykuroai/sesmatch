@@ -31,7 +31,7 @@ function inTab(tab: string, status: string): boolean {
   }
 }
 
-// 契約・稼働一覧: 条件確認書の署名状況と稼働状態を管理する
+// 成約・稼働一覧: 条件確認書の署名状況と稼働状態を管理する
 export default async function ContractsPage({
   searchParams,
 }: {
@@ -40,7 +40,7 @@ export default async function ContractsPage({
   const auth = await getAuth();
   if (!auth) redirect("/login");
   if (!hasPermission(auth.roles, "contract.read")) {
-    return <p className="text-sm text-slate-500">契約情報の閲覧権限がありません。</p>;
+    return <p className="text-sm text-slate-500">成約情報の閲覧権限がありません。</p>;
   }
   const sp = await searchParams;
   const q = (sp.q ?? "").trim().toLowerCase();
@@ -89,7 +89,7 @@ export default async function ContractsPage({
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">契約・稼働</h1>
+      <h1 className="mb-6 text-2xl font-bold">成約・稼働</h1>
 
       {/* 検索条件 */}
       <form method="GET" action="/contracts" className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -165,7 +165,7 @@ export default async function ContractsPage({
                 <td className="px-4 py-3">{c.contractType}</td>
                 <td className="px-4 py-3">{(c.monthlyRateYen / 10_000).toLocaleString()}万円</td>
                 <td className="px-4 py-3 text-xs text-slate-500">
-                  供 {c.supplySigned ? "✓" : "未"} ／ 需 {c.demandSigned ? "✓" : "未"}
+                  供 {c.supplySigned ? "〇" : "未"} ／ 需 {c.demandSigned ? "〇" : "未"}
                 </td>
                 <td className="px-4 py-3 text-xs">
                   {c.workStartedAt ? new Date(c.workStartedAt).toLocaleDateString("ja-JP") : "-"}
@@ -185,8 +185,8 @@ export default async function ContractsPage({
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                   {all.length === 0
-                    ? "契約はありません。エントリー詳細（双方承認後）から作成できます。"
-                    : "条件に一致する契約はありません"}
+                    ? "成約はまだありません。条件確認書はエントリー詳細（双方承認後）から作成できます。"
+                    : "条件に一致する成約はありません"}
                 </td>
               </tr>
             )}

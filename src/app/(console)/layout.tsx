@@ -11,7 +11,7 @@ const MENU = [
   { href: "/engineers", label: "人材" },
   { href: "/ingestions", label: "取込履歴" },
   { href: "/entries", label: "エントリー" },
-  { href: "/contracts", label: "契約・稼働" },
+  { href: "/contracts", label: "成約・稼働" },
   { href: "/billing", label: "請求" },
 ];
 // 企業情報・担当者・通報・監査・プライバシー・企業間関係は
