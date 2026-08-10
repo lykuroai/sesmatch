@@ -25,8 +25,10 @@ export default async function BillingPage() {
   const canManage = hasPermission(auth.roles, "billing.manage");
   const invoiceByMonth = new Map(invoices.map((inv) => [inv.month, inv]));
 
+  // 請求金額0円の明細（新規企業30日間・13稼働月目以降の無料、キャンセル）は表示しない
+  const visibleFees = fees.filter((f) => f.status === "CHARGED" && f.feeExTaxYen > 0);
   // 月ごとにグループ化（新しい月が先頭）
-  const months = [...new Set(fees.map((f) => f.month))].sort((a, b) => b.localeCompare(a));
+  const months = [...new Set(visibleFees.map((f) => f.month))].sort((a, b) => b.localeCompare(a));
   const yen = (v: number) => `${v.toLocaleString()}円`;
 
   return (
@@ -45,12 +47,11 @@ export default async function BillingPage() {
       )}
 
       {months.map((month) => {
-        const rows = fees.filter((f) => f.month === month);
-        const charged = rows.filter((f) => f.status === "CHARGED");
-        const monthFee = charged.reduce((a, f) => a + f.feeExTaxYen, 0);
+        const rows = visibleFees.filter((f) => f.month === month);
+        const monthFee = rows.reduce((a, f) => a + f.feeExTaxYen, 0);
         const monthTax = calcTax(monthFee);
         const invoice = invoiceByMonth.get(month);
-        const uninvoiced = charged.some((f) => !f.invoiceId);
+        const uninvoiced = rows.some((f) => !f.invoiceId);
         return (
           <section key={month} className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
@@ -94,20 +95,9 @@ export default async function BillingPage() {
               </thead>
               <tbody>
                 {rows.map((f) => (
-                  <tr
-                    key={f.id}
-                    className={`border-t border-slate-100 ${f.status !== "CHARGED" ? "text-slate-400" : ""}`}
-                  >
+                  <tr key={f.id} className="border-t border-slate-100">
                     <td className="py-1.5">{new Date(f.createdAt).toLocaleDateString("ja-JP")}</td>
-                    <td className="py-1.5">
-                      {f.title}
-                      {f.status === "CANCELLED" && (
-                        <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs">キャンセル</span>
-                      )}
-                      {f.status === "FREE" && (
-                        <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs">無料（13稼働月目以降）</span>
-                      )}
-                    </td>
+                    <td className="py-1.5">{f.title}</td>
                     <td className="py-1.5 text-right">{yen(f.baseAmountYen)}</td>
                     <td className="py-1.5 text-right">{yen(f.feeExTaxYen)}</td>
                     <td className="py-1.5 text-right">{yen(calcTax(f.feeExTaxYen))}</td>
