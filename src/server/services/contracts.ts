@@ -180,7 +180,7 @@ export async function listContracts(auth: AuthContext) {
   const contracts = await prisma.contract.findMany({
     where: { OR: [{ demandCompanyId: auth.companyId }, { supplyCompanyId: auth.companyId }] },
     include: CONTRACT_INCLUDE,
-    orderBy: { createdAt: "desc" },
+    orderBy: { updatedAt: "desc" }, // 直近で動きのあった契約を上に
   });
   const names = await companyNameMap(
     contracts.flatMap((c) => [c.demandCompanyId, c.supplyCompanyId])
