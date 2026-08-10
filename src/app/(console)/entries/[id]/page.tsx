@@ -101,7 +101,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
               {e.disclosure.projectSourceText && (
                 <details className="rounded border border-emerald-200 bg-white">
                   <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-emerald-900">
-                    案件原文（匿名化済み）
+                    案件原文
                   </summary>
                   <pre className="max-h-96 overflow-auto whitespace-pre-wrap border-t border-emerald-100 px-3 py-2 text-xs text-slate-700">
                     {e.disclosure.projectSourceText}
@@ -111,7 +111,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
               {e.disclosure.engineerSourceText && (
                 <details className="rounded border border-emerald-200 bg-white">
                   <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-emerald-900">
-                    人材原文（匿名化済み）
+                    人材原文
                   </summary>
                   <pre className="max-h-96 overflow-auto whitespace-pre-wrap border-t border-emerald-100 px-3 py-2 text-xs text-slate-700">
                     {e.disclosure.engineerSourceText}
