@@ -12,7 +12,7 @@ const MENU = [
   { href: "/ingestions", label: "取込履歴" },
   { href: "/entries", label: "エントリー" },
   { href: "/contracts", label: "成約・稼働" },
-  { href: "/billing", label: "請求" },
+  { href: "/billing", label: "成約手数料" },
 ];
 // 企業情報・担当者・通報・監査・プライバシー・企業間関係は
 // 会社マイページ（/company、ヘッダー右の会社名から）に集約

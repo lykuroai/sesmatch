@@ -16,8 +16,8 @@ export default async function BillingPage() {
   if (!hasPermission(auth.roles, "billing.read")) {
     return (
       <div>
-        <h1 className="mb-4 text-2xl font-bold">請求</h1>
-        <p className="text-sm text-slate-500">請求情報の閲覧権限がありません（billing.read）。</p>
+        <h1 className="mb-4 text-2xl font-bold">成約手数料</h1>
+        <p className="text-sm text-slate-500">成約手数料の閲覧権限がありません（billing.read）。</p>
       </div>
     );
   }
@@ -31,7 +31,7 @@ export default async function BillingPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-bold">請求（成約手数料）</h1>
+      <h1 className="mb-2 text-2xl font-bold">成約手数料</h1>
       <p className="mb-6 text-sm text-slate-500">
         需要側企業として負担する手数料の一覧です。料率3%・最大12稼働月・13稼働月目以降無料（§23）。
         明細の消費税は確認用で、正式な税額は請求書単位で月計に対して算出します。
@@ -60,8 +60,14 @@ export default async function BillingPage() {
                     <span className="text-xs text-slate-500">請求書発行済み</span>
                     <Link
                       href={`/billing/invoices/${invoice.id}`}
-                      className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                      className="inline-flex items-center gap-1.5 rounded border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
                     >
+                      {/* PDF書類アイコン */}
+                      <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.3" role="img" aria-hidden="true">
+                        <path d="M4 1.5h5.5L13 5v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1Z" strokeLinejoin="round" />
+                        <path d="M9.5 1.5V5H13" strokeLinejoin="round" />
+                        <text x="8" y="12" textAnchor="middle" fontSize="5" fill="currentColor" stroke="none" fontWeight="bold">PDF</text>
+                      </svg>
                       請求書PDF
                     </Link>
                   </>
