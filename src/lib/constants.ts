@@ -155,6 +155,23 @@ export const PRIVACY_STATUS_LABELS: Record<string, string> = {
 };
 
 // 単価の公開帯: 10万円幅（§10 Level 1）
+// 都道府県（居住エリア・勤務地の選択肢。保存値は「東京都千代田区」形式の先頭に付く）
+export const PREFECTURES = [
+  "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
+  "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
+  "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県",
+  "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府", "兵庫県",
+  "奈良県", "和歌山県", "鳥取県", "島根県", "岡山県", "広島県", "山口県",
+  "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県",
+  "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県",
+];
+
+// 地名文字列から都道府県を取り出す（先頭一致。都道府県が含まれない旧データは null）
+export function prefectureOf(location: string | null | undefined): string | null {
+  if (!location) return null;
+  return PREFECTURES.find((p) => location.startsWith(p)) ?? null;
+}
+
 // 週出社日数から在宅区分を導出（取込確定時の初期値。週出社日数と在宅区分は重複情報のため
 // 取込では出社日数を正とする。R5=完全遠隔は明示がある場合のみ確認画面で手動選択）
 export function remoteLevelFromOnsiteDays(days: number): "R0" | "R1" | "R2" | "R3" | "R4" {

@@ -47,7 +47,11 @@ const ENGINEER_SCHEMA = {
       description:
         "国籍（国名。例: 韓国、中国、ベトナム）。「外国籍」のみで国名不明なら「外国籍」。記載がなければ null（=日本国籍とみなす）",
     },
-    residenceCity: { ...nullable("string"), description: "居住市区町村" },
+    residenceCity: {
+      ...nullable("string"),
+      description:
+        "居住エリア。都道府県から記載（例: 神奈川県川崎市）。市区町村から都道府県が特定できる場合は必ず都道府県を付ける",
+    },
     availableFrom: { ...nullable("string"), description: "稼働可能日 YYYY-MM-DD" },
     desiredRateYen: { ...nullable("integer"), description: "希望月額単価（円）" },
     maxOnsiteDaysPerWeek: { ...nullable("integer"), description: "週あたり最大出社日数 0-5" },
@@ -114,6 +118,11 @@ const PROJECT_SCHEMA = {
     startDate: { ...nullable("string"), description: "開始日 YYYY-MM-DD" },
     rateMaxYen: { ...nullable("integer"), description: "月額単価上限（円）" },
     onsiteDaysPerWeek: { ...nullable("integer"), description: "週出社日数 0-5" },
+    locationCity: {
+      ...nullable("string"),
+      description:
+        "勤務地。都道府県から記載（例: 東京都中野区）。市区町村・地名から都道府県が特定できる場合は必ず都道府県を付ける。記載がなければ null",
+    },
     noForeignNational: {
       ...nullable("boolean"),
       description:
@@ -138,6 +147,7 @@ const PROJECT_SCHEMA = {
     "startDate",
     "rateMaxYen",
     "onsiteDaysPerWeek",
+    "locationCity",
     "noForeignNational",
     "requiredSkills",
     "preferredSkills",

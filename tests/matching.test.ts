@@ -191,3 +191,38 @@ describe("スコアリング（§19.2）", () => {
     expect(r.warnings.some((w) => w.includes("2年以上前"))).toBe(true);
   });
 });
+
+describe("通勤圏の参考警告（居住都道府県 × 勤務地都道府県）", () => {
+  it("出社がある案件で都道府県が異なる場合は警告（足切りはしない）", () => {
+    const r = score(
+      baseProject({ locationCity: "大阪府大阪市" }),
+      baseEngineer({ residenceCity: "神奈川県川崎市" })
+    );
+    expect(r.passed).toBe(true);
+    expect(r.warnings.some((w) => w.includes("通勤圏の確認が必要"))).toBe(true);
+  });
+
+  it("同一都道府県なら警告しない", () => {
+    const r = score(
+      baseProject({ locationCity: "東京都千代田区" }),
+      baseEngineer({ residenceCity: "東京都八王子市" })
+    );
+    expect(r.warnings.some((w) => w.includes("通勤圏"))).toBe(false);
+  });
+
+  it("フルリモート（出社0日）の案件では警告しない", () => {
+    const r = score(
+      baseProject({ locationCity: "大阪府大阪市", onsiteDaysPerWeek: 0, remoteLevel: "R4" }),
+      baseEngineer({ residenceCity: "神奈川県川崎市" })
+    );
+    expect(r.warnings.some((w) => w.includes("通勤圏"))).toBe(false);
+  });
+
+  it("都道府県が読み取れない旧データ（市区町村のみ）では警告しない", () => {
+    const r = score(
+      baseProject({ locationCity: "千代田区" }),
+      baseEngineer({ residenceCity: "川崎市" })
+    );
+    expect(r.warnings.some((w) => w.includes("通勤圏"))).toBe(false);
+  });
+});

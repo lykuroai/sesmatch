@@ -40,6 +40,8 @@ export const projectDraftSchema = z.object({
   startDate: z.string().nullable(),
   rateMaxYen: z.number().int().nullable(),
   onsiteDaysPerWeek: z.number().int().min(0).max(5).nullable(),
+  // 勤務地（都道府県から記載。例: 東京都中野区）。.default(null) は既存の抽出結果との互換のため
+  locationCity: z.string().nullable().default(null),
   // 外国籍不可の受入条件（true=不可 / false=可と明記 / null=記載なし）。
   // .default(null) は既存の抽出結果（この項目が無い保存済みJSON）を確定できるようにするため
   noForeignNational: z.boolean().nullable().default(null),
@@ -170,6 +172,7 @@ export class MockLlmGateway implements LlmGateway {
     }
 
     const nameM = maskedText.match(/(?:案件名|件名)[:：]\s*([^\n]+)/);
+    const locM = maskedText.match(/(?:勤務地|勤務場所|作業場所|場所)[:：]?[\s　]*([^\n（(]+)/);
     // 外国籍の受入条件: 「外国籍：不可」「外国人NG」「日本国籍のみ」等 → 不可。
     // 「不可」が「可」を含むため、不可の判定を先に行う
     const noForeignNational = /外国[籍人][^\n]{0,10}(不可|NG|ＮＧ|×|✕|ご遠慮)|日本国籍(の方)?のみ|日本人のみ/.test(maskedText)
@@ -183,6 +186,7 @@ export class MockLlmGateway implements LlmGateway {
       startDate: isoDate,
       rateMaxYen: rateYen,
       onsiteDaysPerWeek: onsiteM ? parseInt(onsiteM[1]) : null,
+      locationCity: locM ? locM[1].trim() : null,
       noForeignNational,
       requiredSkills: skills.map((s) => s.name),
       preferredSkills: [],

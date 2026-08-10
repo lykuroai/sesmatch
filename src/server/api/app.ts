@@ -938,6 +938,7 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
       // 取込確定時は準委任として登録し、労働者派遣等は案件編集で設定する（派遣の必須項目は取込値に含まれないため）
       contractType: "準委任",
       rateMaxYen: d.rateMaxYen ?? 800_000,
+      locationCity: d.locationCity ?? undefined,
       // 週出社日数は在宅区分と連動: 確認画面で在宅区分が指定されればそこから導出、
       // なければ抽出値の日数（在宅区分もそこから導出）を使う
       onsiteDaysPerWeek: bodyRemote

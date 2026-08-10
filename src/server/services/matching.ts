@@ -26,6 +26,7 @@ function toEngineerForMatch(e: Engineer & { skills: EngineerSkill[]; consents: P
     processes: e.processes,
     roles: e.roles,
     industries: e.industries,
+    residenceCity: e.residenceCity,
   };
 }
 
@@ -45,6 +46,7 @@ function toProjectForMatch(p: Project & { skills: ProjectSkill[] }): ProjectForM
     processes: p.processes,
     requiredSkills: p.skills.filter((s) => s.required).map((s) => ({ name: s.name, minMonths: s.minMonths })),
     preferredSkills: p.skills.filter((s) => !s.required).map((s) => ({ name: s.name })),
+    locationCity: p.locationCity,
   };
 }
 

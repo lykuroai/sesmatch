@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { RemoteLevelSelect } from "./RemoteLevelSelect";
+import { LocationInput } from "./LocationInput";
 import { useRouter } from "next/navigation";
 import { AFFILIATION_LABELS } from "@/lib/constants";
 
@@ -181,8 +182,8 @@ export function EngineerForm({
           </select>
         </div>
         <div>
-          <label className={label}>居住市区町村</label>
-          <input name="residenceCity" defaultValue={initial?.residenceCity ?? ""} className={input} placeholder="例: 川崎市" />
+          <label className={label}>居住エリア</label>
+          <LocationInput name="residenceCity" initial={initial?.residenceCity} cityPlaceholder="川崎市" className={input} />
         </div>
         <div>
           <label className={label}>国籍（外国籍の場合は国名を明記）</label>

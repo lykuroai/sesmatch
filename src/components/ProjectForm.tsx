@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { RemoteLevelSelect } from "./RemoteLevelSelect";
+import { LocationInput } from "./LocationInput";
 import { useRouter } from "next/navigation";
 import {
   AFFILIATION_LABELS,
@@ -125,8 +126,8 @@ export function ProjectForm({
           <input type="number" name="rateMaxYen" required min={10} defaultValue={initial?.rateMaxMan ?? ""} className={input} placeholder="80" />
         </div>
         <div>
-          <label className={label}>勤務地（市区町村）</label>
-          <input name="locationCity" defaultValue={initial?.locationCity ?? ""} className={input} placeholder="千代田区" />
+          <label className={label}>勤務地</label>
+          <LocationInput name="locationCity" initial={initial?.locationCity} cityPlaceholder="千代田区" className={input} />
         </div>
         <div>
           <label className={label}>契約形態（必須）</label>

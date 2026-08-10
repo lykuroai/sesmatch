@@ -37,6 +37,18 @@ describe("モックLLM: 国籍抽出", () => {
   });
 });
 
+describe("モックLLM: 案件の勤務地抽出", () => {
+  it("「勤務地：」の記載から抽出する", async () => {
+    const d = await extractProject("案件名: 銀行系開発\n勤務地：東京都中野区\n単価: 75万");
+    expect(d.locationCity).toBe("東京都中野区");
+  });
+
+  it("記載がなければ null", async () => {
+    const d = await extractProject("案件名: 銀行系開発\n単価: 75万");
+    expect(d.locationCity).toBeNull();
+  });
+});
+
 describe("モックLLM: 案件の外国籍不可抽出", () => {
   it("「外国籍：不可」から不可（true）を抽出する", async () => {
     const d = await extractProject("案件名: 銀行系開発\n単価: 75万\n面談: 1回\n外国籍：不可");

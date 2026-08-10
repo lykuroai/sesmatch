@@ -43,7 +43,7 @@ const ENGINEER_SCHEMA = `{
                                        // 所属区分: 自社社員(正社員・雇用) / 自社所属(業務委託) / 個人事業主(フリーランス・弊社直個人) / 一社下(協力会社所属)。判断できなければ null
   "ageBand": number | null,            // 5歳刻み年代の下限（例: 35）
   "nationality": string | null,        // 国籍（国名。例: 韓国、中国、ベトナム）。「外国籍」のみで国名不明なら "外国籍"。記載がなければ null（=日本国籍とみなす）
-  "residenceCity": string | null,      // 居住市区町村
+  "residenceCity": string | null,      // 居住エリア。都道府県から記載（例: 神奈川県川崎市）。市区町村から都道府県が特定できる場合は必ず都道府県を付ける
   "availableFrom": string | null,      // 稼働可能日 YYYY-MM-DD
   "desiredRateYen": number | null,     // 希望月額単価（円整数）
   "maxOnsiteDaysPerWeek": number | null, // 週あたり最大出社日数 0-5
@@ -65,6 +65,7 @@ const PROJECT_SCHEMA = `{
   "startDate": string | null,          // 開始日 YYYY-MM-DD
   "rateMaxYen": number | null,         // 月額単価上限（円整数）
   "onsiteDaysPerWeek": number | null,  // 週出社日数 0-5
+  "locationCity": string | null,       // 勤務地。都道府県から記載（例: 東京都中野区）。市区町村・地名から都道府県が特定できる場合は必ず都道府県を付ける。記載がなければ null
   "noForeignNational": boolean | null, // 外国籍の受入条件。「外国籍不可」「外国人NG」「日本国籍の方のみ」等の記載があれば true、
                                        // 「外国籍可」「国籍不問」等なら false、記載がなければ null
   "requiredSkills": string[],          // 必須スキル。技術要素（言語・フレームワーク・DB・クラウド・製品・技術領域）のみ、重要な順に最大5個。

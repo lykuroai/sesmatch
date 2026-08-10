@@ -1,7 +1,7 @@
 // 双方向マッチングエンジン（§19）
 // ハードフィルター（§19.1）→ スコアリング（§19.2）→ 結果表示要素（§19.3）
 
-import { AFFILIATION_TRUST_POINTS, REMOTE_LEVEL_ORDER } from "@/lib/constants";
+import { AFFILIATION_TRUST_POINTS, prefectureOf, REMOTE_LEVEL_ORDER } from "@/lib/constants";
 
 export type EngineerForMatch = {
   id: string;
@@ -19,6 +19,7 @@ export type EngineerForMatch = {
   processes: string[];
   roles: string[];
   industries: string[];
+  residenceCity?: string | null; // 居住エリア（通勤圏の参考警告に使用）
 };
 
 export type ProjectForMatch = {
@@ -36,6 +37,7 @@ export type ProjectForMatch = {
   processes: string[];
   requiredSkills: { name: string; minMonths: number | null }[];
   preferredSkills: { name: string }[];
+  locationCity?: string | null; // 勤務地（通勤圏の参考警告に使用）
 };
 
 export type MatchResult = {
@@ -193,6 +195,15 @@ export function score(project: ProjectForMatch, engineer: EngineerForMatch): Mat
   breakdown["通勤・在宅"] = projOrder >= engOrder ? 10 : Math.max(0, 10 - (engOrder - projOrder) * 3);
   if (projOrder < engOrder)
     warnings.push("案件の出社頻度が人材の希望より多い（要確認）");
+
+  // 通勤圏（参考警告）: 出社がある案件で、居住都道府県と勤務地都道府県が異なる場合は要確認。
+  // 足切りにはしない（引越・遠距離通勤等は人が判断）。都道府県が読み取れない旧データは判定しない
+  if (project.onsiteDaysPerWeek >= 1) {
+    const projPref = prefectureOf(project.locationCity);
+    const engPref = prefectureOf(engineer.residenceCity);
+    if (projPref && engPref && projPref !== engPref)
+      warnings.push(`通勤圏の確認が必要（居住: ${engPref} / 勤務地: ${projPref}）`);
+  }
 
   // 業種・業務知識 (5)
   breakdown["業種・業務知識"] =

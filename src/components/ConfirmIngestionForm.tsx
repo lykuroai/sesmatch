@@ -9,6 +9,7 @@ import {
   remoteLevelToOnsiteDays,
 } from "@/lib/constants";
 import { RemoteLevelSelect } from "./RemoteLevelSelect";
+import { LocationInput } from "./LocationInput";
 
 const input = "w-full rounded border border-slate-300 px-2 py-1.5 text-sm";
 const label = "mb-1 block text-xs text-slate-500";
@@ -35,6 +36,7 @@ type ProjectDraft = {
   startDate: string | null;
   rateMaxYen: number | null;
   onsiteDaysPerWeek: number | null;
+  locationCity?: string | null; // 勤務地（都道府県から）。既存の抽出結果には無い場合がある
   noForeignNational?: boolean | null; // 外国籍不可（true=不可）。既存の抽出結果には無い場合がある
   requiredSkills: string[];
   preferredSkills: string[];
@@ -101,6 +103,7 @@ export function ConfirmIngestionForm({
         rateMaxYen: num("rateMaxYen"),
         // 週出社日数は在宅区分から自動導出（画面入力は在宅区分に一本化）
         onsiteDaysPerWeek: remoteLevelToOnsiteDays(String(f.get("remoteLevel"))),
+        locationCity: String(f.get("locationCity") ?? "").trim() || null,
         noForeignNational: String(f.get("noForeignNational")) === "true",
         requiredSkills: list("requiredSkills"),
         preferredSkills: list("preferredSkills"),
@@ -156,8 +159,8 @@ export function ConfirmIngestionForm({
             <input type="number" name="ageBand" step={5} min={20} max={70} defaultValue={d.ageBand ?? ""} className={input} />
           </div>
           <div>
-            <label className={label}>居住市区町村</label>
-            <input name="residenceCity" defaultValue={d.residenceCity ?? ""} className={input} />
+            <label className={label}>居住エリア</label>
+            <LocationInput name="residenceCity" initial={d.residenceCity} className={input} />
           </div>
           <div>
             <label className={label}>稼働可能日</label>
@@ -257,6 +260,10 @@ export function ConfirmIngestionForm({
             <option value="false">可</option>
             <option value="true">不可</option>
           </select>
+        </div>
+        <div className="col-span-2">
+          <label className={label}>勤務地</label>
+          <LocationInput name="locationCity" initial={d.locationCity} className={input} />
         </div>
         <div className="col-span-3">
           <label className={label}>必須スキル（カンマ区切り）</label>
