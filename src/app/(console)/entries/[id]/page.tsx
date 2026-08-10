@@ -8,7 +8,8 @@ import {
   canMoveToConditions,
   canScheduleInterview,
 } from "@/server/entries/logic";
-import { ENTRY_STATUS_LABELS, ENTRY_TYPE_LABELS } from "@/lib/constants";
+import { ENTRY_STATUS_LABELS } from "@/lib/constants";
+import { DirectionIcon } from "@/components/DirectionIcon";
 import { ActionButton } from "@/components/ActionButton";
 import { MessageForm } from "@/components/MessageForm";
 import { InterviewForm } from "@/components/InterviewForm";
@@ -47,8 +48,11 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">
-            <span className={`mr-2 rounded px-2 py-1 text-sm align-middle ${e.type === "PROPOSAL" ? "bg-blue-50 text-blue-700" : "bg-purple-50 text-purple-700"}`}>
-              {ENTRY_TYPE_LABELS[e.type]}
+            <span className={`mr-2 rounded px-2 py-1 text-sm align-middle ${e.side === "DEMAND" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"}`}>
+              {e.side === "DEMAND" ? "自社案件" : "自社人材"}
+            </span>
+            <span className="mr-2 align-middle">
+              <DirectionIcon own={e.createdByOwn} />
             </span>
             {e.project.code} {e.project.name}
           </h1>
