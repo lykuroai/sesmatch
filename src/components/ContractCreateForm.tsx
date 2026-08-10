@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 const input = "w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm";
 
-// 個別契約の作成（§22）。指揮命令・検収の確認事項は必須。
+// 条件確認書の作成（§22）。案件提供側（需要側企業）のみ。指揮命令・検収の確認事項は必須。
 export function ContractCreateForm({
   entryId,
   defaultRateYen,
@@ -50,13 +50,13 @@ export function ContractCreateForm({
       router.refresh();
     } else {
       const b = await res.json().catch(() => null);
-      setError(b?.error?.message ?? "契約の作成に失敗しました");
+      setError(b?.error?.message ?? "条件確認書の作成に失敗しました");
     }
   }
 
   return (
     <form onSubmit={submit} className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 p-5">
-      <h2 className="mb-1 font-bold text-indigo-900">個別契約を作成（§22）</h2>
+      <h2 className="mb-1 font-bold text-indigo-900">条件確認書を作成（§22）</h2>
       <p className="mb-4 text-xs text-indigo-700">
         準委任・請負では案件保有企業から本人への直接指揮命令を禁止します。労働者派遣では供給側企業の
         派遣事業許可（番号・有効期限・派遣元責任者）と直接雇用を自動チェックします。以下の確認事項は必須です。
@@ -119,7 +119,7 @@ export function ContractCreateForm({
         disabled={loading}
         className="mt-4 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
       >
-        {loading ? "作成中..." : "契約を作成（エントリーは契約手続中へ）"}
+        {loading ? "作成中..." : "条件確認書を作成（エントリーは契約手続中へ）"}
       </button>
     </form>
   );

@@ -13,7 +13,7 @@ export const ROLE_LABELS: Record<string, string> = {
   VIEWER: "閲覧者",
 };
 
-// 契約形態（基本契約第4条）。案件登録・個別契約で必須選択
+// 契約形態（基本契約第4条）。案件登録・条件確認書で必須選択
 export const PROJECT_CONTRACT_TYPES = ["準委任", "請負", "労働者派遣"] as const;
 export type ProjectContractType = (typeof PROJECT_CONTRACT_TYPES)[number];
 // 労働者派遣: 供給側の派遣事業許可＋直接雇用人材のみ・一社下不可（基本契約第4条）

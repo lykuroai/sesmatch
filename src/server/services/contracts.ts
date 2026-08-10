@@ -5,6 +5,7 @@ import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
 import { decideFee, isWithinRefundWindow } from "@/server/billing/fee";
 import { DISPATCH_CONTRACT_TYPE } from "@/lib/constants";
+import { Prisma } from "@prisma/client";
 import type { Contract, PlatformFee, WorkMonth } from "@prisma/client";
 import { companyNameMap } from "./companies";
 
@@ -15,6 +16,26 @@ function sideOfContract(c: { demandCompanyId: string; supplyCompanyId: string },
   if (c.supplyCompanyId === companyId) return "SUPPLY" as const;
   return null;
 }
+
+// 1人材は同一期間に1件のみ成約できる: 同一人材で契約期間が重複する成約済み
+// （EXECUTED/ACTIVE）契約を探す。endDate が null の契約は無期限として扱う
+async function findOverlappingExecutedContract(
+  db: Prisma.TransactionClient | typeof prisma,
+  target: { engineerId: string; startDate: Date; endDate: Date | null; excludeContractId?: string }
+) {
+  return db.contract.findFirst({
+    where: {
+      engineerId: target.engineerId,
+      ...(target.excludeContractId ? { id: { not: target.excludeContractId } } : {}),
+      status: { in: ["EXECUTED", "ACTIVE"] },
+      ...(target.endDate ? { startDate: { lte: target.endDate } } : {}),
+      OR: [{ endDate: null }, { endDate: { gte: target.startDate } }],
+    },
+  });
+}
+
+const OVERLAP_MESSAGE =
+  "この人材には契約期間が重複する成約済みの契約があります（1人材が同一期間に成約できるのは1案件のみです）";
 
 const CONTRACT_INCLUDE = {
   entry: { include: { disclosure: true, project: true, engineer: true } },
@@ -230,7 +251,8 @@ async function validateDispatchContract(
   return null;
 }
 
-// 個別契約の作成（§22）。エントリーは双方承認済み（開示済み）であること。
+// 条件確認書の作成（§22）。エントリーは双方承認済み（開示済み）であること。
+// 作成・修正は案件提供側（需要側企業）のみ行える。
 export async function createContract(
   auth: AuthContext,
   input: {
@@ -249,6 +271,8 @@ export async function createContract(
   });
   if (!entry || !sideOfContract(entry, auth.companyId))
     return { error: { code: "NOT_FOUND" } };
+  if (sideOfContract(entry, auth.companyId) !== "DEMAND")
+    return { error: { code: "FORBIDDEN", message: "条件確認書の作成は案件提供側（需要側企業）のみ行えます" } };
   if (!entry.disclosure)
     return { error: { code: "VALIDATION_ERROR", message: "双方承認（Level 2 開示）前は契約を作成できません" } };
   if (entry.contract)
@@ -266,6 +290,14 @@ export async function createContract(
   // 準委任・請負では指揮命令系統の確認が必須（§22）
   const checklistError = validateChecklist(input.commandChecklist);
   if (checklistError) return checklistError;
+
+  // 1人材=同一期間1成約（早期チェック。確定判定は署名時に行う）
+  const overlapping = await findOverlappingExecutedContract(prisma, {
+    engineerId: entry.engineerId,
+    startDate: new Date(input.startDate),
+    endDate: input.endDate ? new Date(input.endDate) : null,
+  });
+  if (overlapping) return { error: { code: "VALIDATION_ERROR", message: OVERLAP_MESSAGE } };
 
   const [contract] = await prisma.$transaction([
     prisma.contract.create({
@@ -303,7 +335,7 @@ export async function createContract(
   };
 }
 
-// 署名完了前の契約修正（§22）: 相互締結（EXECUTED）前のみ可。修正すると既存の署名は取り消され、
+// 署名完了前の条件確認書の修正（§22）: 案件提供側（需要側企業）のみ、相互締結（EXECUTED）前のみ可。修正すると既存の署名は取り消され、
 // 双方の再署名が必要になる（変更後の内容に対する署名の有効性を担保）。
 // expectedVersion は修正者が編集を開始した時点の版数。相手方が先に修正していた場合は版数不一致で
 // 拒否し、他方の修正内容を知らないまま上書きしてしまうことを防ぐ。
@@ -326,6 +358,8 @@ export async function updateContract(
     include: { entry: { include: { engineer: true } } },
   });
   if (!c || !sideOfContract(c, auth.companyId)) return { error: { code: "NOT_FOUND" } };
+  if (sideOfContract(c, auth.companyId) !== "DEMAND")
+    return { error: { code: "FORBIDDEN", message: "条件確認書の修正は案件提供側（需要側企業）のみ行えます" } };
   if (!["DRAFT", "SIGNED_SUPPLY", "SIGNED_DEMAND"].includes(c.status))
     return { error: { code: "VERSION_CONFLICT", message: "双方署名の完了後（成約以降）は修正できません" } };
   if (c.version !== input.version)
@@ -344,6 +378,15 @@ export async function updateContract(
     c.supplyCompanyId
   );
   if (dispatchError) return dispatchError;
+
+  // 1人材=同一期間1成約（早期チェック。確定判定は署名時に行う）
+  const overlapping = await findOverlappingExecutedContract(prisma, {
+    engineerId: c.engineerId,
+    startDate: new Date(input.startDate),
+    endDate: input.endDate ? new Date(input.endDate) : null,
+    excludeContractId: c.id,
+  });
+  if (overlapping) return { error: { code: "VALIDATION_ERROR", message: OVERLAP_MESSAGE } };
 
   const signaturesReset = c.supplySignedAt != null || c.demandSignedAt != null;
   const updated = await prisma.contract.updateMany({
@@ -391,46 +434,19 @@ export async function updateContract(
 // expectedVersion は署名者が画面で閲覧していた契約の版数。相手方が先に修正していた場合は
 // 版数不一致で拒否し、修正後の内容に気づかないまま署名してしまうことを防ぐ
 export async function signContract(auth: AuthContext, contractId: string, expectedVersion: number) {
-  const result = await prisma.$transaction(async (tx) => {
-    const c = await tx.contract.findUnique({ where: { id: contractId } });
-    if (!c) return { error: { code: "NOT_FOUND" as const } };
-    const side = sideOfContract(c, auth.companyId);
-    if (!side) return { error: { code: "NOT_FOUND" as const } };
-    if (!["DRAFT", "SIGNED_SUPPLY", "SIGNED_DEMAND"].includes(c.status))
-      return { error: { code: "VERSION_CONFLICT" as const, message: "署名可能な状態ではありません" } };
-    if (c.version !== expectedVersion)
-      return {
-        error: {
-          code: "VERSION_CONFLICT" as const,
-          message: "契約内容が修正されています。最新の内容を確認してから署名してください（再読み込みしてください）",
-        },
-      };
-    const field = side === "SUPPLY" ? "supplySignedAt" : "demandSignedAt";
-    if (side === "SUPPLY" ? c.supplySignedAt : c.demandSignedAt)
-      return { error: { code: "VERSION_CONFLICT" as const, message: "既に署名済みです" } };
-
-    const other = side === "SUPPLY" ? c.demandSignedAt : c.supplySignedAt;
-    const nextStatus = other ? "EXECUTED" : side === "SUPPLY" ? "SIGNED_SUPPLY" : "SIGNED_DEMAND";
-    const updated = await tx.contract.updateMany({
-      where: { id: contractId, [field]: null, status: c.status, version: expectedVersion },
-      data: {
-        [field]: new Date(),
-        [side === "SUPPLY" ? "supplySignedBy" : "demandSignedBy"]: auth.memberId,
-        status: nextStatus,
+  // Serializable: 同一人材の別契約が並行して締結された場合も「1人材=同一期間1成約」を保証する
+  const result = await prisma
+    .$transaction(
+      async (tx) => {
+        return signContractInTx(tx, auth, contractId, expectedVersion);
       },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    )
+    .catch((e) => {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034")
+        return { error: { code: "VERSION_CONFLICT" as const, message: "同時更新が発生しました。再試行してください" } };
+      throw e;
     });
-    if (updated.count !== 1)
-      return { error: { code: "VERSION_CONFLICT" as const, message: "同時更新が発生しました" } };
-    if (nextStatus === "EXECUTED") {
-      await tx.entry.update({ where: { id: c.entryId }, data: { status: "CONTRACTED" } });
-      // 成約に合わせて案件の進行状態を自動更新（手動で上書き可能）
-      await tx.project.updateMany({
-        where: { id: c.projectId },
-        data: { workflowStatus: "CONTRACTED" },
-      });
-    }
-    return { ok: true as const, executed: nextStatus === "EXECUTED" };
-  });
   if ("error" in result) return result;
   await audit({
     tenantCompanyId: auth.companyId,
@@ -441,6 +457,65 @@ export async function signContract(auth: AuthContext, contractId: string, expect
     metadata: { version: expectedVersion },
   });
   return result;
+}
+
+async function signContractInTx(
+  tx: Prisma.TransactionClient,
+  auth: AuthContext,
+  contractId: string,
+  expectedVersion: number
+) {
+  const c = await tx.contract.findUnique({ where: { id: contractId } });
+  if (!c) return { error: { code: "NOT_FOUND" as const } };
+  const side = sideOfContract(c, auth.companyId);
+  if (!side) return { error: { code: "NOT_FOUND" as const } };
+  if (!["DRAFT", "SIGNED_SUPPLY", "SIGNED_DEMAND"].includes(c.status))
+    return { error: { code: "VERSION_CONFLICT" as const, message: "署名可能な状態ではありません" } };
+  if (c.version !== expectedVersion)
+    return {
+      error: {
+        code: "VERSION_CONFLICT" as const,
+        message: "契約内容が修正されています。最新の内容を確認してから署名してください（再読み込みしてください）",
+      },
+    };
+  const field = side === "SUPPLY" ? "supplySignedAt" : "demandSignedAt";
+  if (side === "SUPPLY" ? c.supplySignedAt : c.demandSignedAt)
+    return { error: { code: "VERSION_CONFLICT" as const, message: "既に署名済みです" } };
+
+  const other = side === "SUPPLY" ? c.demandSignedAt : c.supplySignedAt;
+  const nextStatus = other ? "EXECUTED" : side === "SUPPLY" ? "SIGNED_SUPPLY" : "SIGNED_DEMAND";
+
+  // 1人材=同一期間1成約: 締結（成約確定）の直前に期間重複する成約済み契約がないことを確認する
+  if (nextStatus === "EXECUTED") {
+    const overlapping = await findOverlappingExecutedContract(tx, {
+      engineerId: c.engineerId,
+      startDate: c.startDate,
+      endDate: c.endDate,
+      excludeContractId: c.id,
+    });
+    if (overlapping)
+      return { error: { code: "VERSION_CONFLICT" as const, message: OVERLAP_MESSAGE } };
+  }
+
+  const updated = await tx.contract.updateMany({
+    where: { id: contractId, [field]: null, status: c.status, version: expectedVersion },
+    data: {
+      [field]: new Date(),
+      [side === "SUPPLY" ? "supplySignedBy" : "demandSignedBy"]: auth.memberId,
+      status: nextStatus,
+    },
+  });
+  if (updated.count !== 1)
+    return { error: { code: "VERSION_CONFLICT" as const, message: "同時更新が発生しました" } };
+  if (nextStatus === "EXECUTED") {
+    await tx.entry.update({ where: { id: c.entryId }, data: { status: "CONTRACTED" } });
+    // 成約に合わせて案件の進行状態を自動更新（手動で上書き可能）
+    await tx.project.updateMany({
+      where: { id: c.projectId },
+      data: { workflowStatus: "CONTRACTED" },
+    });
+  }
+  return { ok: true as const, executed: nextStatus === "EXECUTED" };
 }
 
 // 実稼働開始（課金起点 §22, §23）

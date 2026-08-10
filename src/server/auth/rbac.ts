@@ -98,7 +98,7 @@ const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "message.send",
     "interview.manage",
   ],
-  // 契約担当: 基本契約、個別契約、署名（§7.2）
+  // 契約担当: 基本契約、条件確認書、署名（§7.2）
   CONTRACT: [
     "dashboard.read",
     "project.read",

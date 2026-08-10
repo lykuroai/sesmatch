@@ -5,7 +5,7 @@ import { addConsent, createEngineer, publishEngineer } from "@/server/services/e
 import { createProject, publishProject } from "@/server/services/projects";
 import { approveEntry, createEntry } from "@/server/services/entries";
 import { createContract, signContract, updateContract } from "@/server/services/contracts";
-import { futureDate, iso, makeCompany, truncateAll } from "./helpers";
+import { addMemberWithRoles, futureDate, iso, makeCompany, truncateAll } from "./helpers";
 
 beforeEach(async () => {
   await truncateAll();
@@ -111,10 +111,11 @@ describe("署名完了前の契約修正（§22）", () => {
     expect(freshSign).not.toHaveProperty("error");
   });
 
-  it("相手方の修正後は、修正前の版数のままでは修正を保存できない（上書き防止）", async () => {
-    const { demand, supply, contract } = await makeDraftContract();
+  it("別担当者の修正後は、修正前の版数のままでは修正を保存できない（上書き防止）", async () => {
+    const { demand, contract } = await makeDraftContract();
+    const demand2 = await addMemberWithRoles(demand, ["OWNER"]);
 
-    // 需要側が先に修正（第1版 → 第2版）
+    // 需要側の担当者Aが先に修正（第1版 → 第2版）
     const first = await updateContract(demand, contract.id, {
       contractType: "準委任",
       monthlyRateYen: 680_000,
@@ -124,8 +125,8 @@ describe("署名完了前の契約修正（§22）", () => {
     });
     if ("error" in first) throw new Error(first.error.message);
 
-    // 供給側が第1版の内容を見たまま保存しようとすると拒否される
-    const stale = await updateContract(supply, contract.id, {
+    // 需要側の担当者Bが第1版の内容を見たまま保存しようとすると拒否される
+    const stale = await updateContract(demand2, contract.id, {
       contractType: "準委任",
       monthlyRateYen: 720_000,
       startDate: iso(futureDate(30)),
@@ -136,7 +137,7 @@ describe("署名完了前の契約修正（§22）", () => {
     expect((stale as { error: { code: string } }).error.code).toBe("VERSION_CONFLICT");
 
     // 最新版（第2版）を読み込み直してからの修正は成功する（第3版になる）
-    const fresh = await updateContract(supply, contract.id, {
+    const fresh = await updateContract(demand2, contract.id, {
       contractType: "準委任",
       monthlyRateYen: 720_000,
       startDate: iso(futureDate(30)),
@@ -145,6 +146,19 @@ describe("署名完了前の契約修正（§22）", () => {
     });
     if ("error" in fresh) throw new Error(fresh.error.message);
     expect(fresh.contract.version).toBe(first.contract.version + 1);
+  });
+
+  it("条件確認書の修正は案件提供側（需要側）のみ行える", async () => {
+    const { supply, contract } = await makeDraftContract();
+    const result = await updateContract(supply, contract.id, {
+      contractType: "準委任",
+      monthlyRateYen: 720_000,
+      startDate: iso(futureDate(30)),
+      commandChecklist: CHECKLIST,
+      version: contract.version,
+    });
+    expect(result).toHaveProperty("error");
+    expect((result as { error: { code: string } }).error.code).toBe("FORBIDDEN");
   });
 
   it("成約（EXECUTED）後は修正できない", async () => {

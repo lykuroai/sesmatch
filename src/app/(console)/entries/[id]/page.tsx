@@ -128,24 +128,28 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
         </section>
       </div>
 
-      {/* 契約（§22）: 双方承認後、契約担当が個別契約を作成 */}
+      {/* 契約（§22）: 双方承認後、案件提供側（需要側）の契約担当が条件確認書を作成 */}
       {e.contract ? (
         <section className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm">
-          個別契約が作成されています:{" "}
+          条件確認書が作成されています:{" "}
           <Link href={`/contracts/${e.contract.id}`} className="font-medium text-indigo-700 hover:underline">
-            契約詳細を開く
+            詳細を開く
           </Link>
         </section>
       ) : (
         e.disclosure &&
-        hasPermission(auth.roles, "contract.create") &&
-        ["MUTUALLY_APPROVED", "INTERVIEW", "CONDITIONS"].includes(e.status) && (
+        ["MUTUALLY_APPROVED", "INTERVIEW", "CONDITIONS"].includes(e.status) &&
+        (e.side === "DEMAND" && hasPermission(auth.roles, "contract.create") ? (
           <ContractCreateForm
             entryId={e.id}
             defaultRateYen={e.disclosure.engineerRateYen}
             defaultContractType={e.project.contractType}
           />
-        )
+        ) : (
+          <section className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
+            条件確認書は案件提供側（需要側企業）が作成します。
+          </section>
+        ))
       )}
 
       {/* 面談（§20.2: 双方承認後） */}

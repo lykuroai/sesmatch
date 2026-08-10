@@ -225,6 +225,10 @@ export async function createEntry(auth: AuthContext, input: CreateEntryInput) {
     if (engineer.status !== "PUBLISHED") return { error: { code: "NOT_FOUND" as const } };
   }
 
+  // 終了（クローズ）した案件はエントリー不可（進行状態は手動設定）
+  if (project.workflowStatus === "ENDED")
+    return { error: { code: "VALIDATION_ERROR" as const, message: "終了した案件にはエントリーできません" } };
+
   // 公開状態・本人同意（§19.1）
   if (engineer.status !== "PUBLISHED" || !hasValidConsent(engineer.consents))
     return {

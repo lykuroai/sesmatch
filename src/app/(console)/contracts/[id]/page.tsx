@@ -27,14 +27,14 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
   const mySigned = c.side === "DEMAND" ? c.demandSigned : c.supplySigned;
   const preExecuted = ["DRAFT", "SIGNED_SUPPLY", "SIGNED_DEMAND"].includes(c.status);
   const signable = canSign && !mySigned && preExecuted;
-  // 署名完了（成約）前は契約担当が内容を修正できる。修正すると既存署名は取り消される（§22）
-  const editable = hasPermission(auth.roles, "contract.create") && preExecuted;
+  // 署名完了（成約）前は案件提供側（需要側）の契約担当が内容を修正できる。修正すると既存署名は取り消される（§22）
+  const editable = c.side === "DEMAND" && hasPermission(auth.roles, "contract.create") && preExecuted;
 
   return (
     <div>
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold">個別契約 {c.projectCode} × {c.engineerCode}</h1>
+          <h1 className="text-2xl font-bold">条件確認書 {c.projectCode} × {c.engineerCode}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {CONTRACT_STATUS_LABELS[c.status]} ／ 自社の立場: {c.side === "DEMAND" ? "需要側（手数料負担 §23）" : "供給側"}
           </p>
