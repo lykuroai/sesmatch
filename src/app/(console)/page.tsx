@@ -12,7 +12,7 @@ export default async function DashboardPage() {
   const cards: { label: string; value: number | string; href?: string; warn?: boolean }[] = [
     { label: "公開中案件", value: kpi.publishedProjects, href: "/projects" },
     { label: "営業中人材", value: kpi.publishedEngineers, href: "/engineers" },
-    { label: "承認待ちエントリー", value: kpi.pendingApprovals, href: "/entries?box=received", warn: kpi.pendingApprovals > 0 },
+    { label: "承認待ちエントリー", value: kpi.pendingApprovals, href: "/entries?tab=pending", warn: kpi.pendingApprovals > 0 },
     { label: "面談予定", value: kpi.upcomingInterviews, href: "/entries" },
     { label: "稼働中人数", value: kpi.activeContracts, href: "/contracts" },
     { label: "今月手数料（税抜）", value: `${kpi.monthFeeYen.toLocaleString()}円`, href: "/billing" },

@@ -62,6 +62,13 @@ export function serializeEntry(
     demandApproved: e.demandApprovedAt != null,
     declinedReason: e.declinedReason,
     createdAt: e.createdAt,
+    updatedAt: e.updatedAt,
+    // 自社側の担当者: 自社起点のエントリーは申請者、他社起点は自社リソース（案件/人材）の登録者
+    responsibleMemberId:
+      e.createdByCompanyId === auth.companyId
+        ? e.createdByMemberId
+        : ((side === "DEMAND" ? e.project : e.engineer).createdByMemberId ??
+          (side === "DEMAND" ? e.project : e.engineer).updatedByMemberId),
     contract: e.contract ? { id: e.contract.id, status: e.contract.status } : null,
     project: serializeProject(e.project, auth),
     engineer: serializeEngineer(e.engineer, auth),
