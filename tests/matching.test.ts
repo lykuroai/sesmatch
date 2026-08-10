@@ -192,6 +192,45 @@ describe("スコアリング（§19.2）", () => {
   });
 });
 
+describe("必須スキルの工程・役割名指定", () => {
+  it("必須スキル「基本設計」は人材の工程欄でも充足と判定する", () => {
+    const failures = hardFilter(
+      baseProject({
+        requiredSkills: [
+          { name: "Java", minMonths: null },
+          { name: "基本設計", minMonths: null },
+        ],
+      }),
+      baseEngineer() // skills: Java/Spring Boot、processes: 基本設計, 開発
+    );
+    expect(failures).toEqual([]);
+  });
+
+  it("役割欄（PL等）でも充足と判定する", () => {
+    const failures = hardFilter(
+      baseProject({ requiredSkills: [{ name: "PL", minMonths: null }] }),
+      baseEngineer({ roles: ["PL"] })
+    );
+    expect(failures).toEqual([]);
+  });
+
+  it("工程での充足に経験月数条件が付いている場合は不足扱い", () => {
+    const failures = hardFilter(
+      baseProject({ requiredSkills: [{ name: "基本設計", minMonths: 24 }] }),
+      baseEngineer()
+    );
+    expect(failures.some((f) => f.includes("必須スキル経験不足: 基本設計"))).toBe(true);
+  });
+
+  it("スキル・工程・役割のいずれにも無ければ従来どおり不足", () => {
+    const failures = hardFilter(
+      baseProject({ requiredSkills: [{ name: "要件定義", minMonths: null }] }),
+      baseEngineer({ processes: ["開発"] })
+    );
+    expect(failures.some((f) => f.includes("必須スキル不足: 要件定義"))).toBe(true);
+  });
+});
+
 describe("通勤圏の参考警告（居住都道府県 × 勤務地都道府県）", () => {
   it("出社がある案件で都道府県が異なる場合は警告（足切りはしない）", () => {
     const r = score(

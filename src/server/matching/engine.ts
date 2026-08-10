@@ -55,6 +55,15 @@ function findSkill(engineer: EngineerForMatch, name: string) {
   return engineer.skills.find((s) => norm(s.name) === norm(name));
 }
 
+// 必須スキルに「基本設計」等の工程・役割名が指定されている場合は、
+// 人材の工程・役割欄でも充足と判定する（スキル欄のみを見ると工程名で誰ともマッチしなくなる）
+function hasProcessOrRole(engineer: EngineerForMatch, name: string) {
+  return (
+    engineer.processes.some((p) => norm(p) === norm(name)) ||
+    engineer.roles.some((r) => norm(r) === norm(name))
+  );
+}
+
 // ---- ハードフィルター（§19.1）----
 export function hardFilter(project: ProjectForMatch, engineer: EngineerForMatch): string[] {
   const failures: string[] = [];
@@ -64,12 +73,19 @@ export function hardFilter(project: ProjectForMatch, engineer: EngineerForMatch)
   if (!engineer.hasValidConsent) failures.push("有効な本人同意がない");
   if (project.status !== "PUBLISHED") failures.push("案件が公開状態でない");
 
-  // 必須スキル
+  // 必須スキル（工程・役割名の場合は工程・役割欄でも充足）
   for (const rs of project.requiredSkills) {
     const skill = findSkill(engineer, rs.name);
-    if (!skill) failures.push(`必須スキル不足: ${rs.name}`);
-    else if (rs.minMonths && skill.months < rs.minMonths)
-      failures.push(`必須スキル経験不足: ${rs.name}（${skill.months}ヶ月 < ${rs.minMonths}ヶ月）`);
+    if (skill) {
+      if (rs.minMonths && skill.months < rs.minMonths)
+        failures.push(`必須スキル経験不足: ${rs.name}（${skill.months}ヶ月 < ${rs.minMonths}ヶ月）`);
+    } else if (hasProcessOrRole(engineer, rs.name)) {
+      // 工程・役割での充足は経験月数を持たないため、月数条件付きの場合は不足扱い
+      if (rs.minMonths)
+        failures.push(`必須スキル経験不足: ${rs.name}（経験月数未登録 < ${rs.minMonths}ヶ月）`);
+    } else {
+      failures.push(`必須スキル不足: ${rs.name}`);
+    }
   }
 
   // 稼働開始日
@@ -120,10 +136,12 @@ export function score(project: ProjectForMatch, engineer: EngineerForMatch): Mat
   const warnings: string[] = [];
 
   // 必須スキル (30): 全て満たしていることが前提（ハードフィルター）。充足率で配点。
+  // 工程・役割名の必須指定は工程・役割欄でも充足（月数条件なしの場合のみ）
   const reqTotal = project.requiredSkills.length;
   const reqHit = project.requiredSkills.filter((rs) => {
     const s = findSkill(engineer, rs.name);
-    return s && (!rs.minMonths || s.months >= rs.minMonths);
+    if (s) return !rs.minMonths || s.months >= rs.minMonths;
+    return !rs.minMonths && hasProcessOrRole(engineer, rs.name);
   }).length;
   breakdown["必須スキル"] = reqTotal === 0 ? 30 : Math.round((reqHit / reqTotal) * 30);
   if (reqTotal > 0 && reqHit === reqTotal) matched.push("必須スキルを全て充足");
