@@ -19,7 +19,18 @@ export const engineerDraftSchema = z.object({
   maxOnsiteDaysPerWeek: z.number().int().min(0).max(5).nullable(),
   skills: z.array(
     z.object({
-      category: z.enum(["LANGUAGE", "FRAMEWORK", "DATABASE", "CLOUD", "OS", "TOOL", "CERTIFICATION"]),
+      // PROCESS/INDUSTRY は LLM の抽出対象ではないが、確認画面での人手入力を受け付ける
+      category: z.enum([
+        "LANGUAGE",
+        "FRAMEWORK",
+        "DATABASE",
+        "CLOUD",
+        "OS",
+        "TOOL",
+        "CERTIFICATION",
+        "PROCESS",
+        "INDUSTRY",
+      ]),
       name: z.string(),
       // 明記があればその値。明記がなければ経歴欄（プロジェクト期間×使用技術）から合算推定し
       // monthsEstimated=true とする。経歴からも判断できない場合のみ null

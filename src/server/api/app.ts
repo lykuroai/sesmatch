@@ -584,7 +584,17 @@ const engineerInputSchema = z.object({
   skills: z
     .array(
       z.object({
-        category: z.enum(["LANGUAGE", "FRAMEWORK", "DATABASE", "CLOUD", "OS", "TOOL", "CERTIFICATION"]),
+        category: z.enum([
+          "LANGUAGE",
+          "FRAMEWORK",
+          "DATABASE",
+          "CLOUD",
+          "OS",
+          "TOOL",
+          "CERTIFICATION",
+          "PROCESS",
+          "INDUSTRY",
+        ]),
         name: z.string(),
         months: z.number().int().min(0),
         lastUsedAt: z.string().optional(),
