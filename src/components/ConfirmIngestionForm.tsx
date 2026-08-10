@@ -3,7 +3,7 @@
 // 人手確認フォーム（§9.2: LLM抽出値を担当者が確認・修正してから確定DBへ反映）
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AFFILIATION_LABELS } from "@/lib/constants";
+import { AFFILIATION_LABELS, REMOTE_LEVEL_LABELS, remoteLevelFromOnsiteDays } from "@/lib/constants";
 
 const input = "w-full rounded border border-slate-300 px-2 py-1.5 text-sm";
 const label = "mb-1 block text-xs text-slate-500";
@@ -99,7 +99,8 @@ export function ConfirmIngestionForm({
         preferredSkills: list("preferredSkills"),
         summary: String(f.get("summary") ?? ""),
       };
-      body = { confirmed };
+      // 在宅区分は抽出JSONの外で送る（週出社日数と重複する導出項目のため）
+      body = { confirmed, remoteLevel: f.get("remoteLevel") };
     }
 
     const res = await fetch(`/api/v1/ingestions/${jobId}/confirm`, {
@@ -232,6 +233,18 @@ export function ConfirmIngestionForm({
         <div>
           <label className={label}>週出社日数</label>
           <input type="number" name="onsiteDaysPerWeek" min={0} max={5} defaultValue={d.onsiteDaysPerWeek ?? ""} className={input} />
+        </div>
+        <div>
+          <label className={label}>出社/在宅（週出社日数から自動設定）</label>
+          <select
+            name="remoteLevel"
+            className={input}
+            defaultValue={d.onsiteDaysPerWeek != null ? remoteLevelFromOnsiteDays(d.onsiteDaysPerWeek) : "R0"}
+          >
+            {Object.entries(REMOTE_LEVEL_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label className={label}>外国籍の受入</label>

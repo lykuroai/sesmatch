@@ -109,6 +109,7 @@ import {
 } from "@/server/services/operations-monitor";
 import { retryIngestion, startIngestion } from "@/server/pipeline/ingest";
 import { csvToCompanyRows, parseCsv } from "@/lib/csv";
+import { remoteLevelFromOnsiteDays } from "@/lib/constants";
 import { engineerDraftSchema, projectDraftSchema } from "@/server/pipeline/llm";
 
 type Env = { Variables: { auth: AuthContext } };
@@ -917,6 +918,9 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
     const parsed = projectDraftSchema.safeParse(confirmed);
     if (!parsed.success) return c.json(err("VALIDATION_ERROR", parsed.error.message), 400);
     const d = parsed.data;
+    // 在宅区分: 確認時の指定 > 週出社日数からの導出（両者は重複情報のため出社日数を正とする）
+    const REMOTE_LEVELS = ["R0", "R1", "R2", "R3", "R4", "R5"] as const;
+    const bodyRemote = REMOTE_LEVELS.find((r) => r === body?.remoteLevel);
     const result = await createProject(auth, {
       // 案件名が抽出できなかった場合はファイル名を使うが、拡張子（.txt 等）は付けない
       name: d.name ?? job.sourceDocument.filename.replace(/\.[^.]+$/, ""),
@@ -926,6 +930,9 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
       contractType: "準委任",
       rateMaxYen: d.rateMaxYen ?? 800_000,
       onsiteDaysPerWeek: d.onsiteDaysPerWeek ?? undefined,
+      remoteLevel:
+        bodyRemote ??
+        (d.onsiteDaysPerWeek != null ? remoteLevelFromOnsiteDays(d.onsiteDaysPerWeek) : undefined),
       noForeignNational: d.noForeignNational ?? false, // 記載なし（null）は可として登録し、確認画面・案件編集で修正する
       requiredSkills: d.requiredSkills.map((name) => ({ name })),
       preferredSkills: d.preferredSkills.map((name) => ({ name })),

@@ -155,6 +155,16 @@ export const PRIVACY_STATUS_LABELS: Record<string, string> = {
 };
 
 // 単価の公開帯: 10万円幅（§10 Level 1）
+// 週出社日数から在宅区分を導出（取込確定時の初期値。週出社日数と在宅区分は重複情報のため
+// 取込では出社日数を正とする。R5=完全遠隔は明示がある場合のみ確認画面で手動選択）
+export function remoteLevelFromOnsiteDays(days: number): "R0" | "R1" | "R2" | "R3" | "R4" {
+  if (days >= 5) return "R0";
+  if (days === 4) return "R1";
+  if (days >= 2) return "R2";
+  if (days === 1) return "R3";
+  return "R4";
+}
+
 export function rateBand(rateYen: number): string {
   const lower = Math.floor(rateYen / 100_000) * 10;
   return `${lower}〜${lower + 10}万円`;
