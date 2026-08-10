@@ -282,14 +282,14 @@ export default async function ProjectsPage({
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
-              <th className="px-4 py-3">案件ID</th>
-              <th className="px-4 py-3">掲載元</th>
+              <th className="whitespace-nowrap px-4 py-3">案件ID</th>
+              <th className="whitespace-nowrap px-4 py-3">掲載元</th>
               <th className="px-4 py-3">案件名</th>
-              <th className="px-4 py-3">開始日</th>
-              <th className="px-4 py-3">単価上限</th>
-              <th className="px-4 py-3">出社/在宅</th>
+              <th className="whitespace-nowrap px-4 py-3">開始日</th>
+              <th className="whitespace-nowrap px-4 py-3">単価上限</th>
+              <th className="whitespace-nowrap px-4 py-3">出社/在宅</th>
               <th className="px-4 py-3">必須スキル</th>
-              <th className="px-4 py-3">状態</th>
+              <th className="whitespace-nowrap px-4 py-3">状態</th>
             </tr>
           </thead>
           <tbody>
@@ -300,18 +300,18 @@ export default async function ProjectsPage({
                     {p.code}
                   </Link>
                 </td>
-                <td className="px-4 py-3">
+                <td className="whitespace-nowrap px-4 py-3">
                   <span className={`rounded px-1.5 py-0.5 text-xs ${p.own ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
                     {p.own ? "自社" : "他社"}
                   </span>
                 </td>
                 {/* 長い案件名は改行せず1行で省略表示（全文はツールチップ） */}
                 <td className="max-w-72 truncate px-4 py-3" title={p.name}>{p.name}</td>
-                <td className="px-4 py-3">{new Date(p.startDate).toLocaleDateString("ja-JP")}</td>
-                <td className="px-4 py-3">{(p.rateMaxYen / 10_000).toLocaleString()}万円</td>
-                <td className="px-4 py-3 text-xs">{REMOTE_LEVEL_LABELS[p.remoteLevel]}</td>
+                <td className="whitespace-nowrap px-4 py-3">{new Date(p.startDate).toLocaleDateString("ja-JP")}</td>
+                <td className="whitespace-nowrap px-4 py-3">{(p.rateMaxYen / 10_000).toLocaleString()}万円</td>
+                <td className="whitespace-nowrap px-4 py-3 text-xs">{REMOTE_LEVEL_LABELS[p.remoteLevel]}</td>
                 <td className="px-4 py-3 text-xs">{p.requiredSkills.map((s) => s.name).join(", ")}</td>
-                <td className="px-4 py-3">
+                <td className="whitespace-nowrap px-4 py-3">
                   {p.own && p.status !== "PUBLISHED" && (
                     <span className="mr-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">
                       {PUBLISH_STATUS_LABELS[p.status]}
