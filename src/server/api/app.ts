@@ -47,6 +47,7 @@ import {
   createEntry,
   declineEntry,
   getEntry,
+  getEntrySkillSheetFile,
   listEntries,
   moveToConditions,
   scheduleInterview,
@@ -994,6 +995,18 @@ app.get("/entries/:id", requirePermission("entry.read"), async (c) => {
   const entry = await getEntry(c.get("auth"), c.req.param("id"));
   if (!entry) return c.json(err("NOT_FOUND"), 404);
   return c.json(entry);
+});
+
+// Level 2 開示後の職務経歴書ダウンロード（エントリー当事者のみ・双方承認後のみ）
+app.get("/entries/:id/skill-sheet", requirePermission("entry.read"), async (c) => {
+  const file = await getEntrySkillSheetFile(c.get("auth"), c.req.param("id"));
+  if (!file) return c.json(err("NOT_FOUND"), 404);
+  return new Response(new Uint8Array(file.content), {
+    headers: {
+      "Content-Type": file.mimeType,
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+    },
+  });
 });
 
 app.post("/entries/:id/approvals", requirePermission("entry.approve"), async (c) => {

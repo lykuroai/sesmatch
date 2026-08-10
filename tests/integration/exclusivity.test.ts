@@ -13,7 +13,8 @@ import {
   publishProject,
   setProjectWorkflowStatus,
 } from "@/server/services/projects";
-import { approveEntry, createEntry } from "@/server/services/entries";
+import { approveEntry, createEntry, getEntry, getEntrySkillSheetFile } from "@/server/services/entries";
+import { prisma } from "@/server/db";
 import { createContract, signContract } from "@/server/services/contracts";
 import { futureDate, iso, makeCompany, truncateAll } from "./helpers";
 import type { AuthContext } from "@/server/auth/session";
@@ -159,6 +160,38 @@ describe("1案件は複数人材と成約できる", () => {
       endDate: "2027-02-28",
     });
     expect(contract2).toBeTruthy();
+  });
+});
+
+describe("Level 2 開示後の原文・添付ファイル開示", () => {
+  it("双方承認前は原文を開示せず、承認後は匿名化済み原文が相互に見える", async () => {
+    const demand = await makeCompany("需要側企業");
+    const supply = await makeCompany("供給側企業");
+    const project = await makeProject(demand, "原文つき案件");
+    const engineer = await makeEngineer(supply, "テスト 太郎");
+    await prisma.project.update({ where: { id: project.id }, data: { maskedSourceText: "案件の匿名化済み原文" } });
+    await prisma.engineer.update({ where: { id: engineer.id }, data: { maskedSourceText: "人材の匿名化済み原文" } });
+
+    const created = await createEntry(supply, { type: "PROPOSAL", projectId: project.id, engineerId: engineer.id });
+    if (created.error) throw new Error(created.error.code);
+    const entryId = created.entry!.id;
+
+    // 片側承認のみ: 開示なし（原文・添付も取得不可）
+    const before = await getEntry(demand, entryId);
+    expect(before!.disclosure).toBeNull();
+    expect(await getEntrySkillSheetFile(demand, entryId)).toBeNull();
+
+    const approved = await approveEntry(demand, entryId);
+    if (approved.error) throw new Error(approved.error.code);
+
+    // 双方承認後: 相手側（需要側）からも人材原文が見える
+    const after = await getEntry(demand, entryId);
+    expect(after!.disclosure?.projectSourceText).toBe("案件の匿名化済み原文");
+    expect(after!.disclosure?.engineerSourceText).toBe("人材の匿名化済み原文");
+
+    // 当事者以外は取得不可（テナント分離）
+    const other = await makeCompany("第三者企業");
+    expect(await getEntrySkillSheetFile(other, entryId)).toBeNull();
   });
 });
 

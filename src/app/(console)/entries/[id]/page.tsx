@@ -94,6 +94,44 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
           <p className="mt-2 text-xs text-emerald-700">
             開示日時: {new Date(e.disclosure.disclosedAt).toLocaleString("ja-JP")}
           </p>
+
+          {/* 双方承認後は取込時の匿名化済み原文と添付ファイルを相互開示する */}
+          {(e.disclosure.projectSourceText || e.disclosure.engineerSourceText || e.disclosure.skillSheetFilename) && (
+            <div className="mt-4 space-y-2 border-t border-emerald-200 pt-3">
+              {e.disclosure.projectSourceText && (
+                <details className="rounded border border-emerald-200 bg-white">
+                  <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-emerald-900">
+                    案件原文（匿名化済み）
+                  </summary>
+                  <pre className="max-h-96 overflow-auto whitespace-pre-wrap border-t border-emerald-100 px-3 py-2 text-xs text-slate-700">
+                    {e.disclosure.projectSourceText}
+                  </pre>
+                </details>
+              )}
+              {e.disclosure.engineerSourceText && (
+                <details className="rounded border border-emerald-200 bg-white">
+                  <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-emerald-900">
+                    人材原文（匿名化済み）
+                  </summary>
+                  <pre className="max-h-96 overflow-auto whitespace-pre-wrap border-t border-emerald-100 px-3 py-2 text-xs text-slate-700">
+                    {e.disclosure.engineerSourceText}
+                  </pre>
+                </details>
+              )}
+              {e.disclosure.skillSheetFilename && (
+                <p className="text-sm">
+                  添付ファイル:{" "}
+                  <a
+                    href={`/api/v1/entries/${e.id}/skill-sheet`}
+                    className="font-medium text-emerald-800 underline hover:text-emerald-600"
+                  >
+                    {e.disclosure.skillSheetFilename}
+                  </a>
+                  <span className="ml-2 text-xs text-emerald-700">（職務経歴書の原本をダウンロード）</span>
+                </p>
+              )}
+            </div>
+          )}
         </section>
       ) : (
         <section className="mb-6 rounded-xl border border-slate-200 bg-slate-100 p-4 text-sm text-slate-600">

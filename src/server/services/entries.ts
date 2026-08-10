@@ -1,5 +1,6 @@
 // エントリー・双方承認・段階開示・メッセージ・面談（§20, §21）
 
+import { readFile } from "fs/promises";
 import { Prisma, RoleCode } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
@@ -22,7 +23,7 @@ import { serializeProject } from "./projects";
 
 const ENTRY_INCLUDE = {
   project: { include: { skills: true } },
-  engineer: { include: { skills: true, consents: true } },
+  engineer: { include: { skills: true, consents: true, skillSheetDocument: { select: { filename: true } } } },
   messages: { orderBy: { createdAt: "asc" as const } },
   interviews: { orderBy: { scheduledAt: "asc" as const } },
   disclosure: true,
@@ -82,6 +83,10 @@ export function serializeEntry(
           supplyCompanyName:
             companyNames?.get(e.supplyCompanyId) ?? payload?.supplyCompanyName,
           disclosedAt: e.disclosure!.createdAt,
+          // 双方承認後は取込時の匿名化済み原文と添付ファイル名を相互開示する
+          projectSourceText: e.project.maskedSourceText,
+          engineerSourceText: e.engineer.maskedSourceText,
+          skillSheetFilename: e.engineer.skillSheetDocument?.filename ?? null,
         }
       : null,
     counterpartCompanyName: disclosed
@@ -194,6 +199,30 @@ ${appBaseUrl()}/entries/${entry.id}`,
   } catch (e) {
     console.error(`[mail] エントリー受信通知の送信に失敗 entryId=${entry.id}`, e);
   }
+}
+
+// Level 2 開示後の添付ファイル（職務経歴書原本）取得: エントリー当事者のみ、
+// 双方承認（Disclosure 作成）後のみ。片側承認のみでの開示は禁止（§20.3）
+export async function getEntrySkillSheetFile(auth: AuthContext, entryId: string) {
+  const e = await prisma.entry.findUnique({
+    where: { id: entryId },
+    include: { disclosure: true, engineer: { include: { skillSheetDocument: true } } },
+  });
+  if (!e || !sideOf(e, auth.companyId)) return null; // 当事者以外は 404 相当（§29）
+  if (!e.disclosure) return null;
+  const doc = e.engineer.skillSheetDocument;
+  if (!doc) return null;
+  const content = await readFile(doc.storagePath).catch(() => null);
+  if (!content) return null;
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "SkillSheetDownloaded",
+    targetType: "Entry",
+    targetId: e.id,
+    metadata: { engineerId: e.engineerId },
+  });
+  return { filename: doc.filename, mimeType: doc.mimeType, content };
 }
 
 export type CreateEntryInput = {
