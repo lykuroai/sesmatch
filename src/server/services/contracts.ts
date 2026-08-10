@@ -3,7 +3,7 @@
 import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
-import { decideFee, isWithinRefundWindow } from "@/server/billing/fee";
+import { decideFee, isNewCompanyFreeMonth, isWithinRefundWindow } from "@/server/billing/fee";
 import { DISPATCH_CONTRACT_TYPE } from "@/lib/constants";
 import { Prisma } from "@prisma/client";
 import type { Contract, PlatformFee, WorkMonth } from "@prisma/client";
@@ -15,6 +15,15 @@ function sideOfContract(c: { demandCompanyId: string; supplyCompanyId: string },
   if (c.demandCompanyId === companyId) return "DEMAND" as const;
   if (c.supplyCompanyId === companyId) return "SUPPLY" as const;
   return null;
+}
+
+// 新規企業30日間無料の起点日（需要側企業の承認日時。バックフィル前の既存データは登録日時）
+async function demandCompanyApprovedAt(demandCompanyId: string): Promise<Date> {
+  const company = await prisma.company.findUniqueOrThrow({
+    where: { id: demandCompanyId },
+    select: { approvedAt: true, createdAt: true },
+  });
+  return company.approvedAt ?? company.createdAt;
 }
 
 // 1人材は同一期間に1件のみ成約できる: 同一人材で契約期間が重複する成約済み
@@ -124,6 +133,7 @@ export async function ensureWorkMonths(c: Contract) {
     select: { month: true },
   });
   const have = new Set(existing.map((w) => w.month));
+  const approvedAt = await demandCompanyApprovedAt(c.demandCompanyId);
   for (const month of months.filter((m) => !have.has(m))) {
     try {
       await prisma.$transaction(async (tx) => {
@@ -139,7 +149,7 @@ export async function ensureWorkMonths(c: Contract) {
             status: "CHARGED",
           },
         });
-        const decision = decideFee(c.monthlyRateYen, priorCharged);
+        const decision = decideFee(c.monthlyRateYen, priorCharged, isNewCompanyFreeMonth(month, approvedAt));
         await tx.platformFee.create({
           data: {
             workMonthId: wm.id,
@@ -646,6 +656,7 @@ export async function confirmWorkMonth(
   if (!/^\d{4}-\d{2}$/.test(input.month))
     return { error: { code: "VALIDATION_ERROR" as const, message: "対象月は YYYY-MM 形式で指定してください" } };
 
+  const approvedAt = await demandCompanyApprovedAt(c.demandCompanyId);
   try {
     const result = await prisma.$transaction(async (tx) => {
       const wm = await tx.workMonth.create({
@@ -665,7 +676,7 @@ export async function confirmWorkMonth(
           status: "CHARGED",
         },
       });
-      const decision = decideFee(input.amountYen, priorCharged);
+      const decision = decideFee(input.amountYen, priorCharged, isNewCompanyFreeMonth(input.month, approvedAt));
       const fee = await tx.platformFee.create({
         data: {
           workMonthId: wm.id,

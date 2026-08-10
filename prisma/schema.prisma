@@ -31,6 +31,7 @@ model Company {
   corporateNumber String?
   address         String? // 企業所在地（重複判定・審査に使用）
   status          CompanyStatus @default(APPLIED)
+  approvedAt      DateTime? // 運営承認（利用開始）日時。新規企業30日間手数料無料の起点
   // 労働者派遣事業の許可情報（基本契約第4条）。労働者派遣契約の案件へ提案する供給側企業に必須
   dispatchLicenseNumber String? // 労働者派遣事業許可番号（例: 派13-123456）
   dispatchLicenseExpiry DateTime? // 許可有効期限

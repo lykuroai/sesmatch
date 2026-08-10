@@ -48,11 +48,18 @@ export async function truncateAll() {
 
 let seq = 0;
 
-// 企業 + オーナーアカウントを作成し、指定ロールの AuthContext を返す
+// 企業 + オーナーアカウントを作成し、指定ロールの AuthContext を返す。
+// 承認日は90日前に設定する（新規企業30日間無料の対象外にし、手数料テストの前提を保つ。
+// 無料期間のテストでは approvedAt を明示的に更新すること）
 export async function makeCompany(name: string, roles: string[] = ["OWNER"]): Promise<AuthContext> {
   seq++;
   const company = await prisma.company.create({
-    data: { name, companyType: "CORPORATION", status: "ACTIVE" },
+    data: {
+      name,
+      companyType: "CORPORATION",
+      status: "ACTIVE",
+      approvedAt: new Date(Date.now() - 90 * 86_400_000),
+    },
   });
   const account = await prisma.userAccount.create({
     data: { email: `user${seq}-${Date.now()}@test.example`, passwordHash: "x", name: `担当者${seq}` },

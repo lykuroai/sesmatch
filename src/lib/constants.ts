@@ -142,7 +142,7 @@ export const CONTRACT_STATUS_LABELS: Record<string, string> = {
 
 export const FEE_STATUS_LABELS: Record<string, string> = {
   CHARGED: "課金",
-  FREE: "無料（13稼働月目以降）",
+  FREE: "無料", // 13稼働月目以降 または 新規企業30日間
   REFUNDED: "返金済み", // 旧仕様（未使用）
   CANCELLED: "キャンセル", // 稼働開始後14日以内の契約終了（手数料0円）
 };

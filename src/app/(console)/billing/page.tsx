@@ -34,6 +34,7 @@ export default async function BillingPage() {
       <h1 className="mb-2 text-2xl font-bold">成約手数料</h1>
       <p className="mb-6 text-sm text-slate-500">
         需要側企業として負担する手数料の一覧です。料率3%・最大12稼働月・13稼働月目以降無料（§23）。
+        新規企業は利用開始（承認）から30日間無料です（無料月は12稼働月の課金枠を消費しません）。
         明細の消費税は確認用で、正式な税額は請求書単位で月計に対して算出します。
       </p>
 

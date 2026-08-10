@@ -183,7 +183,11 @@ export async function approveCompany(companyId: string, initialPassword?: string
     include: { userAccount: true },
   });
   const pending = members.filter((m) => m.userAccount.passwordHash === "");
-  await prisma.company.update({ where: { id: companyId }, data: { status: "ACTIVE" } });
+  // approvedAt は新規企業30日間手数料無料の起点（§23 キャンペーン）
+  await prisma.company.update({
+    where: { id: companyId },
+    data: { status: "ACTIVE", approvedAt: new Date() },
+  });
   await audit({
     tenantCompanyId: companyId,
     action: "CompanyApproved",

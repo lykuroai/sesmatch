@@ -4,6 +4,7 @@ import {
   calcFeeExTax,
   calcTax,
   decideFee,
+  isNewCompanyFreeMonth,
   isWithinRefundWindow,
   MAX_CHARGEABLE_MONTHS,
 } from "@/server/billing/fee";
@@ -63,5 +64,33 @@ describe("calcTax", () => {
   it("10%切り捨て（暫定 §36）", () => {
     expect(calcTax(21_000)).toBe(2_100);
     expect(calcTax(19_999)).toBe(1_999);
+  });
+});
+
+describe("新規企業30日間無料", () => {
+  const approvedAt = new Date("2026-08-10T00:00:00Z");
+
+  it("承認月と、月初が承認+30日以内の翌月は無料", () => {
+    expect(isNewCompanyFreeMonth("2026-08", approvedAt)).toBe(true); // 承認月（月初は承認前でも無料）
+    expect(isNewCompanyFreeMonth("2026-09", approvedAt)).toBe(true); // 9/1 は 9/9 以前
+  });
+
+  it("月初が承認+30日を超える月は課金", () => {
+    expect(isNewCompanyFreeMonth("2026-10", approvedAt)).toBe(false);
+    expect(isNewCompanyFreeMonth("2027-08", approvedAt)).toBe(false);
+  });
+
+  it("無料期間中は decideFee が FREE・0円を返す", () => {
+    const d = decideFee(700_000, 0, true);
+    expect(d.status).toBe("FREE");
+    expect(d.feeExTaxYen).toBe(0);
+    expect(d.chargeableMonthIndex).toBe(1);
+  });
+
+  it("無料月は課金枠を消費しない（priorCharged が増えないため12か月上限に影響しない）", () => {
+    // 無料月の後の課金月: priorCharged はそのまま
+    const d = decideFee(700_000, 0, false);
+    expect(d.status).toBe("CHARGED");
+    expect(d.feeExTaxYen).toBe(21_000);
   });
 });
