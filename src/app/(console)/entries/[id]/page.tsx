@@ -85,23 +85,24 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      {/* Level 2 開示パネル（§10, §20.3: 双方承認後のみ） */}
+      {/* Level 2 開示パネル（§10, §20.3: 双方承認後のみ）: 案件側・人材側の2カラムに整理 */}
       {e.disclosure ? (
         <section className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-          <h2 className="mb-2 font-bold text-emerald-800">Level 2 開示情報（双方承認済み）</h2>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
-            <p>案件保有企業: <span className="font-medium">{e.disclosure.demandCompanyName}</span></p>
-            <p>人材所属企業: <span className="font-medium">{e.disclosure.supplyCompanyName}</span></p>
-            <p>人材氏名: <span className="font-medium">{e.disclosure.engineerName}</span></p>
-            <p>希望単価（実額）: <span className="font-medium">{e.disclosure.engineerRateYen?.toLocaleString()}円/月</span></p>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-bold text-emerald-800">Level 2 開示情報（双方承認済み）</h2>
+            <span className="text-xs text-emerald-700">
+              開示日時: {new Date(e.disclosure.disclosedAt).toLocaleString("ja-JP")}
+            </span>
           </div>
-          <p className="mt-2 text-xs text-emerald-700">
-            開示日時: {new Date(e.disclosure.disclosedAt).toLocaleString("ja-JP")}
-          </p>
-
-          {/* 双方承認後は取込時の匿名化済み原文と添付ファイルを相互開示する */}
-          {(e.disclosure.projectSourceText || e.disclosure.engineerSourceText || e.disclosure.skillSheetFilename) && (
-            <div className="mt-4 space-y-2 border-t border-emerald-200 pt-3">
+          <div className="grid grid-cols-2 gap-6">
+            {/* 案件側 */}
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-emerald-700">案件</h3>
+              <p className="text-sm">
+                案件保有企業:{" "}
+                {/* 自社側の企業名は「自社」と表示（相手企業名のみ実名） */}
+                <span className="font-medium">{e.side === "DEMAND" ? "自社" : e.disclosure.demandCompanyName}</span>
+              </p>
               {e.disclosure.projectSourceText && (
                 <details className="rounded border border-emerald-200 bg-white">
                   <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-emerald-900">
@@ -112,6 +113,20 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
                   </pre>
                 </details>
               )}
+            </div>
+            {/* 人材側 */}
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-emerald-700">人材</h3>
+              <p className="text-sm">
+                人材所属企業:{" "}
+                <span className="font-medium">{e.side === "SUPPLY" ? "自社" : e.disclosure.supplyCompanyName}</span>
+              </p>
+              <p className="text-sm">
+                人材氏名: <span className="font-medium">{e.disclosure.engineerName}</span>
+                <span className="ml-4">
+                  希望単価（実額）: <span className="font-medium">{e.disclosure.engineerRateYen?.toLocaleString()}円/月</span>
+                </span>
+              </p>
               {e.disclosure.engineerSourceText && (
                 <details className="rounded border border-emerald-200 bg-white">
                   <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-emerald-900">
@@ -131,11 +146,10 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
                   >
                     {e.disclosure.skillSheetFilename}
                   </a>
-                  <span className="ml-2 text-xs text-emerald-700">（職務経歴書の原本をダウンロード）</span>
                 </p>
               )}
             </div>
-          )}
+          </div>
         </section>
       ) : (
         <section className="mb-6 rounded-xl border border-slate-200 bg-slate-100 p-4 text-sm text-slate-600">
