@@ -305,7 +305,8 @@ export default async function ProjectsPage({
                     {p.own ? "自社" : "他社"}
                   </span>
                 </td>
-                <td className="px-4 py-3">{p.name}</td>
+                {/* 長い案件名は改行せず1行で省略表示（全文はツールチップ） */}
+                <td className="max-w-72 truncate px-4 py-3" title={p.name}>{p.name}</td>
                 <td className="px-4 py-3">{new Date(p.startDate).toLocaleDateString("ja-JP")}</td>
                 <td className="px-4 py-3">{(p.rateMaxYen / 10_000).toLocaleString()}万円</td>
                 <td className="px-4 py-3 text-xs">{REMOTE_LEVEL_LABELS[p.remoteLevel]}</td>
