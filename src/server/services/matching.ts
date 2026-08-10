@@ -99,6 +99,28 @@ export async function matchProjectToEngineers(auth: AuthContext, projectId: stri
   return { project: serializeProject(project, auth), results };
 }
 
+// 案件検索の「対象人材」フィルター用: 指定した自社人材がハードフィルターを通過する
+// 案件IDの集合を返す（検索のたびに呼ばれるため、結果の保存・監査記録は行わない）
+export async function passingProjectIdsForEngineer(
+  auth: AuthContext,
+  engineerId: string
+): Promise<Set<string> | null> {
+  const engineer = await prisma.engineer.findFirst({
+    where: { id: engineerId, tenantCompanyId: auth.companyId, deletedAt: null },
+    include: { skills: true, consents: true },
+  });
+  if (!engineer) return null;
+  const projects = await prisma.project.findMany({
+    where: { OR: [{ status: "PUBLISHED" }, { tenantCompanyId: auth.companyId }] },
+    include: { skills: true },
+  });
+  // 自社人材は公開前でも計算対象（matchEngineerToProjects と同じ扱い）
+  const em = { ...toEngineerForMatch(engineer), status: "PUBLISHED" };
+  return new Set(
+    projects.filter((p) => score(toProjectForMatch(p), em).passed).map((p) => p.id)
+  );
+}
+
 // 人材→案件（自社人材に合う案件を全公開案件から探す）
 export async function matchEngineerToProjects(auth: AuthContext, engineerId: string) {
   const engineer = await prisma.engineer.findFirst({
