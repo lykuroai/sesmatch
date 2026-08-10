@@ -109,7 +109,7 @@ import {
 } from "@/server/services/operations-monitor";
 import { retryIngestion, startIngestion } from "@/server/pipeline/ingest";
 import { csvToCompanyRows, parseCsv } from "@/lib/csv";
-import { remoteLevelFromOnsiteDays } from "@/lib/constants";
+import { remoteLevelFromOnsiteDays, remoteLevelToOnsiteDays } from "@/lib/constants";
 import { engineerDraftSchema, projectDraftSchema } from "@/server/pipeline/llm";
 
 type Env = { Variables: { auth: AuthContext } };
@@ -888,6 +888,7 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
   const body = await c.req.json().catch(() => ({}));
   const confirmed = body?.confirmed ?? job.extraction.extractedJson;
 
+  const REMOTE_LEVELS = ["R0", "R1", "R2", "R3", "R4", "R5"] as const;
   let createdId: string | null = null;
   if (job.sourceDocument.kind === "ENGINEER_SHEET") {
     const parsed = engineerDraftSchema.safeParse(confirmed);
@@ -896,6 +897,8 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
     // 所属区分: 確認時の指定 > LLM抽出値 > 自社所属（既定）
     const AFFILIATION_TYPES = ["EMPLOYEE", "AFFILIATED", "FREELANCER", "SUBTIER1"] as const;
     const bodyAffiliation = AFFILIATION_TYPES.find((t) => t === body?.affiliationType);
+    // 許容出社条件: 確認時の指定 > 抽出値の最大出社日数からの導出。週最大出社日数は連動
+    const bodyRemotePref = REMOTE_LEVELS.find((r) => r === body?.remotePreference);
     const result = await createEngineer(auth, {
       // 氏名は匿名化済み抽出値に含まれないため、確認画面で担当者が入力する
       name: typeof body?.name === "string" && body.name ? body.name : "（未入力）",
@@ -905,7 +908,14 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
       residenceCity: d.residenceCity ?? undefined,
       availableFrom: d.availableFrom ?? undefined,
       desiredRateYen: d.desiredRateYen ?? 600_000,
-      maxOnsiteDaysPerWeek: d.maxOnsiteDaysPerWeek ?? undefined,
+      maxOnsiteDaysPerWeek: bodyRemotePref
+        ? remoteLevelToOnsiteDays(bodyRemotePref)
+        : (d.maxOnsiteDaysPerWeek ?? undefined),
+      remotePreference:
+        bodyRemotePref ??
+        (d.maxOnsiteDaysPerWeek != null
+          ? remoteLevelFromOnsiteDays(d.maxOnsiteDaysPerWeek)
+          : undefined),
       summary: d.summary,
       processes: d.processes,
       roles: d.roles,
@@ -919,7 +929,6 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
     if (!parsed.success) return c.json(err("VALIDATION_ERROR", parsed.error.message), 400);
     const d = parsed.data;
     // 在宅区分: 確認時の指定 > 週出社日数からの導出（両者は重複情報のため出社日数を正とする）
-    const REMOTE_LEVELS = ["R0", "R1", "R2", "R3", "R4", "R5"] as const;
     const bodyRemote = REMOTE_LEVELS.find((r) => r === body?.remoteLevel);
     const result = await createProject(auth, {
       // 案件名が抽出できなかった場合はファイル名を使うが、拡張子（.txt 等）は付けない
@@ -929,7 +938,11 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
       // 取込確定時は準委任として登録し、労働者派遣等は案件編集で設定する（派遣の必須項目は取込値に含まれないため）
       contractType: "準委任",
       rateMaxYen: d.rateMaxYen ?? 800_000,
-      onsiteDaysPerWeek: d.onsiteDaysPerWeek ?? undefined,
+      // 週出社日数は在宅区分と連動: 確認画面で在宅区分が指定されればそこから導出、
+      // なければ抽出値の日数（在宅区分もそこから導出）を使う
+      onsiteDaysPerWeek: bodyRemote
+        ? remoteLevelToOnsiteDays(bodyRemote)
+        : (d.onsiteDaysPerWeek ?? undefined),
       remoteLevel:
         bodyRemote ??
         (d.onsiteDaysPerWeek != null ? remoteLevelFromOnsiteDays(d.onsiteDaysPerWeek) : undefined),

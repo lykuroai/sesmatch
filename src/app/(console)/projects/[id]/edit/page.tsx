@@ -30,7 +30,6 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
             : null,
           dispatchDemandManager: p.dispatchDemandManager,
           dispatchProhibitedConfirmed: p.dispatchProhibitedConfirmed,
-          onsiteDaysPerWeek: p.onsiteDaysPerWeek,
           remoteLevel: p.remoteLevel,
           rateMaxMan: Math.round(p.rateMaxYen / 10_000),
           requiredSkills: p.requiredSkills.map((s) => s.name),

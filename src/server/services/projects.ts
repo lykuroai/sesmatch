@@ -1,7 +1,12 @@
 import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
-import { DISPATCH_CONTRACT_TYPE, LIST_PAGE_SIZE, type ProjectContractType } from "@/lib/constants";
+import {
+  DISPATCH_CONTRACT_TYPE,
+  LIST_PAGE_SIZE,
+  remoteLevelToOnsiteDays,
+  type ProjectContractType,
+} from "@/lib/constants";
 import type { Project, ProjectSkill } from "@prisma/client";
 
 type ProjectWithRels = Project & { skills: ProjectSkill[] };
@@ -173,7 +178,9 @@ export async function createProject(auth: AuthContext, input: ProjectInput) {
       longTerm: input.longTerm ?? false,
       locationCity: input.locationCity,
       nearestStation: input.nearestStation,
-      onsiteDaysPerWeek: input.onsiteDaysPerWeek ?? 5,
+      // 週出社日数は在宅区分と連動（未指定時は在宅区分から導出。両方未指定は常駐=週5）
+      onsiteDaysPerWeek:
+        input.onsiteDaysPerWeek ?? remoteLevelToOnsiteDays(input.remoteLevel ?? "R0"),
       remoteLevel: input.remoteLevel ?? "R0",
       rateMinYen: input.rateMinYen,
       rateMaxYen: input.rateMaxYen,
@@ -228,7 +235,9 @@ export async function updateProject(auth: AuthContext, projectId: string, input:
         longTerm: input.longTerm ?? false,
         locationCity: input.locationCity ?? null,
         nearestStation: input.nearestStation ?? null,
-        onsiteDaysPerWeek: input.onsiteDaysPerWeek ?? 5,
+        // 週出社日数は在宅区分と連動（未指定時は在宅区分から導出）
+        onsiteDaysPerWeek:
+          input.onsiteDaysPerWeek ?? remoteLevelToOnsiteDays(input.remoteLevel ?? "R0"),
         remoteLevel: input.remoteLevel ?? "R0",
         rateMinYen: input.rateMinYen ?? null,
         rateMaxYen: input.rateMaxYen,

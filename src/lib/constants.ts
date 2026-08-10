@@ -165,6 +165,23 @@ export function remoteLevelFromOnsiteDays(days: number): "R0" | "R1" | "R2" | "R
   return "R4";
 }
 
+// 在宅区分から週出社日数を導出。画面入力は在宅区分に一本化し、日数は連動して保存する
+// （マッチングのハードフィルターは日数比較のため、幅のある区分は上限日数を採用）
+export function remoteLevelToOnsiteDays(level: string): number {
+  switch (level) {
+    case "R0":
+      return 5;
+    case "R1":
+      return 4;
+    case "R2":
+      return 3; // 週2〜3出社 → 上限3日
+    case "R3":
+      return 1; // 週1以下 → 1日
+    default:
+      return 0; // R4/R5（フルリモート・完全遠隔）
+  }
+}
+
 export function rateBand(rateYen: number): string {
   const lower = Math.floor(rateYen / 100_000) * 10;
   return `${lower}〜${lower + 10}万円`;

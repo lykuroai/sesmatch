@@ -3,7 +3,12 @@
 // 人手確認フォーム（§9.2: LLM抽出値を担当者が確認・修正してから確定DBへ反映）
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AFFILIATION_LABELS, REMOTE_LEVEL_LABELS, remoteLevelFromOnsiteDays } from "@/lib/constants";
+import {
+  AFFILIATION_LABELS,
+  remoteLevelFromOnsiteDays,
+  remoteLevelToOnsiteDays,
+} from "@/lib/constants";
+import { RemoteLevelSelect } from "./RemoteLevelSelect";
 
 const input = "w-full rounded border border-slate-300 px-2 py-1.5 text-sm";
 const label = "mb-1 block text-xs text-slate-500";
@@ -79,21 +84,23 @@ export function ConfirmIngestionForm({
         residenceCity: String(f.get("residenceCity") ?? "").trim() || null,
         availableFrom: String(f.get("availableFrom") ?? "").trim() || null,
         desiredRateYen: num("desiredRateYen"),
-        maxOnsiteDaysPerWeek: num("maxOnsiteDaysPerWeek"),
+        // 週最大出社日数は許容出社条件から自動導出（画面入力は許容出社条件に一本化）
+        maxOnsiteDaysPerWeek: remoteLevelToOnsiteDays(String(f.get("remotePreference"))),
         skills,
         processes: list("processes"),
         roles: list("roles"),
         industries: list("industries"),
         summary: String(f.get("summary") ?? ""),
       };
-      body = { name: f.get("name"), confirmed };
+      body = { name: f.get("name"), confirmed, remotePreference: f.get("remotePreference") };
     } else {
       const confirmed: ProjectDraft = {
         kind: "PROJECT_DESCRIPTION",
         name: String(f.get("name") ?? "").trim() || null,
         startDate: String(f.get("startDate") ?? "").trim() || null,
         rateMaxYen: num("rateMaxYen"),
-        onsiteDaysPerWeek: num("onsiteDaysPerWeek"),
+        // 週出社日数は在宅区分から自動導出（画面入力は在宅区分に一本化）
+        onsiteDaysPerWeek: remoteLevelToOnsiteDays(String(f.get("remoteLevel"))),
         noForeignNational: String(f.get("noForeignNational")) === "true",
         requiredSkills: list("requiredSkills"),
         preferredSkills: list("preferredSkills"),
@@ -161,8 +168,13 @@ export function ConfirmIngestionForm({
             <input type="number" name="desiredRateYen" defaultValue={d.desiredRateYen ?? ""} className={input} />
           </div>
           <div>
-            <label className={label}>最大出社日数/週</label>
-            <input type="number" name="maxOnsiteDaysPerWeek" min={0} max={5} defaultValue={d.maxOnsiteDaysPerWeek ?? ""} className={input} />
+            <label className={label}>許容出社条件（原文の出社日数から自動判定）</label>
+            <RemoteLevelSelect
+              name="remotePreference"
+              initial={d.maxOnsiteDaysPerWeek != null ? remoteLevelFromOnsiteDays(d.maxOnsiteDaysPerWeek) : "R0"}
+              daysLabel="週最大出社日数"
+              className={input}
+            />
           </div>
           <div className="col-span-2">
             <label className={label}>工程（カンマ区切り）</label>
@@ -231,20 +243,13 @@ export function ConfirmIngestionForm({
           <input type="number" name="rateMaxYen" defaultValue={d.rateMaxYen ?? ""} className={input} />
         </div>
         <div>
-          <label className={label}>週出社日数</label>
-          <input type="number" name="onsiteDaysPerWeek" min={0} max={5} defaultValue={d.onsiteDaysPerWeek ?? ""} className={input} />
-        </div>
-        <div>
-          <label className={label}>出社/在宅（週出社日数から自動設定）</label>
-          <select
+          <label className={label}>出社/在宅（原文の週出社日数から自動判定）</label>
+          <RemoteLevelSelect
             name="remoteLevel"
+            initial={d.onsiteDaysPerWeek != null ? remoteLevelFromOnsiteDays(d.onsiteDaysPerWeek) : "R0"}
+            daysLabel="週出社日数"
             className={input}
-            defaultValue={d.onsiteDaysPerWeek != null ? remoteLevelFromOnsiteDays(d.onsiteDaysPerWeek) : "R0"}
-          >
-            {Object.entries(REMOTE_LEVEL_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
+          />
         </div>
         <div>
           <label className={label}>外国籍の受入</label>

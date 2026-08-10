@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { RemoteLevelSelect } from "./RemoteLevelSelect";
 import { useRouter } from "next/navigation";
-import { AFFILIATION_LABELS, REMOTE_LEVEL_LABELS } from "@/lib/constants";
+import { AFFILIATION_LABELS } from "@/lib/constants";
 
 const input = "w-full rounded border border-slate-300 px-3 py-2 text-sm";
 const label = "mb-1 block text-sm font-medium";
@@ -15,7 +16,6 @@ export type EngineerFormInitial = {
   nationality?: string | null;
   availableFrom?: string | null; // YYYY-MM-DD
   desiredRateMan?: number; // 万円
-  maxOnsiteDaysPerWeek?: number | null;
   remotePreference: string;
   processes: string[];
   industries: string[];
@@ -90,9 +90,7 @@ export function EngineerForm({
       nationality: f.get("nationality") || undefined,
       availableFrom: f.get("availableFrom") || undefined,
       desiredRateYen: parseInt(String(f.get("desiredRateYen"))) * 10_000,
-      maxOnsiteDaysPerWeek: f.get("maxOnsiteDaysPerWeek")
-        ? parseInt(String(f.get("maxOnsiteDaysPerWeek")))
-        : undefined,
+      // 週最大出社日数は許容出社条件から自動導出（サーバー側で連動）
       remotePreference: f.get("remotePreference"),
       summary: f.get("summary") || undefined,
       processes: String(f.get("processes") ?? "")
@@ -212,23 +210,14 @@ export function EngineerForm({
           />
         </div>
         <div>
-          <label className={label}>最大出社日数/週</label>
-          <input
-            type="number"
-            name="maxOnsiteDaysPerWeek"
-            min={0}
-            max={5}
-            defaultValue={initial?.maxOnsiteDaysPerWeek ?? ""}
+          <label className={label}>許容出社条件</label>
+          <RemoteLevelSelect
+            name="remotePreference"
+            initial={initial?.remotePreference ?? "R0"}
+            daysLabel="週最大出社日数"
+            showCode
             className={input}
           />
-        </div>
-        <div>
-          <label className={label}>許容出社条件</label>
-          <select name="remotePreference" className={input} defaultValue={initial?.remotePreference ?? "R0"}>
-            {Object.entries(REMOTE_LEVEL_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{k}: {v}</option>
-            ))}
-          </select>
         </div>
       </div>
       <div>

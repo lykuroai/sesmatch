@@ -114,7 +114,7 @@ export default async function ProjectDetailPage({
               value={`${p.rateMinYen ? (p.rateMinYen / 10_000).toLocaleString() + "〜" : "〜"}${(p.rateMaxYen / 10_000).toLocaleString()}万円`}
             />
             <Row label="勤務地" value={p.locationCity ?? "-"} />
-            <Row label="出社" value={`週${p.onsiteDaysPerWeek}日 / ${REMOTE_LEVEL_LABELS[p.remoteLevel]}`} />
+            <Row label="出社/在宅" value={`${REMOTE_LEVEL_LABELS[p.remoteLevel]}（週${p.onsiteDaysPerWeek}日出社）`} />
             <Row label="契約形態" value={p.contractType ?? "-"} />
             {p.contractType === "労働者派遣" && (
               <>

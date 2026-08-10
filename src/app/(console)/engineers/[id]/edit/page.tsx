@@ -31,7 +31,6 @@ export default async function EditEngineerPage({ params }: { params: Promise<{ i
             ? new Date(e.availableFrom).toISOString().slice(0, 10)
             : null,
           desiredRateMan: e.desiredRateYen ? Math.round(e.desiredRateYen / 10_000) : undefined,
-          maxOnsiteDaysPerWeek: e.maxOnsiteDaysPerWeek,
           remotePreference: e.remotePreference,
           processes: e.processes,
           industries: e.industries,

@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { RemoteLevelSelect } from "./RemoteLevelSelect";
 import { useRouter } from "next/navigation";
 import {
   AFFILIATION_LABELS,
   DISPATCH_CONTRACT_TYPE,
   PROJECT_CONTRACT_TYPES,
-  REMOTE_LEVEL_LABELS,
 } from "@/lib/constants";
 
 const input = "w-full rounded border border-slate-300 px-3 py-2 text-sm";
@@ -23,7 +23,6 @@ export type ProjectFormInitial = {
   dispatchConflictDate?: string | null; // YYYY-MM-DD
   dispatchDemandManager?: string | null;
   dispatchProhibitedConfirmed?: boolean;
-  onsiteDaysPerWeek: number;
   remoteLevel: string;
   rateMaxMan: number; // 万円
   requiredSkills: string[];
@@ -68,7 +67,7 @@ export function ProjectForm({
         headcount: parseInt(String(f.get("headcount"))) || 1,
         startDate: f.get("startDate"),
         locationCity: f.get("locationCity") || undefined,
-        onsiteDaysPerWeek: parseInt(String(f.get("onsiteDaysPerWeek"))) || 0,
+        // 週出社日数は在宅区分から自動導出（サーバー側で連動）
         remoteLevel: f.get("remoteLevel"),
         rateMaxYen: parseInt(String(f.get("rateMaxYen"))) * 10_000,
         contractType,
@@ -144,16 +143,14 @@ export function ProjectForm({
           </select>
         </div>
         <div>
-          <label className={label}>週出社日数</label>
-          <input type="number" name="onsiteDaysPerWeek" min={0} max={5} defaultValue={initial?.onsiteDaysPerWeek ?? 0} className={input} />
-        </div>
-        <div>
           <label className={label}>在宅区分</label>
-          <select name="remoteLevel" className={input} defaultValue={initial?.remoteLevel ?? "R0"}>
-            {Object.entries(REMOTE_LEVEL_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{k}: {v}</option>
-            ))}
-          </select>
+          <RemoteLevelSelect
+            name="remoteLevel"
+            initial={initial?.remoteLevel ?? "R0"}
+            daysLabel="週出社日数"
+            showCode
+            className={input}
+          />
         </div>
       </div>
       {isDispatch && (

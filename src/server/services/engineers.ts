@@ -2,7 +2,7 @@ import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
 import { hasPermission } from "@/server/auth/rbac";
-import { ageBandLabel, rateBand, LIST_PAGE_SIZE } from "@/lib/constants";
+import { ageBandLabel, rateBand, remoteLevelToOnsiteDays, LIST_PAGE_SIZE } from "@/lib/constants";
 import { STORAGE_DIR, truncateFilenameBytes } from "@/server/pipeline/ingest";
 import { extractDocumentText, isSkillSheetFile } from "@/server/pipeline/extract-text";
 import { maskPii, verifyMasked } from "@/server/pipeline/pii";
@@ -395,7 +395,9 @@ export async function createEngineer(auth: AuthContext, input: EngineerInput) {
       availabilityRate: input.availabilityRate ?? 100,
       desiredRateYen: input.desiredRateYen,
       commuteMaxMinutes: input.commuteMaxMinutes,
-      maxOnsiteDaysPerWeek: input.maxOnsiteDaysPerWeek,
+      // 週最大出社日数は許容出社条件と連動（未指定時は許容出社条件から導出）
+      maxOnsiteDaysPerWeek:
+        input.maxOnsiteDaysPerWeek ?? remoteLevelToOnsiteDays(input.remotePreference ?? "R0"),
       remotePreference: input.remotePreference ?? "R0",
       travelOk: input.travelOk ?? false,
       summary: input.summary ?? "",
@@ -450,7 +452,9 @@ export async function updateEngineer(
         availabilityRate: input.availabilityRate ?? 100,
         desiredRateYen: input.desiredRateYen,
         commuteMaxMinutes: input.commuteMaxMinutes ?? null,
-        maxOnsiteDaysPerWeek: input.maxOnsiteDaysPerWeek ?? null,
+        // 週最大出社日数は許容出社条件と連動（未指定時は許容出社条件から導出）
+        maxOnsiteDaysPerWeek:
+          input.maxOnsiteDaysPerWeek ?? remoteLevelToOnsiteDays(input.remotePreference ?? "R0"),
         remotePreference: input.remotePreference ?? "R0",
         travelOk: input.travelOk ?? false,
         summary: input.summary ?? "",

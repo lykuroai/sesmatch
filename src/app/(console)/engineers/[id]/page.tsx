@@ -126,10 +126,9 @@ export default async function EngineerDetailPage({
               value={e.availableFrom ? new Date(e.availableFrom).toLocaleDateString("ja-JP") : "-"}
             />
             <Row label="稼働率" value={`${e.availabilityRate}%`} />
-            <Row label="在宅希望" value={REMOTE_LEVEL_LABELS[e.remotePreference]} />
             <Row
-              label="最大出社"
-              value={e.maxOnsiteDaysPerWeek != null ? `週${e.maxOnsiteDaysPerWeek}日` : "-"}
+              label="在宅希望（許容出社条件）"
+              value={`${REMOTE_LEVEL_LABELS[e.remotePreference]}${e.maxOnsiteDaysPerWeek != null ? `（週最大${e.maxOnsiteDaysPerWeek}日出社）` : ""}`}
             />
             <Row label="工程" value={e.processes.join(", ") || "-"} />
             <Row label="役割" value={e.roles.join(", ") || "-"} />
