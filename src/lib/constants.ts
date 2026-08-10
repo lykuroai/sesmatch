@@ -93,6 +93,8 @@ export const SKILL_CATEGORY_LABELS: Record<string, string> = {
   OS: "OS",
   TOOL: "ツール",
   CERTIFICATION: "資格",
+  PROCESS: "工程",
+  INDUSTRY: "業種",
 };
 
 export const ENTRY_STATUS_LABELS: Record<string, string> = {

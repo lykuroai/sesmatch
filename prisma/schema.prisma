@@ -218,6 +218,8 @@ enum SkillCategory {
   OS
   TOOL
   CERTIFICATION
+  PROCESS // 工程（要件定義・基本設計等。取込時に工程欄からスキルへも展開）
+  INDUSTRY // 業種（金融・保険等。取込時に業種経験欄からスキルへも展開）
 }
 
 model EngineerSkill {

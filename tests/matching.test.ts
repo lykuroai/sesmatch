@@ -222,7 +222,21 @@ describe("必須スキルの工程・役割名指定", () => {
     expect(failures.some((f) => f.includes("必須スキル経験不足: 基本設計"))).toBe(true);
   });
 
-  it("スキル・工程・役割のいずれにも無ければ従来どおり不足", () => {
+  it("業種名（保険等）は業種経験欄でも充足と判定する", () => {
+    const failures = hardFilter(
+      baseProject({
+        requiredSkills: [
+          { name: "Java", minMonths: null },
+          { name: "基本設計", minMonths: null },
+          { name: "保険", minMonths: null },
+        ],
+      }),
+      baseEngineer({ industries: ["保険"] })
+    );
+    expect(failures).toEqual([]);
+  });
+
+  it("スキル・工程・役割・業種のいずれにも無ければ従来どおり不足", () => {
     const failures = hardFilter(
       baseProject({ requiredSkills: [{ name: "要件定義", minMonths: null }] }),
       baseEngineer({ processes: ["開発"] })

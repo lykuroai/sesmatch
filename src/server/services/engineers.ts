@@ -288,6 +288,19 @@ async function extractSheetIntoEngineer(
           updatedMonths++;
         }
       }
+      // 工程・業種経験もスキルとして追加する（必須スキル判定・検索で使えるように。重複名は除外）
+      for (const extra of [
+        ...extracted.processes.map((name) => ({ name, category: "PROCESS" as const })),
+        ...extracted.industries.map((name) => ({ name, category: "INDUSTRY" as const })),
+      ]) {
+        const key = extra.name.trim().toLowerCase();
+        if (!key || existing.has(key)) continue;
+        const created = await prisma.engineerSkill.create({
+          data: { engineerId: engineer.id, name: extra.name, category: extra.category, months: 0 },
+        });
+        existing.set(key, created);
+        addedSkills++;
+      }
       // プロフィール項目も未入力の場合のみ経歴書から補完する（入力済みは上書きしない）
       const profile: Record<string, unknown> = {};
       if (!engineer.residenceCity && extracted.residenceCity)

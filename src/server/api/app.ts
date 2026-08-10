@@ -920,8 +920,22 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
       processes: d.processes,
       roles: d.roles,
       industries: d.industries,
-      // 経験期間不明（null）は 0ヶ月として登録し、担当者が人材編集で補正する
-      skills: d.skills.map((s) => ({ ...s, months: s.months ?? 0 })),
+      // 経験期間不明（null）は 0ヶ月として登録し、担当者が人材編集で補正する。
+      // 工程・業種経験は必須スキル判定・検索で使えるようスキルとしても登録する（重複名は除外）
+      skills: (() => {
+        const base = d.skills.map((s) => ({ ...s, months: s.months ?? 0 }));
+        const names = new Set(base.map((s) => s.name.trim().toLowerCase()));
+        const extras = [
+          ...d.processes.map((name) => ({ name, category: "PROCESS", months: 0 })),
+          ...d.industries.map((name) => ({ name, category: "INDUSTRY", months: 0 })),
+        ].filter((s) => {
+          const k = s.name.trim().toLowerCase();
+          if (!k || names.has(k)) return false;
+          names.add(k);
+          return true;
+        });
+        return [...base, ...extras];
+      })(),
     });
     createdId = result.id;
   } else if (job.sourceDocument.kind === "PROJECT_DESCRIPTION") {
