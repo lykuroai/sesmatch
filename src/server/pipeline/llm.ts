@@ -65,9 +65,16 @@ export type EngineerDraft = z.infer<typeof engineerDraftSchema>;
 export type ProjectDraft = z.infer<typeof projectDraftSchema>;
 export type ExtractionDraft = EngineerDraft | ProjectDraft;
 
+// 用語辞書の候補提案（Phase 2 名寄せ）: 新語の正規形候補。判定には使わず辞書登録の材料のみ
+export const termProposalSchema = z.object({
+  proposals: z.array(z.object({ term: z.string(), canonical: z.string() })),
+});
+
 export interface LlmGateway {
   classify(maskedText: string): Promise<"ENGINEER_SHEET" | "PROJECT_DESCRIPTION" | "UNKNOWN">;
   extract(maskedText: string, kind: "ENGINEER_SHEET" | "PROJECT_DESCRIPTION"): Promise<ExtractionDraft>;
+  // 新語（terms）の正規形候補を提案する。既存の正規形（canonicals）に同義があればそれへ寄せる
+  proposeCanonicalTerms(terms: string[], canonicals: string[]): Promise<{ term: string; canonical: string }[]>;
 }
 
 // ---- モック実装 ----
@@ -205,6 +212,11 @@ export class MockLlmGateway implements LlmGateway {
     };
     return projectDraftSchema.parse(draft);
   }
+
+  // モックは辞書候補を提案しない（接尾辞正規化のみで運用）
+  async proposeCanonicalTerms(): Promise<{ term: string; canonical: string }[]> {
+    return [];
+  }
 }
 
 // 実装の選択（優先順）:
@@ -234,4 +246,6 @@ export function getLlmGateway(): LlmGateway {
 export const llmGateway: LlmGateway = {
   classify: (text) => getLlmGateway().classify(text),
   extract: (text, kind) => getLlmGateway().extract(text, kind),
+  proposeCanonicalTerms: (terms, canonicals) =>
+    getLlmGateway().proposeCanonicalTerms(terms, canonicals),
 };

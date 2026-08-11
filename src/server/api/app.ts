@@ -110,6 +110,7 @@ import {
 import { retryIngestion, startIngestion } from "@/server/pipeline/ingest";
 import { csvToCompanyRows, parseCsv } from "@/lib/csv";
 import { remoteLevelFromOnsiteDays, remoteLevelToOnsiteDays } from "@/lib/constants";
+import { registerNewTermAliases } from "@/server/services/skill-aliases";
 import { engineerDraftSchema, projectDraftSchema } from "@/server/pipeline/llm";
 
 type Env = { Variables: { auth: AuthContext } };
@@ -388,6 +389,19 @@ app.post("/operations/skill-aliases", requireAdminToken, async (c) => {
   } catch {
     return c.json(err("DUPLICATE_ENTRY", "同じ表記が登録済みです"), 409);
   }
+});
+
+// 正規形の手動修正（LLM自動登録分の是正に使う）
+app.put("/operations/skill-aliases/:id", requireAdminToken, async (c) => {
+  const parsed = z
+    .object({ canonical: z.string().min(1) })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR", "正規形を入力してください"), 400);
+  const updated = await prisma.skillAlias
+    .update({ where: { id: c.req.param("id") }, data: { canonical: parsed.data.canonical.trim() } })
+    .catch(() => null);
+  if (!updated) return c.json(err("NOT_FOUND"), 404);
+  return c.json(updated);
 });
 
 app.delete("/operations/skill-aliases/:id", requireAdminToken, async (c) => {
@@ -973,6 +987,11 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
       })(),
     });
     createdId = result.id;
+    // 用語辞書の自動増補（Phase 2 名寄せ）: 新語の正規形をLLMが提案し辞書へ登録（失敗しても確定は成立）
+    await registerNewTermAliases(
+      [...d.skills.map((s) => s.name), ...d.processes, ...d.roles, ...d.industries],
+      auth.companyId
+    );
   } else if (job.sourceDocument.kind === "PROJECT_DESCRIPTION") {
     const parsed = projectDraftSchema.safeParse(confirmed);
     if (!parsed.success) return c.json(err("VALIDATION_ERROR", parsed.error.message), 400);
@@ -1002,6 +1021,8 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
     });
     if ("error" in result) return c.json(err("VALIDATION_ERROR", result.error), 400);
     createdId = result.project.id;
+    // 用語辞書の自動増補（Phase 2 名寄せ）
+    await registerNewTermAliases([...d.requiredSkills, ...d.preferredSkills], auth.companyId);
   }
 
   // 匿名化済み原文を作成された案件・人材に保存する（詳細表示用）。

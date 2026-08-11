@@ -3,6 +3,7 @@ import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
 import { hasPermission } from "@/server/auth/rbac";
 import { ageBandLabel, rateBand, remoteLevelToOnsiteDays, LIST_PAGE_SIZE } from "@/lib/constants";
+import { registerNewTermAliases } from "./skill-aliases";
 import { STORAGE_DIR, truncateFilenameBytes } from "@/server/pipeline/ingest";
 import { extractDocumentText, isSkillSheetFile } from "@/server/pipeline/extract-text";
 import { maskPii, verifyMasked } from "@/server/pipeline/pii";
@@ -288,6 +289,16 @@ async function extractSheetIntoEngineer(
           updatedMonths++;
         }
       }
+      // 用語辞書の自動増補（Phase 2 名寄せ）: 新語の正規形をLLMが提案し辞書へ登録（失敗しても添付は成立）
+      await registerNewTermAliases(
+        [
+          ...extracted.skills.map((s) => s.name),
+          ...extracted.processes,
+          ...extracted.roles,
+          ...extracted.industries,
+        ],
+        auth.companyId
+      );
       // 工程・業種経験もスキルとして追加する（必須スキル判定・検索で使えるように。重複名は除外）
       for (const extra of [
         ...extracted.processes.map((name) => ({ name, category: "PROCESS" as const })),

@@ -11,6 +11,7 @@ import { audit } from "@/server/audit";
 import {
   engineerDraftSchema,
   projectDraftSchema,
+  termProposalSchema,
   type ExtractionDraft,
   type LlmGateway,
 } from "./llm";
@@ -182,5 +183,23 @@ export class OpenAiCompatGateway implements LlmGateway {
         throw new Error(`LLM抽出結果のJSON検証に失敗しました（${summarizeZodError(e)}）`);
       throw e;
     }
+  }
+
+  // 用語辞書の候補提案（Phase 2 名寄せ）: 新語の正規形を提案する。
+  // 失敗しても取込は成立させるため、呼び出し側でエラーを握りつぶす前提の補助機能
+  async proposeCanonicalTerms(terms: string[], canonicals: string[]) {
+    const prompt = `SES業界のスキル・工程・業種の用語について、新しく現れた各用語の「正規形」を提案し、次の形式のJSONのみを出力してください。
+{"proposals": [{"term": "入力した用語", "canonical": "正規形"}]}
+
+ルール:
+- 既存の正規形リストに同義の語があれば、その語を正規形として使う
+- 無ければ一般的な正式名称・代表表記を正規形とする（例: "保険業務" → "保険", "RoR" → "Rails", "JS" → "JavaScript"）
+- 同義と確信できない場合は正規形に用語そのものを返す（無理にまとめない。JavaとJavaScriptのような別技術を同一視しない）
+
+既存の正規形リスト: ${JSON.stringify(canonicals)}
+新しい用語: ${JSON.stringify(terms)}`;
+    const raw = await this.call("propose-terms", prompt, 4096);
+    const parsed = termProposalSchema.safeParse(raw);
+    return parsed.success ? parsed.data.proposals : [];
   }
 }

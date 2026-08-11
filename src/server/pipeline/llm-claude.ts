@@ -11,6 +11,7 @@ import { summarizeZodError } from "./llm-openai";
 import {
   engineerDraftSchema,
   projectDraftSchema,
+  termProposalSchema,
   type ExtractionDraft,
   type LlmGateway,
 } from "./llm";
@@ -233,5 +234,39 @@ export class ClaudeLlmGateway implements LlmGateway {
         throw new Error(`LLM抽出結果のJSON検証に失敗しました（${summarizeZodError(e)}）`);
       throw e;
     }
+  }
+  // 用語辞書の候補提案（Phase 2 名寄せ）: 新語の正規形を提案する
+  async proposeCanonicalTerms(terms: string[], canonicals: string[]) {
+    const schema = {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        proposals: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              term: { type: "string", description: "入力した用語" },
+              canonical: {
+                type: "string",
+                description:
+                  "正規形。既存の正規形リストに同義があればそれを使う。無ければ一般的な正式名称。同義と確信できなければ用語そのもの（JavaとJavaScriptのような別技術を同一視しない）",
+              },
+            },
+            required: ["term", "canonical"],
+          },
+        },
+      },
+      required: ["proposals"],
+    } as unknown as Record<string, unknown>;
+    const raw = await this.call(
+      "propose-terms",
+      schema,
+      `SES業界のスキル・工程・業種の用語について、新しく現れた各用語の正規形を提案してください。\n既存の正規形リスト: ${JSON.stringify(canonicals)}\n新しい用語: ${JSON.stringify(terms)}`,
+      4096
+    );
+    const parsed = termProposalSchema.safeParse(raw);
+    return parsed.success ? parsed.data.proposals : [];
   }
 }

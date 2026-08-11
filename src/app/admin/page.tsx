@@ -608,6 +608,18 @@ function SkillAliasSection({ token }: { token: string }) {
     load();
   }
 
+  // LLM自動登録分の是正: 正規形だけを修正できる
+  async function editCanonical(id: string, current: string) {
+    const v = prompt("正規形を修正してください", current)?.trim();
+    if (!v || v === current) return;
+    await fetch(`/api/v1/operations/skill-aliases/${id}`, {
+      method: "PUT",
+      headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+      body: JSON.stringify({ canonical: v }),
+    });
+    load();
+  }
+
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="mb-1 text-lg font-bold">用語辞書（同義語）</h2>
@@ -647,9 +659,16 @@ function SkillAliasSection({ token }: { token: string }) {
             <tr key={a.id} className="border-t border-slate-100">
               <td className="py-1.5 font-medium">{a.alias}</td>
               <td className="py-1.5">{a.canonical}</td>
-              <td className="py-1.5 text-xs text-slate-500">{a.source === "MANUAL" ? "手動" : a.source}</td>
+              <td className="py-1.5 text-xs">
+                {a.source === "MANUAL" ? (
+                  <span className="text-slate-500">手動</span>
+                ) : (
+                  <span className="rounded bg-purple-50 px-1.5 py-0.5 text-purple-700">LLM自動</span>
+                )}
+              </td>
               <td className="py-1.5 text-xs text-slate-500">{new Date(a.createdAt).toLocaleDateString("ja-JP")}</td>
               <td className="py-1.5 text-right">
+                <button onClick={() => editCanonical(a.id, a.canonical)} className="mr-3 text-xs text-blue-600 hover:underline">修正</button>
                 <button onClick={() => remove(a.id)} className="text-xs text-red-600 hover:underline">削除</button>
               </td>
             </tr>
