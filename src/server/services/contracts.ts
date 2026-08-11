@@ -519,10 +519,14 @@ async function signContractInTx(
     return { error: { code: "VERSION_CONFLICT" as const, message: "同時更新が発生しました" } };
   if (nextStatus === "EXECUTED") {
     await tx.entry.update({ where: { id: c.entryId }, data: { status: "CONTRACTED" } });
-    // 成約に合わせて案件の進行状態を自動更新（手動で上書き可能）
+    // 成約に合わせて案件・人材の状態を自動更新（手動で上書き可能）
     await tx.project.updateMany({
       where: { id: c.projectId },
       data: { workflowStatus: "CONTRACTED" },
+    });
+    await tx.engineer.updateMany({
+      where: { id: c.engineerId, workStatus: { in: ["PROPOSING", "NEGOTIATING"] } },
+      data: { workStatus: "CONTRACTED" },
     });
   }
   return { ok: true as const, executed: nextStatus === "EXECUTED" };
@@ -569,6 +573,16 @@ export async function cancelContract(auth: AuthContext, contractId: string) {
     await prisma.project.updateMany({
       where: { id: c.projectId, workflowStatus: "CONTRACTED" },
       data: { workflowStatus: "RECRUITING" },
+    });
+  }
+  // この人材に他の有効な契約がなければ稼働状態を紹介中へ戻す
+  const otherEngineerContracts = await prisma.contract.count({
+    where: { engineerId: c.engineerId, status: { in: ["EXECUTED", "ACTIVE"] } },
+  });
+  if (otherEngineerContracts === 0) {
+    await prisma.engineer.updateMany({
+      where: { id: c.engineerId, workStatus: "CONTRACTED" },
+      data: { workStatus: "PROPOSING" },
     });
   }
   await audit({

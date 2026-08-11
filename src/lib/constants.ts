@@ -71,10 +71,11 @@ export const PROJECT_WORKFLOW_LABELS: Record<string, string> = {
   ENDED: "終了",
 };
 
-// 人材の稼働状態（商談開始・稼働開始で自動更新、手動で上書き可能）
+// 人材の稼働状態（商談開始・成約・稼働開始で自動更新、手動で上書き可能）
 export const ENGINEER_WORK_STATUS_LABELS: Record<string, string> = {
   PROPOSING: "紹介中",
   NEGOTIATING: "商談中",
+  CONTRACTED: "成約",
   WORKING: "稼働中",
 };
 

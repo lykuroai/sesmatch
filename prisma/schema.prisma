@@ -163,6 +163,7 @@ enum WorkAuthStatus {
 enum EngineerWorkStatus {
   PROPOSING // 紹介中
   NEGOTIATING // 商談中（商談開始で自動設定、手動で上書き可能）
+  CONTRACTED // 成約（契約の相互締結で自動設定、稼働開始前）
   WORKING // 稼働中
 }
 

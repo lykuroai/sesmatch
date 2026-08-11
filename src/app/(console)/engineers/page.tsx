@@ -225,6 +225,7 @@ export default async function EngineersPage({
             <select name="ws" defaultValue={ws} className={select}>
               <option value="PROPOSING">紹介中</option>
               <option value="NEGOTIATING">商談中</option>
+              <option value="CONTRACTED">成約</option>
               <option value="WORKING">稼働中</option>
               <option value="all">すべて</option>
             </select>

@@ -724,10 +724,10 @@ app.post("/engineers/:id/consents", requirePermission("consent.manage"), async (
   return c.json(consent, 201);
 });
 
-// 人材の稼働状態（紹介中/商談中/稼働中）の手動設定
+// 人材の稼働状態（紹介中/商談中/成約/稼働中）の手動設定
 app.post("/engineers/:id/work-status", requirePermission("engineer.create"), async (c) => {
   const parsed = z
-    .object({ status: z.enum(["PROPOSING", "NEGOTIATING", "WORKING"]) })
+    .object({ status: z.enum(["PROPOSING", "NEGOTIATING", "CONTRACTED", "WORKING"]) })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
   const result = await setEngineerWorkStatus(c.get("auth"), c.req.param("id"), parsed.data.status);
