@@ -27,13 +27,15 @@ export async function registerNewTermAliases(terms: string[], tenantCompanyId: s
 
     const added: string[] = [];
     for (const p of proposals) {
-      const from = normalizeSkillTerm(p.term);
-      const to = normalizeSkillTerm(p.canonical);
-      // 正規形が用語と同じ（接尾辞正規化で吸収できる範囲）なら辞書エントリ不要
+      const from = p.term.trim();
+      const to = p.canonical.trim();
+      // 表記が完全一致（すでに正規形そのもの）の場合のみ登録不要。
+      // 大文字小文字・接尾辞ゆれ（JAva→Java、保険業務→保険）は正規化でも吸収されるが、
+      // 運営コンソールの用語辞書で見える・是正できるように辞書にも登録する
       if (!from || !to || from === to) continue;
       await prisma.skillAlias
         .create({
-          data: { alias: p.term.trim(), canonical: p.canonical.trim(), source: "LLM" },
+          data: { alias: from, canonical: to, source: "LLM" },
         })
         .then(() => added.push(`${p.term}→${p.canonical}`))
         .catch(() => null); // 並行登録による重複は無視
