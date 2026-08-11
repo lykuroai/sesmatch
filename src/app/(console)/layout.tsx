@@ -10,7 +10,7 @@ const MENU = [
   { href: "/projects", label: "案件" },
   { href: "/engineers", label: "人材" },
   { href: "/ingestions", label: "取込履歴" },
-  { href: "/entries", label: "エントリー" },
+  { href: "/entries", label: "商談管理" },
   { href: "/contracts", label: "成約・稼働" },
   { href: "/billing", label: "成約手数料" },
 ];
