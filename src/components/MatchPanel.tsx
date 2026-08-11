@@ -81,7 +81,7 @@ export function MatchPanel({
     }
   }
 
-  const actionLabel = direction === "project-to-engineers" ? "スカウト" : "人材提案";
+  const actionLabel = direction === "project-to-engineers" ? "商談を申し込む" : "人材提案";
 
   return (
     <div className="mt-8">
