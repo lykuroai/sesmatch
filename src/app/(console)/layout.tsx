@@ -42,12 +42,38 @@ const MENU: { href: string; label: string; icon: string }[] = [
     label: "成約手数料",
     icon: "M9 7.5l3 4.5m0 0l3-4.5M12 12v5.25M15 12H9m6 3H9m12-3a9 9 0 11-18 0 9 9 0 0118 0z",
   },
-  {
-    href: "/manual",
-    label: "操作マニュアル",
-    icon: "M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25",
-  },
 ];
+
+// 操作マニュアルは画面最下部（ログアウトの上）に固定表示する
+const MANUAL_ITEM = {
+  href: "/manual",
+  label: "操作マニュアル",
+  icon: "M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25",
+};
+
+// メニュー項目の共通描画（アイコン＋ラベル）
+function MenuLink({ item }: { item: { href: string; label: string; icon: string } }) {
+  return (
+    <Link
+      href={item.href}
+      className="flex items-center gap-2.5 rounded px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+    >
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-[18px] w-[18px] flex-none text-slate-400"
+      >
+        <path d={item.icon} />
+      </svg>
+      <span>{item.label}</span>
+    </Link>
+  );
+}
 // 企業情報・担当者・通報・監査・プライバシー・企業間関係は
 // 会社マイページ（/company、ヘッダー右の会社名から）に集約
 
@@ -72,31 +98,21 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
       </header>
       <div className="flex flex-1">
         <ResizableSidebar>
-          <nav className="p-2">
-            {MENU.map((m) => (
-              <Link
-                key={m.href}
-                href={m.href}
-                className="flex items-center gap-2.5 rounded px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
-              >
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-[18px] w-[18px] flex-none text-slate-400"
-                >
-                  <path d={m.icon} />
-                </svg>
-                <span>{m.label}</span>
-              </Link>
-            ))}
-          </nav>
-          <div className="p-4">
-            <LogoutButton />
+          <div className="flex h-full min-h-full flex-col">
+            <nav className="p-2">
+              {MENU.map((m) => (
+                <MenuLink key={m.href} item={m} />
+              ))}
+            </nav>
+            {/* 画面最下部に操作マニュアルとログアウトを固定 */}
+            <div className="mt-auto p-2">
+              <div className="border-t border-slate-100 pt-2">
+                <MenuLink item={MANUAL_ITEM} />
+              </div>
+            </div>
+            <div className="px-4 pb-4">
+              <LogoutButton />
+            </div>
           </div>
         </ResizableSidebar>
         <main className="min-w-0 flex-1 p-8 print:p-0">{children}</main>
