@@ -370,6 +370,31 @@ app.get("/operations/engineers", requireAdminToken, async (c) =>
   c.json({ items: await listEngineersWorkStatusForOperations() })
 );
 
+// ---- 用語辞書（スキル・工程・業種の同義語 §19 名寄せ）----
+app.get("/operations/skill-aliases", requireAdminToken, async (c) =>
+  c.json({ items: await prisma.skillAlias.findMany({ orderBy: { createdAt: "desc" } }) })
+);
+
+app.post("/operations/skill-aliases", requireAdminToken, async (c) => {
+  const parsed = z
+    .object({ alias: z.string().min(1), canonical: z.string().min(1) })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR", "表記と正規形を入力してください"), 400);
+  try {
+    const created = await prisma.skillAlias.create({
+      data: { alias: parsed.data.alias.trim(), canonical: parsed.data.canonical.trim() },
+    });
+    return c.json(created, 201);
+  } catch {
+    return c.json(err("DUPLICATE_ENTRY", "同じ表記が登録済みです"), 409);
+  }
+});
+
+app.delete("/operations/skill-aliases/:id", requireAdminToken, async (c) => {
+  await prisma.skillAlias.delete({ where: { id: c.req.param("id") } }).catch(() => null);
+  return c.json({ ok: true });
+});
+
 app.get("/operations/reports", requireAdminToken, async (c) => {
   const reports = await prisma.report.findMany({ orderBy: { createdAt: "desc" }, take: 200 });
   const companies = await prisma.company.findMany({

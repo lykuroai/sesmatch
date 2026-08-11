@@ -6,6 +6,7 @@ import {
   type EngineerForMatch,
   type ProjectForMatch,
 } from "@/server/matching/engine";
+import { normalizeSkillTerm } from "@/lib/constants";
 
 const baseEngineer = (over: Partial<EngineerForMatch> = {}): EngineerForMatch => ({
   id: "e1",
@@ -242,6 +243,48 @@ describe("必須スキルの工程・役割名指定", () => {
       baseEngineer({ processes: ["開発"] })
     );
     expect(failures.some((f) => f.includes("必須スキル不足: 要件定義"))).toBe(true);
+  });
+});
+
+describe("名称の名寄せ（正規化・用語辞書 §19）", () => {
+  it("normalizeSkillTerm: 接尾辞（業務・経験・系・開発等）を除去する", () => {
+    expect(normalizeSkillTerm("保険業務")).toBe("保険");
+    expect(normalizeSkillTerm("金融系")).toBe("金融");
+    expect(normalizeSkillTerm("Java開発経験")).toBe("java");
+    expect(normalizeSkillTerm(" AWS ")).toBe("aws");
+    // 接尾辞そのものの語（工程名）は除去しない
+    expect(normalizeSkillTerm("開発")).toBe("開発");
+    expect(normalizeSkillTerm("業務")).toBe("業務");
+  });
+
+  it("必須「保険」×業種経験「保険業務」は接尾辞正規化で充足する", () => {
+    const failures = hardFilter(
+      baseProject({ requiredSkills: [{ name: "保険", minMonths: null }] }),
+      baseEngineer({ industries: ["保険業務"] })
+    );
+    expect(failures).toEqual([]);
+  });
+
+  it("「Java」と「JavaScript」は一致しない（部分一致はしない）", () => {
+    const failures = hardFilter(
+      baseProject({ requiredSkills: [{ name: "JavaScript", minMonths: null }] }),
+      baseEngineer() // skills: Java, Spring Boot
+    );
+    expect(failures.some((f) => f.includes("必須スキル不足: JavaScript"))).toBe(true);
+  });
+
+  it("注入した辞書正規化（RoR→Rails等）で充足する", () => {
+    const dict = new Map([["ror", "rails"]]);
+    const normalize = (name: string) => {
+      const base = normalizeSkillTerm(name);
+      return dict.get(base) ?? base;
+    };
+    const failures = hardFilter(
+      baseProject({ requiredSkills: [{ name: "RoR", minMonths: null }] }),
+      baseEngineer({ skills: [{ name: "Rails", months: 24, lastUsedAt: new Date() }] }),
+      { normalize }
+    );
+    expect(failures).toEqual([]);
   });
 });
 

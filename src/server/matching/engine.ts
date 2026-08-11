@@ -1,7 +1,12 @@
 // 双方向マッチングエンジン（§19）
 // ハードフィルター（§19.1）→ スコアリング（§19.2）→ 結果表示要素（§19.3）
 
-import { AFFILIATION_TRUST_POINTS, prefectureOf, REMOTE_LEVEL_ORDER } from "@/lib/constants";
+import {
+  AFFILIATION_TRUST_POINTS,
+  normalizeSkillTerm,
+  prefectureOf,
+  REMOTE_LEVEL_ORDER,
+} from "@/lib/constants";
 
 export type EngineerForMatch = {
   id: string;
@@ -49,24 +54,34 @@ export type MatchResult = {
   warnings: string[];
 };
 
-const norm = (s: string) => s.trim().toLowerCase();
+// 名称の比較は正規化後の完全一致（§19 名寄せ）。
+// 既定は接尾辞正規化（normalizeSkillTerm）。用語辞書を使う場合は呼び出し側が
+// 辞書引き当てを含む normalize を注入する（エンジンは純粋関数のまま保つ）
+export type MatchOptions = { normalize?: (name: string) => string };
 
-function findSkill(engineer: EngineerForMatch, name: string) {
-  return engineer.skills.find((s) => norm(s.name) === norm(name));
+type Normalizer = (name: string) => string;
+
+function findSkill(engineer: EngineerForMatch, name: string, n: Normalizer) {
+  return engineer.skills.find((s) => n(s.name) === n(name));
 }
 
 // 必須スキルに「基本設計」等の工程・役割名や「保険」等の業種名が指定されている場合は、
 // 人材の工程・役割・業種経験欄でも充足と判定する（スキル欄のみを見ると誰ともマッチしなくなる）
-function hasProcessRoleOrIndustry(engineer: EngineerForMatch, name: string) {
+function hasProcessRoleOrIndustry(engineer: EngineerForMatch, name: string, n: Normalizer) {
   return (
-    engineer.processes.some((p) => norm(p) === norm(name)) ||
-    engineer.roles.some((r) => norm(r) === norm(name)) ||
-    engineer.industries.some((i) => norm(i) === norm(name))
+    engineer.processes.some((p) => n(p) === n(name)) ||
+    engineer.roles.some((r) => n(r) === n(name)) ||
+    engineer.industries.some((i) => n(i) === n(name))
   );
 }
 
 // ---- ハードフィルター（§19.1）----
-export function hardFilter(project: ProjectForMatch, engineer: EngineerForMatch): string[] {
+export function hardFilter(
+  project: ProjectForMatch,
+  engineer: EngineerForMatch,
+  opts?: MatchOptions
+): string[] {
+  const n = opts?.normalize ?? normalizeSkillTerm;
   const failures: string[] = [];
 
   // 公開状態・本人同意
@@ -76,11 +91,11 @@ export function hardFilter(project: ProjectForMatch, engineer: EngineerForMatch)
 
   // 必須スキル（工程・役割・業種名の場合は各欄でも充足）
   for (const rs of project.requiredSkills) {
-    const skill = findSkill(engineer, rs.name);
+    const skill = findSkill(engineer, rs.name, n);
     if (skill) {
       if (rs.minMonths && skill.months < rs.minMonths)
         failures.push(`必須スキル経験不足: ${rs.name}（${skill.months}ヶ月 < ${rs.minMonths}ヶ月）`);
-    } else if (hasProcessRoleOrIndustry(engineer, rs.name)) {
+    } else if (hasProcessRoleOrIndustry(engineer, rs.name, n)) {
       // 工程・役割・業種での充足は経験月数を持たないため、月数条件付きの場合は不足扱い
       if (rs.minMonths)
         failures.push(`必須スキル経験不足: ${rs.name}（経験月数未登録 < ${rs.minMonths}ヶ月）`);
@@ -129,8 +144,13 @@ export function hardFilter(project: ProjectForMatch, engineer: EngineerForMatch)
 // ---- スコアリング（§19.2）----
 // 必須30 / 尚可10 / 経験・直近15 / 工程・役割10 / 開始日10 / 単価10 / 通勤・在宅10 / 業種5 = 100
 // 所属信頼加点は最大5点（能力評価を逆転させない加点）
-export function score(project: ProjectForMatch, engineer: EngineerForMatch): MatchResult {
-  const failures = hardFilter(project, engineer);
+export function score(
+  project: ProjectForMatch,
+  engineer: EngineerForMatch,
+  opts?: MatchOptions
+): MatchResult {
+  const n = opts?.normalize ?? normalizeSkillTerm;
+  const failures = hardFilter(project, engineer, opts);
   const breakdown: Record<string, number> = {};
   const matched: string[] = [];
   const missing: string[] = [];
@@ -140,21 +160,21 @@ export function score(project: ProjectForMatch, engineer: EngineerForMatch): Mat
   // 工程・役割・業種名の必須指定は各欄でも充足（月数条件なしの場合のみ）
   const reqTotal = project.requiredSkills.length;
   const reqHit = project.requiredSkills.filter((rs) => {
-    const s = findSkill(engineer, rs.name);
+    const s = findSkill(engineer, rs.name, n);
     if (s) return !rs.minMonths || s.months >= rs.minMonths;
-    return !rs.minMonths && hasProcessRoleOrIndustry(engineer, rs.name);
+    return !rs.minMonths && hasProcessRoleOrIndustry(engineer, rs.name, n);
   }).length;
   breakdown["必須スキル"] = reqTotal === 0 ? 30 : Math.round((reqHit / reqTotal) * 30);
   if (reqTotal > 0 && reqHit === reqTotal) matched.push("必須スキルを全て充足");
 
   // 尚可スキル (10)
   const prefTotal = project.preferredSkills.length;
-  const prefHits = project.preferredSkills.filter((ps) => findSkill(engineer, ps.name));
+  const prefHits = project.preferredSkills.filter((ps) => findSkill(engineer, ps.name, n));
   breakdown["尚可スキル"] =
     prefTotal === 0 ? 10 : Math.round((prefHits.length / prefTotal) * 10);
   if (prefHits.length > 0)
     matched.push(`尚可スキル: ${prefHits.map((p) => p.name).join(", ")}`);
-  const prefMissing = project.preferredSkills.filter((ps) => !findSkill(engineer, ps.name));
+  const prefMissing = project.preferredSkills.filter((ps) => !findSkill(engineer, ps.name, n));
   if (prefMissing.length > 0)
     missing.push(`尚可スキル未保有: ${prefMissing.map((p) => p.name).join(", ")}`);
 
@@ -163,7 +183,7 @@ export function score(project: ProjectForMatch, engineer: EngineerForMatch): Mat
   if (reqTotal > 0) {
     const perSkill = 15 / reqTotal;
     for (const rs of project.requiredSkills) {
-      const s = findSkill(engineer, rs.name);
+      const s = findSkill(engineer, rs.name, n);
       if (!s) continue;
       // 経験月数: 36ヶ月以上で満点の6割、直近2年以内の利用で残り4割
       const expPart = Math.min(s.months / 36, 1) * perSkill * 0.6;
@@ -179,16 +199,14 @@ export function score(project: ProjectForMatch, engineer: EngineerForMatch): Mat
   }
   breakdown["経験・直近利用"] = Math.round(expScore);
 
-  // 工程・役割 (10)
+  // 工程・役割 (10): 名寄せ（正規化・辞書）を適用して比較
+  const hasProc = (p: string) =>
+    engineer.processes.some((x) => n(x) === n(p)) || engineer.roles.some((x) => n(x) === n(p));
   const procTotal = project.processes.length;
-  const procHit = project.processes.filter(
-    (p) => engineer.processes.includes(p) || engineer.roles.includes(p)
-  ).length;
+  const procHit = project.processes.filter(hasProc).length;
   breakdown["工程・役割"] = procTotal === 0 ? 10 : Math.round((procHit / procTotal) * 10);
   if (procTotal > 0 && procHit < procTotal)
-    missing.push(
-      `工程未経験: ${project.processes.filter((p) => !engineer.processes.includes(p) && !engineer.roles.includes(p)).join(", ")}`
-    );
+    missing.push(`工程未経験: ${project.processes.filter((p) => !hasProc(p)).join(", ")}`);
 
   // 稼働開始日 (10): 開始日ちょうど〜30日前で満点、遅れなしが前提
   if (!engineer.availableFrom) {
@@ -224,11 +242,11 @@ export function score(project: ProjectForMatch, engineer: EngineerForMatch): Mat
       warnings.push(`通勤圏の確認が必要（居住: ${engPref} / 勤務地: ${projPref}）`);
   }
 
-  // 業種・業務知識 (5)
-  breakdown["業種・業務知識"] =
-    !project.industry ? 5 : engineer.industries.includes(project.industry) ? 5 : 0;
-  if (project.industry && engineer.industries.includes(project.industry))
-    matched.push(`業種経験: ${project.industry}`);
+  // 業種・業務知識 (5): 名寄せ（正規化・辞書）を適用して比較
+  const industryHit =
+    !!project.industry && engineer.industries.some((i) => n(i) === n(project.industry!));
+  breakdown["業種・業務知識"] = !project.industry ? 5 : industryHit ? 5 : 0;
+  if (industryHit) matched.push(`業種経験: ${project.industry}`);
 
   // 所属信頼加点（最大5点、§19.2）
   breakdown["所属信頼"] = Math.min(

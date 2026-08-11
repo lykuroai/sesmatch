@@ -50,6 +50,7 @@ const MENU = [
   { key: "contracts", label: "契約・手数料" },
   { key: "engineers", label: "人材稼働状況" },
   { key: "mail", label: "メール配信" },
+  { key: "aliases", label: "用語辞書" },
   { key: "reports", label: "通報対応" },
 ] as const;
 type MenuKey = (typeof MENU)[number]["key"];
@@ -186,6 +187,7 @@ export default function AdminPage() {
             {tab === "contracts" && <ContractMonitorSection token={token} />}
             {tab === "engineers" && <EngineerMonitorSection token={token} />}
             {tab === "mail" && <MailBroadcastSection token={token} />}
+            {tab === "aliases" && <SkillAliasSection token={token} />}
             {tab === "reports" && (
               <ReportsSection token={token} reports={reports} reload={() => load(token)} />
             )}
@@ -561,6 +563,106 @@ function CompanyListSection({
 }
 
 // 通報対応
+// 用語辞書（§19 マッチングの名寄せ）: スキル・工程・業種名の表記ゆれ → 正規形。
+// 承認済みエントリのみマッチングで使用される（現状の登録はすべて承認済み扱い）
+function SkillAliasSection({ token }: { token: string }) {
+  const [items, setItems] = useState<
+    { id: string; alias: string; canonical: string; status: string; source: string; createdAt: string }[]
+  >([]);
+  const [alias, setAlias] = useState("");
+  const [canonical, setCanonical] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const res = await fetch("/api/v1/operations/skill-aliases", { headers: { "X-Admin-Token": token } });
+    if (res.ok) setItems((await res.json()).items);
+  }, [token]);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const res = await fetch("/api/v1/operations/skill-aliases", {
+      method: "POST",
+      headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+      body: JSON.stringify({ alias, canonical }),
+    });
+    if (!res.ok) {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "登録に失敗しました");
+      return;
+    }
+    setAlias("");
+    setCanonical("");
+    load();
+  }
+
+  async function remove(id: string) {
+    if (!confirm("この辞書エントリを削除しますか？")) return;
+    await fetch(`/api/v1/operations/skill-aliases/${id}`, {
+      method: "DELETE",
+      headers: { "X-Admin-Token": token },
+    });
+    load();
+  }
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="mb-1 text-lg font-bold">用語辞書（同義語）</h2>
+      <p className="mb-4 text-xs text-slate-500">
+        スキル・工程・業種名の表記ゆれを正規形に引き当てます（例: 保険業務 → 保険）。
+        マッチングの完全一致判定の前に適用されます。「〜業務」「〜経験」等の接尾辞は辞書がなくても自動で除去されます。
+      </p>
+      {error && <p className="mb-3 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+      <form onSubmit={add} className="mb-4 flex items-end gap-2">
+        <div>
+          <label className="mb-1 block text-xs text-slate-500">表記（ゆれ）</label>
+          <input value={alias} onChange={(e) => setAlias(e.target.value)} required placeholder="保険業務"
+            className="rounded border border-slate-300 px-2 py-1.5 text-sm" />
+        </div>
+        <span className="pb-2 text-slate-400">→</span>
+        <div>
+          <label className="mb-1 block text-xs text-slate-500">正規形</label>
+          <input value={canonical} onChange={(e) => setCanonical(e.target.value)} required placeholder="保険"
+            className="rounded border border-slate-300 px-2 py-1.5 text-sm" />
+        </div>
+        <button className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700">
+          登録
+        </button>
+      </form>
+      <table className="w-full text-sm">
+        <thead className="text-left text-xs text-slate-500">
+          <tr>
+            <th className="py-1.5">表記</th>
+            <th className="py-1.5">正規形</th>
+            <th className="py-1.5">登録元</th>
+            <th className="py-1.5">登録日</th>
+            <th className="py-1.5" />
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((a) => (
+            <tr key={a.id} className="border-t border-slate-100">
+              <td className="py-1.5 font-medium">{a.alias}</td>
+              <td className="py-1.5">{a.canonical}</td>
+              <td className="py-1.5 text-xs text-slate-500">{a.source === "MANUAL" ? "手動" : a.source}</td>
+              <td className="py-1.5 text-xs text-slate-500">{new Date(a.createdAt).toLocaleDateString("ja-JP")}</td>
+              <td className="py-1.5 text-right">
+                <button onClick={() => remove(a.id)} className="text-xs text-red-600 hover:underline">削除</button>
+              </td>
+            </tr>
+          ))}
+          {items.length === 0 && (
+            <tr><td colSpan={5} className="py-6 text-center text-slate-400">辞書エントリはありません</td></tr>
+          )}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 function ReportsSection({
   token,
   reports,

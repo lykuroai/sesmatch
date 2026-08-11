@@ -5,9 +5,24 @@ import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
 import { score, type EngineerForMatch, type ProjectForMatch } from "@/server/matching/engine";
+import { normalizeSkillTerm } from "@/lib/constants";
 import { hasValidConsent, isForeignNationality, serializeEngineer } from "./engineers";
 import { serializeProject } from "./projects";
 import type { Engineer, EngineerSkill, PersonConsent, Project, ProjectSkill } from "@prisma/client";
+
+// 用語辞書（承認済みのみ）を読み込んだ名寄せ関数を作る（§19）。
+// 表記→正規形の引き当ての前後に接尾辞正規化（normalizeSkillTerm）を適用する。
+// マッチング実行時に辞書をLLMへ問い合わせることはない（辞書の候補提案のみLLMを使う設計）
+async function buildTermNormalizer(): Promise<(name: string) => string> {
+  const aliases = await prisma.skillAlias.findMany({ where: { status: "APPROVED" } });
+  const map = new Map(
+    aliases.map((a) => [normalizeSkillTerm(a.alias), normalizeSkillTerm(a.canonical)])
+  );
+  return (name) => {
+    const base = normalizeSkillTerm(name);
+    return map.get(base) ?? base;
+  };
+}
 
 function toEngineerForMatch(e: Engineer & { skills: EngineerSkill[]; consents: PersonConsent[] }): EngineerForMatch {
   return {
@@ -66,11 +81,12 @@ export async function matchProjectToEngineers(auth: AuthContext, projectId: stri
   const pm = toProjectForMatch(project);
   // 自社案件は公開前でもマッチング計算対象にする
   const pmForCalc = { ...pm, status: "PUBLISHED" };
+  const normalize = await buildTermNormalizer();
 
   const results = candidates
     .map((e) => ({
       engineer: serializeEngineer(e, auth),
-      result: score(pmForCalc, toEngineerForMatch(e)),
+      result: score(pmForCalc, toEngineerForMatch(e), { normalize }),
     }))
     .filter((r) => r.result.passed)
     .sort((a, b) => b.result.score - a.result.score);
@@ -137,9 +153,10 @@ export async function passingEngineerMatchesForProject(
   });
   // 自社案件は公開前でも計算対象（matchProjectToEngineers と同じ扱い）
   const pm = { ...toProjectForMatch(project), status: "PUBLISHED" };
+  const normalize = await buildTermNormalizer();
   const map = new Map<string, MatchSummary>();
   for (const e of candidates) {
-    const r = score(pm, toEngineerForMatch(e));
+    const r = score(pm, toEngineerForMatch(e), { normalize });
     if (r.passed) map.set(e.id, toSummary(r));
   }
   return map;
@@ -162,9 +179,10 @@ export async function passingProjectMatchesForEngineer(
   });
   // 自社人材は公開前でも計算対象（matchEngineerToProjects と同じ扱い）
   const em = { ...toEngineerForMatch(engineer), status: "PUBLISHED" };
+  const normalize = await buildTermNormalizer();
   const map = new Map<string, MatchSummary>();
   for (const p of projects) {
-    const r = score(toProjectForMatch(p), em);
+    const r = score(toProjectForMatch(p), em, { normalize });
     if (r.passed) map.set(p.id, toSummary(r));
   }
   return map;
@@ -186,11 +204,12 @@ export async function matchEngineerToProjects(auth: AuthContext, engineerId: str
   const em = toEngineerForMatch(engineer);
   // 自社人材は公開前でも計算対象（公開可否は同意チェックで別途担保）
   const emForCalc = { ...em, status: "PUBLISHED" };
+  const normalize = await buildTermNormalizer();
 
   const results = projects
     .map((p) => ({
       project: serializeProject(p, auth),
-      result: score(toProjectForMatch(p), emForCalc),
+      result: score(toProjectForMatch(p), emForCalc, { normalize }),
     }))
     .filter((r) => r.result.passed)
     .sort((a, b) => b.result.score - a.result.score);

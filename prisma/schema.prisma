@@ -318,6 +318,26 @@ model ProjectSkill {
   @@map("project_skills")
 }
 
+// ---- 用語辞書（§19 マッチングの名寄せ）----
+// スキル・工程・業種名の表記ゆれを正規形に引き当てる同義語辞書。
+// マッチング実行時は承認済みエントリのみ使用（LLMは候補提案のみ・判定には使わない）
+
+enum AliasStatus {
+  PROPOSED // 提案中（LLM等による候補。マッチングには使わない）
+  APPROVED // 承認済み（マッチングの正規形引き当てに使用）
+}
+
+model SkillAlias {
+  id        String      @id @default(cuid())
+  alias     String      @unique // 表記ゆれ（例: 保険業務）
+  canonical String // 正規形（例: 保険）
+  status    AliasStatus @default(APPROVED)
+  source    String      @default("MANUAL") // MANUAL / LLM
+  createdAt DateTime    @default(now())
+
+  @@map("skill_aliases")
+}
+
 // ---- マッチング (§19) ----
 
 model MatchingResult {

@@ -157,6 +157,25 @@ export const PRIVACY_STATUS_LABELS: Record<string, string> = {
 };
 
 // 単価の公開帯: 10万円幅（§10 Level 1）
+// スキル・工程・業種名の比較用正規化（§19 マッチングの名寄せ・案A）:
+// 前後空白の除去・小文字化に加え、「保険業務」→「保険」のような接尾辞を除去する。
+// 完全一致の前処理としてのみ使い、部分一致はしない（Java と JavaScript の誤マッチを防ぐ）
+const TERM_SUFFIXES = ["業務経験", "開発経験", "業務", "経験", "関連", "案件", "開発", "系"];
+export function normalizeSkillTerm(name: string): string {
+  let s = name.trim().toLowerCase();
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const suf of TERM_SUFFIXES) {
+      // 接尾辞そのものの語（「開発」「業務」等の工程名）は除去しない
+      if (s.length > suf.length && s.endsWith(suf)) {
+        s = s.slice(0, -suf.length);
+        changed = true;
+      }
+    }
+  }
+  return s;
+}
+
 // 都道府県（居住エリア・勤務地の選択肢。保存値は「東京都千代田区」形式の先頭に付く）
 export const PREFECTURES = [
   "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
