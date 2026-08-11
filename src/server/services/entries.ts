@@ -432,6 +432,17 @@ export async function approveEntry(auth: AuthContext, entryId: string) {
           },
         },
       });
+      // 商談開始に連動して案件・人材の状態を「商談中」へ（成約・稼働中などは上書きしない）
+      await Promise.all([
+        tx.engineer.updateMany({
+          where: { id: entry.engineerId, workStatus: "PROPOSING" },
+          data: { workStatus: "NEGOTIATING" },
+        }),
+        tx.project.updateMany({
+          where: { id: entry.projectId, workflowStatus: "RECRUITING" },
+          data: { workflowStatus: "NEGOTIATING" },
+        }),
+      ]);
     }
     return { ok: true as const, mutual: approval.mutual, side };
   });
@@ -461,9 +472,35 @@ export async function declineEntry(auth: AuthContext, entryId: string, reason: s
   if (kind === "DECLINED" && isCreator)
     return { error: { code: "FORBIDDEN" as const, message: "見送りは受信側のみ可能です" } };
 
-  await prisma.entry.update({
-    where: { id: entryId },
-    data: { status: kind, declinedReason: reason },
+  await prisma.$transaction(async (tx) => {
+    await tx.entry.update({
+      where: { id: entryId },
+      data: { status: kind, declinedReason: reason },
+    });
+    // 商談開始後の見送り・辞退は、他に進行中の商談がなければ「商談中」を元の状態へ戻す
+    const NEGO_ACTIVE = [
+      "MUTUALLY_APPROVED",
+      "INTERVIEW",
+      "CONDITIONS",
+      "CONTRACTING",
+      "ON_HOLD",
+    ] as const;
+    if ((NEGO_ACTIVE as readonly string[]).includes(entry.status)) {
+      const [engineerActive, projectActive] = await Promise.all([
+        tx.entry.count({ where: { engineerId: entry.engineerId, status: { in: [...NEGO_ACTIVE] } } }),
+        tx.entry.count({ where: { projectId: entry.projectId, status: { in: [...NEGO_ACTIVE] } } }),
+      ]);
+      if (engineerActive === 0)
+        await tx.engineer.updateMany({
+          where: { id: entry.engineerId, workStatus: "NEGOTIATING" },
+          data: { workStatus: "PROPOSING" },
+        });
+      if (projectActive === 0)
+        await tx.project.updateMany({
+          where: { id: entry.projectId, workflowStatus: "NEGOTIATING" },
+          data: { workflowStatus: "RECRUITING" },
+        });
+    }
   });
   await audit({
     tenantCompanyId: auth.companyId,

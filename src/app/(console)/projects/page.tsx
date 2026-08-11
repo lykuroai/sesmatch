@@ -207,6 +207,7 @@ export default async function ProjectsPage({
             <span className={label}>案件状況</span>
             <select name="wf" defaultValue={wf} className={select}>
               <option value="RECRUITING">募集中</option>
+              <option value="NEGOTIATING">商談中</option>
               <option value="CONTRACTED">成約</option>
               <option value="ENDED">終了</option>
               <option value="all">すべて</option>

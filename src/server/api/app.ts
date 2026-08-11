@@ -724,10 +724,10 @@ app.post("/engineers/:id/consents", requirePermission("consent.manage"), async (
   return c.json(consent, 201);
 });
 
-// 人材の稼働状態（紹介中/稼働中）の手動設定
+// 人材の稼働状態（紹介中/商談中/稼働中）の手動設定
 app.post("/engineers/:id/work-status", requirePermission("engineer.create"), async (c) => {
   const parsed = z
-    .object({ status: z.enum(["PROPOSING", "WORKING"]) })
+    .object({ status: z.enum(["PROPOSING", "NEGOTIATING", "WORKING"]) })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
   const result = await setEngineerWorkStatus(c.get("auth"), c.req.param("id"), parsed.data.status);
@@ -814,10 +814,10 @@ app.delete("/projects/:id", requirePermission("project.create"), async (c) => {
   return c.json(result);
 });
 
-// 案件の進行状態（応募中/成約/終了）の手動設定
+// 案件の進行状態（応募中/商談中/成約/終了）の手動設定
 app.post("/projects/:id/workflow-status", requirePermission("project.create"), async (c) => {
   const parsed = z
-    .object({ status: z.enum(["RECRUITING", "CONTRACTED", "ENDED"]) })
+    .object({ status: z.enum(["RECRUITING", "NEGOTIATING", "CONTRACTED", "ENDED"]) })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
   const result = await setProjectWorkflowStatus(c.get("auth"), c.req.param("id"), parsed.data.status);

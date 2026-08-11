@@ -589,7 +589,7 @@ export async function publishEngineer(auth: AuthContext, engineerId: string) {
 export async function setEngineerWorkStatus(
   auth: AuthContext,
   engineerId: string,
-  workStatus: "PROPOSING" | "WORKING"
+  workStatus: "PROPOSING" | "NEGOTIATING" | "WORKING"
 ) {
   const engineer = await prisma.engineer.findFirst({
     where: { id: engineerId, tenantCompanyId: auth.companyId, deletedAt: null },

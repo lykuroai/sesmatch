@@ -297,7 +297,7 @@ export async function publishProject(auth: AuthContext, projectId: string) {
 export async function setProjectWorkflowStatus(
   auth: AuthContext,
   projectId: string,
-  workflowStatus: "RECRUITING" | "CONTRACTED" | "ENDED"
+  workflowStatus: "RECRUITING" | "NEGOTIATING" | "CONTRACTED" | "ENDED"
 ) {
   const project = await prisma.project.findFirst({
     where: { id: projectId, tenantCompanyId: auth.companyId },
