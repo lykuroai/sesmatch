@@ -6,7 +6,7 @@ import { listProjects } from "@/server/services/projects";
 import { listEngineers } from "@/server/services/engineers";
 import { passingProjectMatchesForEngineer } from "@/server/services/matching";
 import { expandSearchTerms } from "@/server/services/skill-aliases";
-import { PROJECT_WORKFLOW_LABELS, PUBLISH_STATUS_LABELS, REMOTE_LEVEL_LABELS } from "@/lib/constants";
+import { isNew, PROJECT_WORKFLOW_LABELS, PUBLISH_STATUS_LABELS, REMOTE_LEVEL_LABELS } from "@/lib/constants";
 import { IngestPanel } from "@/components/IngestPanel";
 import { PendingIngestions } from "@/components/PendingIngestions";
 import { Pager, parsePage, slicePage } from "@/components/Pager";
@@ -318,10 +318,13 @@ export default async function ProjectsPage({
           <tbody>
             {projects.map((p) => (
               <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50">
-                <td className="px-4 py-3">
+                <td className="whitespace-nowrap px-4 py-3">
                   <Link href={`/projects/${p.id}`} className="font-medium text-blue-700 hover:underline">
                     {p.code}
                   </Link>
+                  {isNew(p.createdAt) && (
+                    <span className="ml-1.5 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-600 align-middle">NEW</span>
+                  )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3">
                   <span className={`rounded px-1.5 py-0.5 text-xs ${p.own ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>

@@ -43,6 +43,8 @@ export function serializeProject(p: ProjectWithRels, auth: AuthContext) {
     processes: p.processes,
     status: p.status,
     workflowStatus: p.workflowStatus,
+    createdAt: p.createdAt.toISOString(), // 一覧のNEW表示用
+
     requiredSkills: p.skills.filter((s) => s.required).map((s) => ({ name: s.name, minMonths: s.minMonths })),
     preferredSkills: p.skills.filter((s) => !s.required).map((s) => ({ name: s.name })),
     maskedSourceText: own ? p.maskedSourceText : undefined, // 取込時の匿名化済み原文（自社のみ）

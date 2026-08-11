@@ -37,6 +37,7 @@ export function serializeEngineer(e: EngineerWithRels, auth: AuthContext) {
     id: e.id,
     code: e.code,
     own,
+    createdAt: e.createdAt.toISOString(), // 一覧のNEW表示用
     ageBand: ageBandLabel(e.ageBand),
     affiliationType: e.affiliationType,
     residenceCity: e.residenceCity,

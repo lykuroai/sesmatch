@@ -9,6 +9,7 @@ import { expandSearchTerms } from "@/server/services/skill-aliases";
 import {
   AFFILIATION_LABELS,
   ENGINEER_WORK_STATUS_LABELS,
+  isNew,
   PUBLISH_STATUS_LABELS,
   REMOTE_LEVEL_LABELS,
 } from "@/lib/constants";
@@ -332,11 +333,14 @@ export default async function EngineersPage({
           <tbody>
             {engineers.map((e) => (
               <tr key={e.id} className="border-t border-slate-100 hover:bg-slate-50">
-                <td className="px-4 py-3">
+                <td className="whitespace-nowrap px-4 py-3">
                   <Link href={`/engineers/${e.id}`} className="font-medium text-blue-700 hover:underline">
                     {e.code}
                     {e.name ? ` ${e.name}` : ""}
                   </Link>
+                  {isNew(e.createdAt) && (
+                    <span className="ml-1.5 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-600 align-middle">NEW</span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <span className={`rounded px-1.5 py-0.5 text-xs ${e.own ? "bg-purple-50 text-purple-700" : "bg-slate-100 text-slate-600"}`}>

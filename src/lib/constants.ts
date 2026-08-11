@@ -78,6 +78,12 @@ export const ENGINEER_WORK_STATUS_LABELS: Record<string, string> = {
   WORKING: "稼働中",
 };
 
+// 一覧のNEW表示: 登録から7日以内の案件・人材に印を付ける
+export const NEW_BADGE_DAYS = 7;
+export function isNew(createdAt: string | Date): boolean {
+  return Date.now() - new Date(createdAt).getTime() < NEW_BADGE_DAYS * 24 * 60 * 60 * 1000;
+}
+
 export const INGESTION_STATUS_LABELS: Record<string, string> = {
   RECEIVED: "受領",
   MASKING: "匿名化中",
