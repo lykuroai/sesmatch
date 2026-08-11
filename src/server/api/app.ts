@@ -987,11 +987,6 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
       })(),
     });
     createdId = result.id;
-    // 用語辞書の自動増補（Phase 2 名寄せ）: 新語の正規形をLLMが提案し辞書へ登録（失敗しても確定は成立）
-    await registerNewTermAliases(
-      [...d.skills.map((s) => s.name), ...d.processes, ...d.roles, ...d.industries],
-      auth.companyId
-    );
   } else if (job.sourceDocument.kind === "PROJECT_DESCRIPTION") {
     const parsed = projectDraftSchema.safeParse(confirmed);
     if (!parsed.success) return c.json(err("VALIDATION_ERROR", parsed.error.message), 400);

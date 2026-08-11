@@ -446,6 +446,17 @@ export async function createEngineer(auth: AuthContext, input: EngineerInput) {
     targetType: "Engineer",
     targetId: engineer.id,
   });
+  // 用語辞書の自動増補（Phase 2 名寄せ）: 手入力・取込確定を問わず新語の正規形を辞書へ登録
+  // （取込確定も本関数経由のためここで一括して行う。失敗しても登録は成立）
+  await registerNewTermAliases(
+    [
+      ...(input.skills ?? []).map((s) => s.name),
+      ...(input.processes ?? []),
+      ...(input.roles ?? []),
+      ...(input.industries ?? []),
+    ],
+    auth.companyId
+  );
   return serializeEngineer(engineer, auth);
 }
 
@@ -504,6 +515,16 @@ export async function updateEngineer(
     targetType: "Engineer",
     targetId: engineerId,
   });
+  // 用語辞書の自動増補（Phase 2 名寄せ）: 更新で追加された新語も辞書へ登録
+  await registerNewTermAliases(
+    [
+      ...(input.skills ?? []).map((s) => s.name),
+      ...(input.processes ?? []),
+      ...(input.roles ?? []),
+      ...(input.industries ?? []),
+    ],
+    auth.companyId
+  );
   return { engineer: serializeEngineer(engineer, auth) };
 }
 
