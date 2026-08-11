@@ -3,7 +3,7 @@ import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
 import { hasPermission } from "@/server/auth/rbac";
 import { ageBandLabel, rateBand, remoteLevelToOnsiteDays, LIST_PAGE_SIZE } from "@/lib/constants";
-import { registerNewTermAliases } from "./skill-aliases";
+import { expandSearchTerms, registerNewTermAliases } from "./skill-aliases";
 import { STORAGE_DIR, truncateFilenameBytes } from "@/server/pipeline/ingest";
 import { extractDocumentText, isSkillSheetFile } from "@/server/pipeline/extract-text";
 import { maskPii, verifyMasked } from "@/server/pipeline/pii";
@@ -83,18 +83,22 @@ export async function listEngineers(
       : // 公開人材検索: 他社の公開済み人材（Level 1 匿名表示）
         { status: "PUBLISHED" as const, deletedAt: null, NOT: { tenantCompanyId: auth.companyId } };
   // キーワード検索: コード・概要・スキル名・居住エリア・工程/役割/業種。
-  // 氏名（PII）は自社スコープのみ対象（他社の匿名人材を氏名で探索できないようにする）
+  // 氏名（PII）は自社スコープのみ対象（他社の匿名人材を氏名で探索できないようにする）。
+  // スキル・工程/役割/業種は用語辞書で検索語を同義語群に展開して照合する（名寄せ検索）
   const q = query?.trim();
+  const terms = q ? await expandSearchTerms(q) : [];
   const search = q
     ? {
         OR: [
           { code: { contains: q, mode: "insensitive" as const } },
           { summary: { contains: q, mode: "insensitive" as const } },
           { residenceCity: { contains: q, mode: "insensitive" as const } },
-          { skills: { some: { name: { contains: q, mode: "insensitive" as const } } } },
-          { processes: { has: q } },
-          { roles: { has: q } },
-          { industries: { has: q } },
+          ...terms.map((t) => ({
+            skills: { some: { name: { contains: t, mode: "insensitive" as const } } },
+          })),
+          { processes: { hasSome: terms } },
+          { roles: { hasSome: terms } },
+          { industries: { hasSome: terms } },
           ...(scope === "own" ? [{ name: { contains: q, mode: "insensitive" as const } }] : []),
         ],
       }

@@ -8,6 +8,7 @@ import {
   type ProjectContractType,
 } from "@/lib/constants";
 import type { Project, ProjectSkill } from "@prisma/client";
+import { expandSearchTerms } from "./skill-aliases";
 
 type ProjectWithRels = Project & { skills: ProjectSkill[] };
 
@@ -59,8 +60,10 @@ export async function listProjects(
     scope === "own"
       ? { tenantCompanyId: auth.companyId }
       : { status: "PUBLISHED" as const, NOT: { tenantCompanyId: auth.companyId } };
-  // キーワード検索: 案件名・コード・匿名概要・スキル名・勤務地・業種・工程
+  // キーワード検索: 案件名・コード・匿名概要・スキル名・勤務地・業種・工程。
+  // スキル・業種・工程は用語辞書で検索語を同義語群に展開して照合する（名寄せ検索）
   const q = query?.trim();
+  const terms = q ? await expandSearchTerms(q) : [];
   const search = q
     ? {
         OR: [
@@ -68,9 +71,11 @@ export async function listProjects(
           { code: { contains: q, mode: "insensitive" as const } },
           { anonymousSummary: { contains: q, mode: "insensitive" as const } },
           { locationCity: { contains: q, mode: "insensitive" as const } },
-          { industry: { contains: q, mode: "insensitive" as const } },
-          { processes: { has: q } },
-          { skills: { some: { name: { contains: q, mode: "insensitive" as const } } } },
+          ...terms.map((t) => ({ industry: { contains: t, mode: "insensitive" as const } })),
+          { processes: { hasSome: terms } },
+          ...terms.map((t) => ({
+            skills: { some: { name: { contains: t, mode: "insensitive" as const } } },
+          })),
         ],
       }
     : {};
