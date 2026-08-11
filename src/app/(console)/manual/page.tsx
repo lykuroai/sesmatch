@@ -94,25 +94,25 @@ export default async function ManualPage() {
           <p>
             本サービスは、案件情報と人材情報を登録・公開し、他社との双方向マッチングから商談・契約・稼働・手数料までを一貫して扱います。基本の流れは次のとおりです。
           </p>
-          <div className="overflow-x-auto">
-            <div className="flex min-w-max items-center gap-2 text-[13px] font-medium text-slate-600">
-              {[
-                "案件・人材を登録",
-                "公開",
-                "マッチング",
-                "商談を申し込む",
-                "商談開始（双方承認）",
-                "面談・条件調整",
-                "成約（条件確認書の相互締結）",
-                "稼働開始",
-                "月次確認・成約手数料",
-              ].map((s, i, arr) => (
-                <span key={s} className="flex items-center gap-2">
-                  <span className="rounded-lg border border-slate-200 bg-white px-3 py-1.5">{s}</span>
-                  {i < arr.length - 1 && <span className="text-slate-300">→</span>}
+          <div className="flex flex-col items-center gap-0 text-[13px] font-medium text-slate-600">
+            {[
+              "案件・人材を登録",
+              "公開",
+              "マッチング",
+              "商談を申し込む",
+              "商談開始（双方承認）",
+              "面談・条件調整",
+              "成約（条件確認書の相互締結）",
+              "稼働開始",
+              "月次確認・成約手数料",
+            ].map((s, i, arr) => (
+              <div key={s} className="flex flex-col items-center">
+                <span className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-center">
+                  {s}
                 </span>
-              ))}
-            </div>
+                {i < arr.length - 1 && <span className="py-1 text-base leading-none text-slate-300">↓</span>}
+              </div>
+            ))}
           </div>
           <p>
             自社の情報は編集でき、他社の情報は開示レベルに応じた範囲のみ参照できます。相手の氏名・実額単価・企業名は、双方の承認（商談開始）が成立してから相互・同時に開示されます。
