@@ -209,14 +209,9 @@ function CompanyReviewSection({
   reload: () => Promise<void>;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const [approvePassword, setApprovePassword] = useState("");
   const [bulkApproving, setBulkApproving] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(0);
   const [openId, setOpenId] = useState<string | null>(null); // 詳細を開いている企業
-
-  function approveBody() {
-    return approvePassword.trim() ? { initialPassword: approvePassword.trim() } : {};
-  }
 
   // 却下: 理由（任意）を入力し、申込者へ通知メールを送って申込データを削除する
   async function rejectOne(co: PendingCompany) {
@@ -243,7 +238,7 @@ function CompanyReviewSection({
   async function approveOne(co: PendingCompany) {
     if (
       !window.confirm(
-        `${co.name} を承認して開通しますか？\nパスワード未発行の担当者には初期パスワード付きの招待メールが送信されます。`
+        `${co.name} を承認して開通しますか？\n申込フローのオーナーには承認通知メールが送信されます（CSV取込企業の担当者へは、開通後に「初期パスワード再発行」で個別に発行してください）。`
       )
     )
       return;
@@ -251,7 +246,7 @@ function CompanyReviewSection({
     const res = await fetch(`/api/v1/operations/companies/${co.id}/approve`, {
       method: "POST",
       headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
-      body: JSON.stringify(approveBody()),
+      body: "{}",
     });
     if (res.ok) await reload();
     else setError("操作に失敗しました");
@@ -260,7 +255,7 @@ function CompanyReviewSection({
   async function approveAll() {
     if (
       !window.confirm(
-        `審査待ち ${companies.length} 社をすべて承認して開通しますか？\n承認した企業の担当者全員に初期パスワード付きの招待メールが送信されます。`
+        `審査待ち ${companies.length} 社をすべて承認して開通しますか？\n申込フローのオーナーには承認通知メールが送信されます（CSV取込企業の担当者へは初期パスワードを自動発行しません）。`
       )
     )
       return;
@@ -272,7 +267,7 @@ function CompanyReviewSection({
         const res = await fetch(`/api/v1/operations/companies/${co.id}/approve`, {
           method: "POST",
           headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
-          body: JSON.stringify(approveBody()),
+          body: "{}",
         });
         if (!res.ok) {
           const b = await res.json().catch(() => null);
@@ -297,16 +292,9 @@ function CompanyReviewSection({
           {companies.length > 0 && (
             <div className="mb-3 flex flex-wrap items-center gap-3 rounded border border-slate-100 bg-slate-50 p-3">
               <p className="w-full text-xs text-slate-500">
-                承認すると企業が有効になり、パスワード未発行の担当者（CSV取込分）へ初期パスワード付きの
-                招待メールが送信されます。統一初期パスワード（8文字以上）を指定しない場合は企業ごとに自動生成します。
+                承認すると企業が有効になり、申込フローのオーナーへ承認通知メールが送信されます。
+                CSV取込企業の担当者へは初期パスワードを自動発行しません。開通後、各担当者の「初期パスワード再発行」で個別に発行してください。
               </p>
-              <input
-                type="text"
-                value={approvePassword}
-                onChange={(e) => setApprovePassword(e.target.value)}
-                placeholder="統一初期パスワード（空欄で自動生成）"
-                className="w-72 rounded border border-slate-300 px-2 py-1.5 text-sm"
-              />
               <button
                 onClick={approveAll}
                 disabled={bulkApproving}

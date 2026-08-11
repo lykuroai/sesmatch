@@ -70,7 +70,7 @@ describe("approveCompany（取込企業の承認で有効化）", () => {
     return prisma.company.findFirstOrThrow({ where: { name } });
   }
 
-  it("承認で ACTIVE になり、統一初期パスワードを全担当者に設定する", async () => {
+  it("承認で ACTIVE になるが、CSV取込担当者へは初期パスワードを自動発行しない", async () => {
     await doImport([
       {
         companyName: "承認社",
@@ -86,38 +86,16 @@ describe("approveCompany（取込企業の承認で有効化）", () => {
       },
     ]);
     const company = await prisma.company.findFirstOrThrow({ where: { name: "承認社" } });
-    const r = await approveCompany(company.id, "unified-pass-123");
-    if ("error" in r) throw new Error("approve failed");
-    expect(r.invited).toBe(2);
-    expect(r.initialPassword).toBe("unified-pass-123");
+    const r = await approveCompany(company.id);
+    expect("error" in r).toBe(false);
 
     const after = await prisma.company.findUniqueOrThrow({ where: { id: company.id } });
     expect(after.status).toBe("ACTIVE");
+    // 承認時に初期パスワードは発行しない（開通後、運営の再招待で個別発行する）
     const accounts = await prisma.userAccount.findMany({
       where: { email: { in: ["approve-a@test.example", "approve-b@test.example"] } },
     });
-    for (const a of accounts) {
-      expect(await verifyPassword("unified-pass-123", a.passwordHash)).toBe(true);
-    }
-  });
-
-  it("統一パスワード未指定なら自動生成して返す", async () => {
-    const company = await importOne("自動生成社", "auto-gen@test.example");
-    const r = await approveCompany(company.id);
-    if ("error" in r) throw new Error("approve failed");
-    expect(r.initialPassword!.length).toBeGreaterThanOrEqual(8);
-    const account = await prisma.userAccount.findUniqueOrThrow({
-      where: { email: "auto-gen@test.example" },
-    });
-    expect(await verifyPassword(r.initialPassword!, account.passwordHash)).toBe(true);
-  });
-
-  it("8文字未満の統一パスワードは拒否し、企業は審査待ちのまま", async () => {
-    const company = await importOne("拒否社", "reject@test.example");
-    const r = await approveCompany(company.id, "short");
-    expect("error" in r && r.error?.code).toBe("VALIDATION_ERROR");
-    const after = await prisma.company.findUniqueOrThrow({ where: { id: company.id } });
-    expect(after.status).toBe("APPLIED");
+    expect(accounts.every((a) => a.passwordHash === "")).toBe(true);
   });
 
   it("承認済み企業の再承認は拒否する（409）", async () => {
@@ -334,7 +312,7 @@ describe("運営の担当者管理", () => {
     expect(list.items).toHaveLength(1);
     const member = list.items[0];
     expect(member.roles).toEqual(["ADMIN"]); // 初期ロールは企業管理者のみ
-    expect(member.passwordIssued).toBe(false); // 初期パスワードは承認時まで未発行
+    expect(member.passwordIssued).toBe(false); // 初期パスワードは未発行（再招待で発行）
 
     // 修正（オーナーでも可）
     const up = await updateMemberByOperations(member.id, {

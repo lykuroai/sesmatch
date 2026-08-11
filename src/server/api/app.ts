@@ -209,16 +209,10 @@ app.get("/operations/companies", requireAdminToken, async (c) =>
   c.json({ items: await listPendingCompanies() })
 );
 
-// 承認して開通。取込企業（パスワード未発行の担当者あり）は承認時に初期パスワードを
-// 発行して招待メールを送る。initialPassword 指定時は統一パスワードにする
+// 承認して開通。申込フローのオーナーへ承認通知メールを送る。
+// CSV取込由来のパスワード未発行担当者へは、開通後に運営が「初期パスワード再発行（再招待）」で個別発行する。
 app.post("/operations/companies/:id/approve", requireAdminToken, async (c) => {
-  const parsed = z
-    .object({ initialPassword: z.string().optional() })
-    .safeParse(await c.req.json().catch(() => ({})));
-  const result = await approveCompany(
-    c.req.param("id"),
-    parsed.success ? parsed.data.initialPassword : undefined
-  );
+  const result = await approveCompany(c.req.param("id"));
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);

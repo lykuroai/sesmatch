@@ -165,24 +165,14 @@ ${input.companyName} の企業登録申込を受け付けました。
 }
 
 // 運営審査: 承認して企業コンソールを開通する（運営トークンで保護）。
-// パスワード未発行（CSV取込直後）の担当者がいる企業は、承認のこのタイミングで初めて
-// 初期パスワードを設定し、初期パスワード付きの招待メールを送る（取込時点では配信しない）。
-// initialPassword 指定時は統一パスワード、未指定なら企業ごとに自動生成。
-export async function approveCompany(companyId: string, initialPassword?: string) {
-  const unified = initialPassword?.trim();
-  if (unified && unified.length < 8)
-    return {
-      error: { code: "VALIDATION_ERROR" as const, message: "初期パスワードは8文字以上にしてください" },
-    };
+// 申込フロー（本人がパスワード設定済み）のオーナーへ承認通知メールを送る。
+// パスワード未発行（CSV取込由来）の担当者へは、承認時の初期パスワード自動発行は行わない。
+// 開通後、運営が担当者ごとに「初期パスワード再発行（再招待）」で個別に発行する。
+export async function approveCompany(companyId: string) {
   const company = await prisma.company.findUnique({ where: { id: companyId } });
   if (!company) return { error: { code: "NOT_FOUND" as const } };
   if (company.status !== "APPLIED")
     return { error: { code: "VERSION_CONFLICT" as const, message: "審査待ちの企業ではありません" } };
-  const members = await prisma.companyMember.findMany({
-    where: { companyId },
-    include: { userAccount: true },
-  });
-  const pending = members.filter((m) => m.userAccount.passwordHash === "");
   // approvedAt は新規企業30日間手数料無料の起点（§23 キャンペーン）
   await prisma.company.update({
     where: { id: companyId },
@@ -193,31 +183,7 @@ export async function approveCompany(companyId: string, initialPassword?: string
     action: "CompanyApproved",
     targetType: "Company",
     targetId: companyId,
-    metadata: { invited: pending.length },
   });
-  if (pending.length > 0) {
-    const password = unified || randomBytes(9).toString("base64url");
-    const passwordHash = await hashPassword(password);
-    await prisma.userAccount.updateMany({
-      where: { id: { in: pending.map((m) => m.userAccountId) } },
-      data: { passwordHash },
-    });
-    for (const m of pending) {
-      await sendMail({
-        to: m.userAccount.email,
-        subject: "【SES DirectMatch】企業アカウント開設のお知らせ",
-        body: `${m.userAccount.name} 様
-
-${company.name} の企業登録が承認され、アカウントが有効になりました。
-以下の URL から次の初期パスワードでログインし、パスワードを変更してください。
-
-ログイン: ${appBaseUrl()}/login
-メールアドレス: ${m.userAccount.email}
-初期パスワード: ${password}`,
-      });
-    }
-    return { ok: true as const, invited: pending.length, initialPassword: password };
-  }
   // 申込フロー（本人がパスワード設定済み）はオーナーへの承認通知のみ
   const owner = await prisma.companyMember.findFirst({
     where: { companyId, roles: { some: { role: "OWNER" } } },
@@ -630,7 +596,7 @@ export async function importCompanies(rows: CompanyImportRow[]) {
 
     // 同名企業が既にある場合は、新規作成せず既存企業へ担当者として追加する
     // （同一 CSV 内で同じ企業の担当者が複数行あるケース）。取込担当者は全員企業管理者（ADMIN）権限。
-    // 追加先が審査待ちなら承認時に、承認済みなら再招待で初期パスワードを発行する
+    // 取込時点ではパスワードを発行しない。開通後、運営が担当者ごとの「再招待」で初期パスワードを発行する
     const sameName = await prisma.company.findFirst({ where: { name: row.companyName } });
     if (sameName) {
       try {
