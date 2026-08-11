@@ -13,6 +13,7 @@ const MENU = [
   { href: "/entries", label: "商談管理" },
   { href: "/contracts", label: "成約・稼働" },
   { href: "/billing", label: "成約手数料" },
+  { href: "/manual", label: "操作マニュアル" },
 ];
 // 企業情報・担当者・通報・監査・プライバシー・企業間関係は
 // 会社マイページ（/company、ヘッダー右の会社名から）に集約
