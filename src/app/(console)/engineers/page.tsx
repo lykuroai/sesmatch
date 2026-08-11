@@ -5,6 +5,7 @@ import { prisma } from "@/server/db";
 import { listEngineers } from "@/server/services/engineers";
 import { listProjects } from "@/server/services/projects";
 import { passingEngineerMatchesForProject } from "@/server/services/matching";
+import { expandSearchTerms } from "@/server/services/skill-aliases";
 import {
   AFFILIATION_LABELS,
   ENGINEER_WORK_STATUS_LABELS,
@@ -53,6 +54,14 @@ export default async function EngineersPage({
   const fstart = sp.fstart === "1"; // 開始日一致
   const page = parsePage(sp.page);
 
+  // 用語辞書で検索語を同義語群（小文字化）に展開（名寄せ検索。例: 保険業務⇄保険、ポスグレ⇄PostgreSQL）
+  const qTerms = q ? (await expandSearchTerms(q)).map((v) => v.toLowerCase()) : [];
+  const skillTerms = new Map(
+    await Promise.all(
+      skills.map(async (s) => [s, (await expandSearchTerms(s)).map((v) => v.toLowerCase())] as const)
+    )
+  );
+
   const [own, pub, ownProjects, pendingJobs] = await Promise.all([
     listEngineers(auth, "own"),
     listEngineers(auth, "public"),
@@ -91,8 +100,20 @@ export default async function EngineersPage({
       if (fstart && !m.startOk) return false;
     }
     if (skills.length > 0) {
-      const names = e.skills.map((s) => s.name.toLowerCase());
-      if (!skills.every((s) => names.some((n) => n.includes(s.toLowerCase())))) return false;
+      // スキル名に加え工程・役割・業種も対象。指定スキルごとに同義語群のいずれかが部分一致すればよい
+      const names = [
+        ...e.skills.map((s) => s.name),
+        ...e.processes,
+        ...e.roles,
+        ...e.industries,
+      ].map((n) => n.toLowerCase());
+      if (
+        !skills.every((s) => {
+          const vs = skillTerms.get(s) ?? [s.toLowerCase()];
+          return names.some((n) => vs.some((v) => n.includes(v)));
+        })
+      )
+        return false;
     }
     // 単価: Level 1 の単価帯（10万円幅）と指定範囲が重なるか
     const bandLower = rateBandLowerMan(e.rateBand);
@@ -109,10 +130,13 @@ export default async function EngineersPage({
         e.summary ?? "",
         e.residenceCity ?? "",
         ...e.skills.map((s) => s.name),
+        ...e.processes,
+        ...e.roles,
+        ...e.industries,
       ]
         .join("\n")
         .toLowerCase();
-      if (!haystack.includes(q)) return false;
+      if (!qTerms.some((v) => haystack.includes(v))) return false;
     }
     return true;
   });

@@ -5,6 +5,7 @@ import { prisma } from "@/server/db";
 import { listProjects } from "@/server/services/projects";
 import { listEngineers } from "@/server/services/engineers";
 import { passingProjectMatchesForEngineer } from "@/server/services/matching";
+import { expandSearchTerms } from "@/server/services/skill-aliases";
 import { PROJECT_WORKFLOW_LABELS, PUBLISH_STATUS_LABELS, REMOTE_LEVEL_LABELS } from "@/lib/constants";
 import { IngestPanel } from "@/components/IngestPanel";
 import { PendingIngestions } from "@/components/PendingIngestions";
@@ -41,6 +42,14 @@ export default async function ProjectsPage({
   const fremote = sp.fremote === "1"; // リモート可（出社条件が人材の許容内）
   const fstart = sp.fstart === "1"; // 開始日一致
   const page = parsePage(sp.page);
+
+  // 用語辞書で検索語を同義語群（小文字化）に展開（名寄せ検索。例: 保険業務⇄保険、ポスグレ⇄PostgreSQL）
+  const qTerms = q ? (await expandSearchTerms(q)).map((v) => v.toLowerCase()) : [];
+  const skillTerms = new Map(
+    await Promise.all(
+      skills.map(async (s) => [s, (await expandSearchTerms(s)).map((v) => v.toLowerCase())] as const)
+    )
+  );
 
   const [own, pub, engineers, pendingJobs] = await Promise.all([
     listProjects(auth, "own"),
@@ -79,8 +88,19 @@ export default async function ProjectsPage({
       if (fstart && !m.startOk) return false;
     }
     if (skills.length > 0) {
-      const names = [...p.requiredSkills, ...p.preferredSkills].map((s) => s.name.toLowerCase());
-      if (!skills.every((s) => names.some((n) => n.includes(s.toLowerCase())))) return false;
+      // スキル名に加え業種・工程も対象。指定スキルごとに同義語群のいずれかが部分一致すればよい
+      const names = [
+        ...[...p.requiredSkills, ...p.preferredSkills].map((s) => s.name),
+        p.industry ?? "",
+        ...p.processes,
+      ].map((n) => n.toLowerCase());
+      if (
+        !skills.every((s) => {
+          const vs = skillTerms.get(s) ?? [s.toLowerCase()];
+          return names.some((n) => vs.some((v) => n.includes(v)));
+        })
+      )
+        return false;
     }
     // 単価: 案件の単価帯（下限〜上限）と指定範囲が重なるか
     if (rateMin && p.rateMaxYen < rateMin * 10_000) return false;
@@ -93,12 +113,14 @@ export default async function ProjectsPage({
         p.code,
         p.name,
         p.anonymousSummary,
+        p.industry ?? "",
+        ...p.processes,
         ...p.requiredSkills.map((s) => s.name),
         ...p.preferredSkills.map((s) => s.name),
       ]
         .join("\n")
         .toLowerCase();
-      if (!haystack.includes(q)) return false;
+      if (!qTerms.some((v) => haystack.includes(v))) return false;
     }
     return true;
   });
