@@ -58,13 +58,13 @@ export function EntryCreate({
   return (
     <form onSubmit={submit} className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-5">
       <h2 className="mb-3 font-bold text-blue-900">
-        {type === "PROPOSAL" ? "この案件へ自社人材を提案" : "この人材を自社案件へスカウト"}
+        {type === "PROPOSAL" ? "この案件へ自社人材を提案" : "この人材に自社案件を提案する"}
       </h2>
       {error && <p className="mb-3 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
       <div className="flex flex-wrap items-end gap-3 text-sm">
         <div>
           <label className="mb-1 block text-xs text-slate-600">
-            {type === "PROPOSAL" ? "提案する人材（公開・同意済みのみ）" : "スカウト先の自社案件"}
+            {type === "PROPOSAL" ? "提案する人材（公開・同意済みのみ）" : "自社案件"}
           </label>
           <select
             value={selected}
@@ -92,7 +92,7 @@ export function EntryCreate({
           disabled={loading || !selected}
           className="rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {loading ? "送信中..." : type === "PROPOSAL" ? "提案する" : "スカウトする"}
+          {loading ? "送信中..." : type === "PROPOSAL" ? "提案する" : "商談を申し込む"}
         </button>
       </div>
       {needsSubtier && (
