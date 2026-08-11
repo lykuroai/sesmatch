@@ -290,7 +290,7 @@ export default async function EntriesPage({
             <thead className="text-left text-xs text-slate-500">
               <tr>
                 <th className="px-4 py-2 w-32">状況</th>
-                <th className="px-4 py-2">マッチング相手</th>
+                <th className="px-4 py-2">案件・人材</th>
                 <th className="px-4 py-2 w-48">相手企業</th>
                 <th className="px-4 py-2 w-28">更新日</th>
                 <th className="px-4 py-2 w-20">操作</th>
