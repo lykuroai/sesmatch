@@ -138,7 +138,7 @@ export function MatchPanel({
                         href={`/entries/${entryState.entryId}`}
                         className="rounded bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:underline"
                       >
-                        エントリー作成済み →
+                        商談申込み済み →
                       </Link>
                     )}
                     <span className="text-2xl font-bold text-emerald-600">{row.result.score}</span>

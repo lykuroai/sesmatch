@@ -97,15 +97,17 @@ export const SKILL_CATEGORY_LABELS: Record<string, string> = {
   INDUSTRY: "業種",
 };
 
+// 商談ステータスの表示名（2026-08-11 の用語統一。内部状態はそのまま、表示のみ「商談」呼称）
+// 片側承認（SUPPLY/DEMAND_APPROVED）はどちらも「承認待ち」、条件調整と契約手続は「契約調整中」に統合
 export const ENTRY_STATUS_LABELS: Record<string, string> = {
-  DRAFT: "下書き",
-  SUBMITTED: "提出済み",
-  SUPPLY_APPROVED: "供給側承認済み",
-  DEMAND_APPROVED: "需要側承認済み",
-  MUTUALLY_APPROVED: "双方承認済み",
-  INTERVIEW: "面談",
-  CONDITIONS: "条件調整",
-  CONTRACTING: "契約手続中",
+  DRAFT: "申込み前",
+  SUBMITTED: "承認待ち",
+  SUPPLY_APPROVED: "承認待ち",
+  DEMAND_APPROVED: "承認待ち",
+  MUTUALLY_APPROVED: "商談中",
+  INTERVIEW: "面談調整中",
+  CONDITIONS: "契約調整中",
+  CONTRACTING: "契約調整中",
   CONTRACTED: "成約",
   DECLINED: "見送り",
   WITHDRAWN: "辞退",

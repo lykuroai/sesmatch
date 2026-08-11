@@ -19,19 +19,18 @@ function displayStatusOf(e: EntryRow): { key: string; label: string } {
         : (e.status === "SUPPLY_APPROVED" && e.side === "DEMAND") ||
           (e.status === "DEMAND_APPROVED" && e.side === "SUPPLY");
     return waitingOnUs
-      ? { key: "PENDING_OWN", label: "確認待ち" }
-      : { key: "PROPOSING", label: "提案中" };
+      ? { key: "PENDING_OWN", label: "承認待ち（自社）" }
+      : { key: "PROPOSING", label: "承認待ち（相手側）" };
   }
   return { key: e.status, label: ENTRY_STATUS_LABELS[e.status] ?? e.status };
 }
 
 const STATUS_OPTIONS: [string, string][] = [
-  ["PROPOSING", "提案中"],
-  ["PENDING_OWN", "確認待ち"],
-  ["MUTUALLY_APPROVED", "双方承認済み"],
-  ["INTERVIEW", "面談"],
-  ["CONDITIONS", "条件調整"],
-  ["CONTRACTING", "契約手続中"],
+  ["PROPOSING", "承認待ち（相手側）"],
+  ["PENDING_OWN", "承認待ち（自社）"],
+  ["MUTUALLY_APPROVED", "商談中"],
+  ["INTERVIEW", "面談調整中"],
+  ["CONTRACT_PREP", "契約調整中"], // CONDITIONS / CONTRACTING の統合表示
   ["CONTRACTED", "成約"],
   ["DECLINED", "見送り"],
   ["WITHDRAWN", "辞退"],
@@ -122,7 +121,11 @@ export default async function EntriesPage({
     if (side === "engineer" && e.side !== "SUPPLY") return false;
     if (origin === "own" && !e.createdByOwn) return false;
     if (origin === "other" && e.createdByOwn) return false;
-    if (status !== "all" && ds.key !== status) return false;
+    if (status !== "all") {
+      const hit =
+        status === "CONTRACT_PREP" ? ["CONDITIONS", "CONTRACTING"].includes(ds.key) : ds.key === status;
+      if (!hit) return false;
+    }
     if (action === "own" && ds.key !== "PENDING_OWN") return false;
     if (action === "other" && ds.key !== "PROPOSING") return false;
     if (member !== "all" && e.responsibleMemberId !== member) return false;
@@ -188,7 +191,7 @@ export default async function EntriesPage({
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">エントリー</h1>
+      <h1 className="mb-6 text-2xl font-bold">商談一覧</h1>
 
       {/* 検索条件 */}
       <form method="GET" action="/entries" className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -332,7 +335,7 @@ export default async function EntriesPage({
       ))}
       {groups.length === 0 && (
         <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-slate-400 shadow-sm">
-          条件に一致するエントリーはありません
+          条件に一致する商談はありません
         </div>
       )}
 

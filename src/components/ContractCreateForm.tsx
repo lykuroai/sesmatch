@@ -119,7 +119,7 @@ export function ContractCreateForm({
         disabled={loading}
         className="mt-4 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
       >
-        {loading ? "作成中..." : "条件確認書を作成（エントリーは契約手続中へ）"}
+        {loading ? "作成中..." : "条件確認書を作成（商談は契約調整中へ）"}
       </button>
     </form>
   );

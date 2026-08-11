@@ -99,7 +99,7 @@ export default async function EngineerDetailPage({
               </a>
               <DeleteResourceButton
                 path={`/api/v1/engineers/${e.id}`}
-                confirmText="この人材を削除しますか？（一覧・検索から除外されます。進行中のエントリーがある場合は削除できません）"
+                confirmText="この人材を削除しますか？（一覧・検索から除外されます。進行中の商談がある場合は削除できません）"
                 redirectTo="/engineers"
               />
             </>

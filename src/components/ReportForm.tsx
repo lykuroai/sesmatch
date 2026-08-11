@@ -43,7 +43,7 @@ export function ReportForm() {
           </select>
         </div>
         <div className="flex-1">
-          <label className="mb-1 block text-xs text-slate-500">対象（エントリーID・企業名等、任意）</label>
+          <label className="mb-1 block text-xs text-slate-500">対象（商談ID・企業名等、任意）</label>
           <input name="targetRef" className="w-full rounded border border-slate-300 px-2 py-1.5" />
         </div>
       </div>

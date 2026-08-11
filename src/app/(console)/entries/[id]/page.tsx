@@ -69,18 +69,23 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
           {approvable && (
             <ActionButton
               path={`/api/v1/entries/${e.id}/approvals`}
-              label="承認する"
-              confirmMessage="承認すると、双方承認が揃った時点で企業名・氏名・実額単価が相互に同時開示されます（Level 2）。よろしいですか？"
+              label="商談申込みを承認"
+              confirmMessage="承認すると、双方の承認が揃った時点で商談開始となり、企業名・氏名・実額単価が相互に同時開示されます（Level 2）。よろしいですか？"
             />
           )}
           {canApprovePerm && !e.createdByOwn && canDecline(e.status) && (
-            <ActionButton path={`/api/v1/entries/${e.id}/decline`} label="見送る" confirmMessage="このエントリーを見送りますか？" />
+            <ActionButton path={`/api/v1/entries/${e.id}/decline`} label="見送る" confirmMessage="この商談申込みを見送りますか？" />
           )}
           {canSubmitPerm && e.createdByOwn && canDecline(e.status) && (
-            <ActionButton path={`/api/v1/entries/${e.id}/withdraw`} label="辞退する" confirmMessage="このエントリーを辞退しますか？" />
+            // 商談開始前は「申込みの取り消し」、開始後は「辞退」として表示（APIは同一）
+            ["SUBMITTED", "SUPPLY_APPROVED", "DEMAND_APPROVED"].includes(e.status) ? (
+              <ActionButton path={`/api/v1/entries/${e.id}/withdraw`} label="商談申込みを取り消す" confirmMessage="この商談申込みを取り消しますか？" />
+            ) : (
+              <ActionButton path={`/api/v1/entries/${e.id}/withdraw`} label="辞退する" confirmMessage="この商談を辞退しますか？" />
+            )
           )}
           {canApprovePerm && canMoveToConditions(e.status) && (
-            <ActionButton path={`/api/v1/entries/${e.id}/conditions`} label="条件調整へ進める" />
+            <ActionButton path={`/api/v1/entries/${e.id}/conditions`} label="契約調整へ進める" />
           )}
         </div>
       </div>
@@ -89,7 +94,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
       {e.disclosure ? (
         <section className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-bold text-emerald-800">Level 2 開示情報（双方承認済み）</h2>
+            <h2 className="font-bold text-emerald-800">Level 2 開示情報（商談開始済み）</h2>
             <span className="text-xs text-emerald-700">
               開示日時: {new Date(e.disclosure.disclosedAt).toLocaleString("ja-JP")}
             </span>
@@ -153,7 +158,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
         </section>
       ) : (
         <section className="mb-6 rounded-xl border border-slate-200 bg-slate-100 p-4 text-sm text-slate-600">
-          企業名・氏名・実額単価は双方承認が揃った時点で相互に同時開示されます。現在は Level 1（匿名）表示です。
+          企業名・氏名・実額単価は双方の承認が揃い商談開始となった時点で相互に同時開示されます。現在は Level 1（匿名）表示です。
         </section>
       )}
 
@@ -226,7 +231,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
         {canInterview && canScheduleInterview(e.status) ? (
           <InterviewForm entryId={e.id} />
         ) : (
-          <p className="text-xs text-slate-400">面談の設定は双方承認後に可能になります。</p>
+          <p className="text-xs text-slate-400">面談の設定は商談開始後に可能になります。</p>
         )}
       </section>
 
@@ -235,7 +240,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
         <h2 className="mb-3 font-bold">メッセージ</h2>
         {!e.disclosure && (
           <p className="mb-3 rounded bg-amber-50 p-2 text-xs text-amber-700">
-            相互承認前のため、メール・電話番号・SNS・URL 等の連絡先を含むメッセージは送信できません（自動検出されます）。
+            商談開始前のため、メール・電話番号・SNS・URL 等の連絡先を含むメッセージは送信できません（自動検出されます）。
           </p>
         )}
         <div className="mb-4 space-y-2">

@@ -90,7 +90,7 @@ export default async function ProjectDetailPage({
               </a>
               <DeleteResourceButton
                 path={`/api/v1/projects/${p.id}`}
-                confirmText="この案件を削除しますか？（元に戻せません。エントリーがある案件は削除できません）"
+                confirmText="この案件を削除しますか？（元に戻せません。商談がある案件は削除できません）"
                 redirectTo="/projects"
               />
             </>

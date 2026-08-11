@@ -185,7 +185,7 @@ export default async function ContractsPage({
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                   {all.length === 0
-                    ? "成約はまだありません。条件確認書はエントリー詳細（双方承認後）から作成できます。"
+                    ? "成約はまだありません。条件確認書は商談詳細（商談開始後）から作成できます。"
                     : "条件に一致する成約はありません"}
                 </td>
               </tr>
