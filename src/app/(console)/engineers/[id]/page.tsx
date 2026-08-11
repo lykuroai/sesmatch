@@ -144,28 +144,31 @@ export default async function EngineerDetailPage({
         right={
           <section className="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">スキル</h2>
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-slate-500">
-              <tr>
-                <th className="py-1">分類</th>
-                <th className="py-1">名称</th>
-                <th className="py-1">経験</th>
-                <th className="py-1">最終利用</th>
-              </tr>
-            </thead>
-            <tbody>
-              {e.skills.map((s) => (
-                <tr key={s.name} className="border-t border-slate-100">
-                  <td className="py-1.5 text-xs text-slate-500">{SKILL_CATEGORY_LABELS[s.category]}</td>
-                  <td className="py-1.5 font-medium">{s.name}</td>
-                  <td className="py-1.5">{formatMonths(s.months)}</td>
-                  <td className="py-1.5">
-                    {s.lastUsedAt ? new Date(s.lastUsedAt).toLocaleDateString("ja-JP") : "-"}
-                  </td>
+          {/* スキルが多い場合は高さを制限してスクロール（ヘッダー行は固定） */}
+          <div className="max-h-96 overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-white text-left text-xs text-slate-500">
+                <tr>
+                  <th className="py-1">分類</th>
+                  <th className="py-1">名称</th>
+                  <th className="py-1">経験</th>
+                  <th className="py-1">最終利用</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {e.skills.map((s) => (
+                  <tr key={s.name} className="border-t border-slate-100">
+                    <td className="py-1.5 text-xs text-slate-500">{SKILL_CATEGORY_LABELS[s.category]}</td>
+                    <td className="py-1.5 font-medium">{s.name}</td>
+                    <td className="py-1.5">{formatMonths(s.months)}</td>
+                    <td className="py-1.5">
+                      {s.lastUsedAt ? new Date(s.lastUsedAt).toLocaleDateString("ja-JP") : "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           </section>
         }
       />
