@@ -175,9 +175,9 @@ async function notifyEntryReceived(
     }
     const detail =
       entry.type === "PROPOSAL"
-        ? `貴社案件「${project.name}」（${project.code}）に人材のご提案が届きました。
+        ? `貴社案件「${project.name}」（${project.code}）への商談の申込み（人材のご提案）が届きました。
 提案人材コード: ${engineer.code}`
-        : `貴社人材（${engineer.code}）へのスカウトが届きました。
+        : `貴社人材（${engineer.code}）への商談の申込み（案件のご提案）が届きました。
 対象案件: 「${project.name}」（${project.code}）`;
     await Promise.all(
       members.map((m) =>
@@ -185,13 +185,13 @@ async function notifyEntryReceived(
           to: m.userAccount.email,
           subject:
             entry.type === "PROPOSAL"
-              ? "【SES DirectMatch】案件へのエントリー（提案）が届きました"
-              : "【SES DirectMatch】人材へのスカウトが届きました",
+              ? "【SES DirectMatch】案件への商談の申込みが届きました"
+              : "【SES DirectMatch】人材への商談の申込みが届きました",
           body: `${m.userAccount.name} 様
 
 ${detail}
 
-以下のURLからエントリー内容をご確認ください。
+以下のURLから商談の内容をご確認ください。
 ${appBaseUrl()}/entries/${entry.id}`,
         })
       )
@@ -277,17 +277,17 @@ export async function createEntry(auth: AuthContext, input: CreateEntryInput) {
     if (project.status !== "PUBLISHED")
       return { error: { code: "NOT_FOUND" as const } };
   } else {
-    // 他社人材を自社案件へスカウト
+    // 他社人材へ自社案件を提案（商談を申し込む）
     if (project.tenantCompanyId !== auth.companyId)
-      return { error: { code: "FORBIDDEN" as const, message: "自社案件のみスカウトできます" } };
+      return { error: { code: "FORBIDDEN" as const, message: "自社案件のみ商談を申し込めます" } };
     if (engineer.tenantCompanyId === auth.companyId)
-      return { error: { code: "VALIDATION_ERROR" as const, message: "自社人材へのスカウトは不要です" } };
+      return { error: { code: "VALIDATION_ERROR" as const, message: "自社人材への商談申込みは不要です" } };
     if (engineer.status !== "PUBLISHED") return { error: { code: "NOT_FOUND" as const } };
   }
 
-  // 終了（クローズ）した案件はエントリー不可（進行状態は手動設定）
+  // 終了（クローズ）した案件は商談申込み不可（進行状態は手動設定）
   if (project.workflowStatus === "ENDED")
-    return { error: { code: "VALIDATION_ERROR" as const, message: "終了した案件にはエントリーできません" } };
+    return { error: { code: "VALIDATION_ERROR" as const, message: "終了した案件には商談を申し込めません" } };
 
   // 公開状態・本人同意（§19.1）
   if (engineer.status !== "PUBLISHED" || !hasValidConsent(engineer.consents))
@@ -404,7 +404,7 @@ export async function createEntry(auth: AuthContext, input: CreateEntryInput) {
     // 重複応募ブロック（§18）
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")
       return {
-        error: { code: "DUPLICATE_ENTRY" as const, message: "同一人材×同一案件のエントリーが既に存在します" },
+        error: { code: "DUPLICATE_ENTRY" as const, message: "同一人材×同一案件の商談が既に存在します" },
       };
     throw e;
   }
