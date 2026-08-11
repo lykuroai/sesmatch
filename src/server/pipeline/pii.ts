@@ -31,8 +31,11 @@ const PATTERNS: { kind: PiiToken["kind"]; re: RegExp }[] = [
   { kind: "NAME", re: /^[一-龥]{1,4}[ 　]*様(?=$|[\s、。])/gm },
 ];
 
-// 氏名パターン: 「氏名: 山田太郎」等のラベル付き記載を対象とする
-const NAME_LABEL_RE = /(氏名|名前)[:：]\s*([^\s　\n]+(?:[\s　][^\s　\n]+)?)/g;
+// 氏名パターン: ラベル付き記載を対象とする。区切りはコロンだけでなく
+// カンマ（XLSX→CSV変換で頻出）・タブ・空白・全角空白も許容する。
+// 値は氏名らしい文字（漢字・カナ・ラテン）1〜2語に限定し、prose の過剰マスクを抑える。
+const NAME_LABEL_RE =
+  /(氏名|名前|フリガナ|ふりがな)\s*[:：,，\t 　]+\s*([一-龥ぁ-んァ-ヶーA-Za-z]{1,12}(?:[ 　][一-龥ぁ-んァ-ヶーA-Za-z]{1,12})?)/g;
 
 export function maskPii(text: string): MaskResult {
   const tokens: PiiToken[] = [];
@@ -81,11 +84,13 @@ export function detectContactInfo(text: string): string[] {
 }
 
 // 匿名化検査（§25.3）: LLM 送信前に残存 PII がないか検査する。
+// findings には種別のみを入れ、残存 PII の実値は含めない（ログ・DBへの平文保存を防ぐ）。
 export function verifyMasked(masked: string): { ok: boolean; findings: string[] } {
   const findings: string[] = [];
   for (const { kind, re } of PATTERNS) {
-    const m = masked.match(new RegExp(re.source, re.flags));
-    if (m) findings.push(`${kind}: ${m[0]}`);
+    if (new RegExp(re.source, re.flags).test(masked)) findings.push(kind);
   }
+  // ラベル付き氏名（「氏名,山田太郎」等）の残存も検査する（マスク漏れの検出漏れ対策）
+  if (new RegExp(NAME_LABEL_RE.source).test(masked)) findings.push("NAME");
   return { ok: findings.length === 0, findings };
 }

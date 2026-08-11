@@ -243,6 +243,30 @@ export async function createEntry(auth: AuthContext, input: CreateEntryInput) {
     include: { consents: true },
   });
   if (!project || !engineer) return { error: { code: "NOT_FOUND" as const } };
+  // 論理削除済み人材（本人削除請求 §26）はエントリー対象外。存在推測を防ぐため 404 を返す
+  if (engineer.deletedAt) return { error: { code: "NOT_FOUND" as const } };
+
+  // 自由記述 note の連絡先検査（§21）: 相互承認前の中抜き（直接連絡の誘導）を防ぐ。
+  // メッセージと同じ基準で、連絡先を含む場合は保存せず修正要求＋監査記録とする。
+  if (input.note) {
+    const findings = detectContactInfo(input.note);
+    if (findings.length > 0) {
+      await audit({
+        tenantCompanyId: auth.companyId,
+        actorUserId: auth.userAccountId,
+        action: "ContactInfoBlocked",
+        targetType: "Entry",
+        targetId: input.engineerId,
+        metadata: { kinds: findings, field: "note" },
+      });
+      return {
+        error: {
+          code: "PII_VALIDATION_FAILED" as const,
+          message: `補足メモに連絡先情報（${findings.join(", ")}）を含めることはできません。修正してください`,
+        },
+      };
+    }
+  }
 
   if (input.type === "PROPOSAL") {
     // 自社人材を他社案件へ提案
@@ -471,6 +495,30 @@ export async function declineEntry(auth: AuthContext, entryId: string, reason: s
     return { error: { code: "FORBIDDEN" as const, message: "辞退は申請側のみ可能です" } };
   if (kind === "DECLINED" && isCreator)
     return { error: { code: "FORBIDDEN" as const, message: "見送りは受信側のみ可能です" } };
+
+  // 見送り・辞退理由も相手企業に表示されるため、開示（相互承認）前は連絡先検査を行う（§21）
+  if (reason) {
+    const disclosed = await prisma.disclosure.findUnique({ where: { entryId } });
+    if (!disclosed) {
+      const findings = detectContactInfo(reason);
+      if (findings.length > 0) {
+        await audit({
+          tenantCompanyId: auth.companyId,
+          actorUserId: auth.userAccountId,
+          action: "ContactInfoBlocked",
+          targetType: "Entry",
+          targetId: entryId,
+          metadata: { kinds: findings, field: "declinedReason" },
+        });
+        return {
+          error: {
+            code: "PII_VALIDATION_FAILED" as const,
+            message: `理由に連絡先情報（${findings.join(", ")}）を含めることはできません。修正してください`,
+          },
+        };
+      }
+    }
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.entry.update({

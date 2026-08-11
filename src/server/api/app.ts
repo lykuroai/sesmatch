@@ -1,6 +1,7 @@
 // REST API（§28）: ベースパス /api/v1、JSON、UTF-8、日時 ISO 8601 UTC、金額は円整数
 // 共通エラー（§29）
 
+import { timingSafeEqual, createHash } from "crypto";
 import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { z } from "zod";
@@ -119,6 +120,9 @@ export const app = new Hono<Env>().basePath("/api/v1");
 
 const err = (code: string, message?: string) => ({ error: { code, message } });
 
+// 取込アップロードのサイズ上限（DoS対策 §32）。原本は同期でメモリ展開・解析するため上限を設ける
+const MAX_INGEST_BYTES = 20 * 1024 * 1024;
+
 // サービス層のエラー結果 → HTTP ステータス（§29）
 type SvcErr = { code: string; message?: string };
 const svcError = (result: object): SvcErr | null =>
@@ -187,11 +191,19 @@ const requireAdminToken = async (
   next: () => Promise<void>
 ) => {
   const token = process.env.PLATFORM_ADMIN_TOKEN;
-  if (!token || c.req.header("X-Admin-Token") !== token) {
+  const provided = c.req.header("X-Admin-Token");
+  if (!token || !provided || !constantTimeEqual(provided, token)) {
     return c.json(err("UNAUTHENTICATED"), 401);
   }
   await next();
 };
+
+// 定数時間比較（タイミング攻撃対策 §31）。長さの差異も漏らさないよう SHA-256 の固定長で比較する
+function constantTimeEqual(a: string, b: string): boolean {
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
 
 app.get("/operations/companies", requireAdminToken, async (c) =>
   c.json({ items: await listPendingCompanies() })
@@ -873,9 +885,14 @@ app.post("/ingestions", requirePermission("ingestion.create"), async (c) => {
     const form = await c.req.formData().catch(() => null);
     const file = form?.get("file");
     if (!(file instanceof File)) return c.json(err("VALIDATION_ERROR", "file が必要です"), 400);
+    // サイズ上限（DoS対策）: メモリ全量展開・同期解析の前に拒否する
+    if (file.size > MAX_INGEST_BYTES)
+      return c.json(err("VALIDATION_ERROR", "ファイルは20MB以下にしてください"), 400);
     filename = file.name;
     mimeType = file.type || "text/plain";
     content = Buffer.from(await file.arrayBuffer());
+    if (content.length > MAX_INGEST_BYTES)
+      return c.json(err("VALIDATION_ERROR", "ファイルは20MB以下にしてください"), 400);
   }
 
   const job = await startIngestion({

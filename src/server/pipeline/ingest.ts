@@ -15,9 +15,15 @@ export const STORAGE_DIR = process.env.STORAGE_DIR ?? "./storage";
 
 // 保存用ファイル名をUTF-8のバイト長で安全に切り詰める（ext4等の255バイト制限対策。拡張子は保持）。
 // 表示用の filename（DB）は切り詰めず、ディスク上のパスだけを短くする。
+// パストラバーサル対策（§31）: ディレクトリ区切り・先頭ドットを除去し、保存先ディレクトリの
+// 脱出（`../` 等による他テナント領域や任意パスへの書き込み）を防ぐ。
 export function truncateFilenameBytes(filename: string, maxBytes: number): string {
-  const ext = path.extname(filename).slice(0, 20);
-  const base = filename.slice(0, filename.length - ext.length);
+  const safe = path
+    .basename(filename) // ディレクトリ部を除去（posixのセパレータ）
+    .replace(/[/\\]/g, "_") // 残存する区切り（Windows形式等）も無効化
+    .replace(/^\.+/, ""); // 先頭ドット（`..` 等）を除去
+  const ext = path.extname(safe).slice(0, 20);
+  const base = safe.slice(0, safe.length - ext.length);
   const budget = maxBytes - Buffer.byteLength(ext, "utf-8");
   let out = "";
   for (const ch of base) {

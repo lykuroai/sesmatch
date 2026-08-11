@@ -566,7 +566,7 @@ export async function addConsent(
 // 公開（§11.3: 有効な同意がない人材は公開できない）
 export async function publishEngineer(auth: AuthContext, engineerId: string) {
   const engineer = await prisma.engineer.findFirst({
-    where: { id: engineerId, tenantCompanyId: auth.companyId },
+    where: { id: engineerId, tenantCompanyId: auth.companyId, deletedAt: null },
     include: { consents: true },
   });
   if (!engineer) return { error: "NOT_FOUND" as const };

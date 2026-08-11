@@ -1,6 +1,7 @@
 // PII匿名化のテスト（§11, §25, §34: PII匿名化前のLLM呼出し停止）
 import { describe, expect, it } from "vitest";
 import { maskPii, verifyMasked } from "@/server/pipeline/pii";
+import { truncateFilenameBytes } from "@/server/pipeline/ingest";
 import { rateBand, ageBandLabel } from "@/lib/constants";
 
 describe("maskPii", () => {
@@ -23,6 +24,19 @@ describe("maskPii", () => {
     expect(masked).not.toContain("山田太郎");
     expect(tokens.some((t) => t.kind === "NAME")).toBe(true);
     expect(masked).toContain("Java"); // 技術情報は残す
+  });
+
+  it("CSV変換（カンマ区切り）・全角空白区切りの氏名もマスクする", () => {
+    // Excel経歴書は sheet_to_csv でカンマ区切りになる。コロン必須だと漏れる回帰
+    const csv = maskPii("氏名,山田太郎,スキル,Java");
+    expect(csv.masked).not.toContain("山田太郎");
+    expect(csv.masked).toContain("Java");
+
+    const spaced = maskPii("氏名　鈴木花子");
+    expect(spaced.masked).not.toContain("鈴木花子");
+
+    const kana = maskPii("フリガナ：ヤマダ タロウ");
+    expect(kana.masked).not.toContain("ヤマダ タロウ");
   });
 
   it("住所番地をマスクし市区町村は残す（§13）", () => {
@@ -57,10 +71,37 @@ describe("verifyMasked（匿名化検査 §25.3）", () => {
     expect(verifyMasked(masked).ok).toBe(true);
   });
 
-  it("残存PIIを検出する", () => {
+  it("残存PIIを検出する。findings には実値を含めない（平文保存防止）", () => {
     const result = verifyMasked("生のメール raw@example.com が残っている");
     expect(result.ok).toBe(false);
-    expect(result.findings.length).toBeGreaterThan(0);
+    expect(result.findings).toContain("EMAIL");
+    // 検出結果は種別のみで、メールアドレスの実値を含まない
+    expect(result.findings.join(",")).not.toContain("raw@example.com");
+  });
+
+  it("ラベル付き氏名（CSV形式）の残存も検出する", () => {
+    const result = verifyMasked("氏名,山田太郎");
+    expect(result.ok).toBe(false);
+    expect(result.findings).toContain("NAME");
+  });
+});
+
+describe("保存ファイル名のサニタイズ（パストラバーサル対策 §31）", () => {
+  it("ディレクトリ区切り・親参照を除去してベース名のみにする", () => {
+    const out = truncateFilenameBytes("../../../../tmp/pwn.txt", 180);
+    expect(out).not.toContain("/");
+    expect(out).not.toContain("..");
+    expect(out.endsWith(".txt")).toBe(true);
+  });
+
+  it("バックスラッシュ・先頭ドットも無効化する", () => {
+    const out = truncateFilenameBytes("..\\..\\evil.js", 180);
+    expect(out).not.toContain("\\");
+    expect(out.startsWith(".")).toBe(false);
+  });
+
+  it("通常のファイル名はそのまま保持する", () => {
+    expect(truncateFilenameBytes("経歴書.xlsx", 180)).toBe("経歴書.xlsx");
   });
 });
 
