@@ -291,7 +291,7 @@ export default async function EntriesPage({
               <tr>
                 <th className="px-4 py-2 w-32">状況</th>
                 <th className="px-4 py-2">案件・人材</th>
-                <th className="px-4 py-2 w-48">相手企業</th>
+                <th className="px-4 py-2 w-48">商談先</th>
                 <th className="px-4 py-2 w-28">更新日</th>
                 <th className="px-4 py-2 w-20">操作</th>
               </tr>
@@ -338,7 +338,7 @@ export default async function EntriesPage({
 
       <Pager total={groups.length} page={page} basePath="/entries" params={{ ...filterParams, tab: tab !== "all" ? tab : undefined }} />
       <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
-        <DirectionIcon own={true} />：自社が提案を開始 ／ <DirectionIcon own={false} />：他社が提案を開始 ／ 相手企業名は双方合意後に表示されます
+        <DirectionIcon own={true} />：自社が提案を開始 ／ <DirectionIcon own={false} />：他社が提案を開始 ／ 商談先の企業名は双方合意後に表示されます
       </p>
     </div>
   );
