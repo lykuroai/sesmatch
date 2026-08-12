@@ -6,7 +6,8 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "SES DirectMatch",
     short_name: "DirectMatch",
     description: "企業間SES案件・人材マッチング 企業コンソール",
-    start_url: "/",
+    // モバイルの起点は案件一覧（ホームKPIはPC専用）
+    start_url: "/projects",
     display: "standalone",
     background_color: "#f8fafc",
     theme_color: "#ffffff",

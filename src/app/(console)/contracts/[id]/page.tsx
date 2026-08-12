@@ -32,7 +32,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
 
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="text-2xl font-bold">条件確認書 {c.projectCode} × {c.engineerCode}</h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -43,7 +43,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
             ／ 第{c.version}版（最終更新: {new Date(c.updatedAt).toLocaleString("ja-JP")}）
           </p>
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex shrink-0 flex-col items-stretch gap-2 md:items-end">
           {signable && (
             <ActionButton
               path={`/api/v1/contracts/${c.id}/sign`}
@@ -62,7 +62,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">契約条件（Level 3）</h2>
           <dl className="space-y-2 text-sm">
@@ -108,7 +108,8 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
             稼働前キャンセルは0円、開始後14日以内の離脱は全額返金。
           </p>
         )}
-        <table className="mb-4 w-full text-sm">
+        <div className="mb-4 overflow-x-auto">
+        <table className="w-full text-sm">
           <thead className="text-left text-xs text-slate-500">
             <tr>
               <th className="py-2">対象月</th>
@@ -145,6 +146,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
             )}
           </tbody>
         </table>
+        </div>
         {c.side === "DEMAND" && c.status === "ACTIVE" && (
           <p className="text-xs text-slate-400">
             月次稼働と手数料は、稼働開始月から当月分まで月額契約金額をもとに自動計算されます。

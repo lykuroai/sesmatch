@@ -49,7 +49,8 @@ export default function LoginPage() {
     });
     setLoading(false);
     if (res.ok) {
-      router.push("/");
+      // モバイルはホーム（KPI）を案内しないため案件一覧を起点にする
+      router.push(window.innerWidth < 768 ? "/projects" : "/");
       router.refresh();
     } else {
       const body = await res.json().catch(() => null);

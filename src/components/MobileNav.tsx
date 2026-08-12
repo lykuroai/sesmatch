@@ -56,7 +56,8 @@ export function MobileNav({ items, manual }: { items: MobileNavItem[]; manual: M
           <div className="absolute inset-0 bg-black/40" onClick={close} aria-hidden="true" />
           <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <Link href="/" onClick={close} className="flex items-center gap-2 text-sm font-bold text-slate-800">
+              {/* モバイルの起点は先頭メニュー（案件一覧）。ホームは案内しない */}
+              <Link href={items[0]?.href ?? "/"} onClick={close} className="flex items-center gap-2 text-sm font-bold text-slate-800">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/logo-mark.svg" alt="" className="h-6 w-6" />
                 SES DirectMatch

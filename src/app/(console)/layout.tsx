@@ -78,8 +78,9 @@ function MenuLink({ item }: { item: { href: string; label: string; icon: string 
 // 企業情報・担当者・通報・監査・プライバシー・企業間関係は
 // 会社マイページ（/company、ヘッダー右の会社名から）に集約
 
-// モバイルのドロワーメニューでは成約・稼働／成約手数料は案内しない（PC専用画面）
-const MOBILE_MENU = MENU.filter((m) => !["/contracts", "/billing"].includes(m.href));
+// モバイルのドロワーメニューではホーム（KPI）・成約・稼働／成約手数料は案内しない（PC専用画面）。
+// モバイルの起点は案件一覧
+const MOBILE_MENU = MENU.filter((m) => !["/", "/contracts", "/billing"].includes(m.href));
 
 export default async function ConsoleLayout({ children }: { children: React.ReactNode }) {
   const auth = await getAuth();
@@ -90,7 +91,13 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:px-6 print:hidden">
         <div className="flex min-w-0 items-center gap-2">
           <MobileNav items={MOBILE_MENU} manual={MANUAL_ITEM} />
-          <Link href="/" className="flex items-center gap-2 text-sm font-bold text-slate-800">
+          {/* ロゴの遷移先: モバイルは案件一覧（ホームは案内しない）、PCはホーム */}
+          <Link href="/projects" className="flex items-center gap-2 text-sm font-bold text-slate-800 md:hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-mark.svg" alt="" className="h-6 w-6" />
+            SES DirectMatch
+          </Link>
+          <Link href="/" className="hidden items-center gap-2 text-sm font-bold text-slate-800 md:flex">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo-mark.svg" alt="" className="h-6 w-6" />
             SES DirectMatch

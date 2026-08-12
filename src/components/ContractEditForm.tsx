@@ -129,7 +129,7 @@ export function ContractEditForm({ contractId }: { contractId: string }) {
           </button>
         </p>
       )}
-      <div className="grid grid-cols-3 gap-3 text-sm">
+      <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-xs text-slate-600">契約形態</label>
           <select name="contractType" className={input} defaultValue={latest.contractType}>
