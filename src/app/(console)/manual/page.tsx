@@ -107,7 +107,7 @@ export default async function ManualPage() {
               "月次確認・成約手数料",
             ].map((s, i, arr) => (
               <div key={s} className="flex flex-col items-center">
-                <span className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-center">
+                <span className="w-64 rounded-lg border border-slate-200 bg-white px-4 py-2 text-center">
                   {s}
                 </span>
                 {i < arr.length - 1 && <span className="py-1 text-base leading-none text-slate-300">↓</span>}
