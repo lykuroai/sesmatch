@@ -108,7 +108,7 @@ export function ProjectForm({
         <label className={label}>匿名概要（エンド企業名は「大手金融機関」等の抽象カテゴリで記載）</label>
         <textarea name="anonymousSummary" rows={3} required defaultValue={initial?.anonymousSummary ?? ""} className={input} />
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className={label}>業種</label>
           <input name="industry" defaultValue={initial?.industry ?? ""} className={input} placeholder="金融" />
@@ -162,7 +162,7 @@ export function ProjectForm({
             自動適用されます。提案時に供給側企業の労働者派遣事業許可（許可番号・有効期限・派遣元責任者）を
             自動チェックします。
           </p>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className={label}>抵触日（事業所単位）</label>
               <input

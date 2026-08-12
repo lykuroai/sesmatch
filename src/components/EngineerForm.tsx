@@ -153,7 +153,7 @@ export function EngineerForm({
   return (
     <form onSubmit={submit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       {error && <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className={label}>氏名（PII・Level 2まで非開示）</label>
           <input

@@ -105,7 +105,7 @@ export default async function IngestionsPage({
                 <summary className="cursor-pointer text-xs text-slate-500">
                   匿名化済みテキスト・抽出値を表示
                 </summary>
-                <div className="mt-2 grid grid-cols-2 gap-4">
+                <div className="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
                   <pre className="overflow-x-auto rounded bg-slate-50 p-3 text-xs">
                     {job.extraction.maskedText}
                   </pre>

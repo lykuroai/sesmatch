@@ -25,7 +25,7 @@ export default async function DashboardPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">ホーム</h1>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((c) => {
           const inner = (
             <>

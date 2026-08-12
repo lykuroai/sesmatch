@@ -160,6 +160,31 @@ export default async function ProjectsPage({
   const select = "rounded border border-slate-300 bg-white px-2 py-1.5 text-sm";
   const label = "w-20 shrink-0 text-xs text-slate-600";
 
+  // 状態バッジ（テーブル表示とモバイルのカード表示で共用）
+  const statusBadges = (p: (typeof projects)[number]) => (
+    <>
+      {p.own && p.status !== "PUBLISHED" && (
+        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">
+          {PUBLISH_STATUS_LABELS[p.status]}
+        </span>
+      )}
+      {/* 未公開の案件は応募を受けられないため「応募中」は表示しない */}
+      {(p.status === "PUBLISHED" || p.workflowStatus !== "RECRUITING") && (
+        <span
+          className={`rounded px-1.5 py-0.5 text-xs ${
+            p.workflowStatus === "RECRUITING"
+              ? "bg-blue-50 text-blue-700"
+              : p.workflowStatus === "CONTRACTED"
+                ? "bg-emerald-50 text-emerald-700"
+                : "bg-slate-100 text-slate-600"
+          }`}
+        >
+          {PROJECT_WORKFLOW_LABELS[p.workflowStatus]}
+        </span>
+      )}
+    </>
+  );
+
   return (
     <div>
       <IngestPanel
@@ -191,7 +216,7 @@ export default async function ProjectsPage({
             name="q"
             defaultValue={sp.q ?? ""}
             placeholder="案件名・ID・スキル・業務内容"
-            className={`${select} w-96`}
+            className={`${select} min-w-0 w-full max-w-96`}
           />
         </div>
         <div className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -213,9 +238,10 @@ export default async function ProjectsPage({
               <option value="all">すべて</option>
             </select>
           </span>
-          <span className="flex items-center gap-2">
+          <span className="flex min-w-0 max-w-full items-center gap-2">
             <span className={label}>対象人材</span>
-            <select name="engineerId" defaultValue={engineerId} className={select}>
+            {/* 人材名が長いとセレクトが画面幅を超えるため、モバイルでは縮めて省略表示 */}
+            <select name="engineerId" defaultValue={engineerId} className={`${select} min-w-0 max-w-full`}>
               <option value="">指定なし</option>
               {engineers.items.map((e) => (
                 <option key={e.id} value={e.id}>
@@ -301,7 +327,46 @@ export default async function ProjectsPage({
       )}
 
       <p className="mb-3 text-xs text-slate-500">{filtered.length}件が該当</p>
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+
+      {/* モバイル: カード表示（md 未満） */}
+      <div className="space-y-3 md:hidden">
+        {projects.map((p) => (
+          <Link
+            key={p.id}
+            href={`/projects/${p.id}`}
+            className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm active:bg-slate-50"
+          >
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-medium text-blue-700">{p.code}</span>
+              {isNew(p.createdAt) && (
+                <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-600">NEW</span>
+              )}
+              <span className={`rounded px-1.5 py-0.5 text-xs ${p.own ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
+                {p.own ? "自社" : "他社"}
+              </span>
+              {statusBadges(p)}
+            </div>
+            <p className="mt-1.5 text-sm font-medium text-slate-800">{p.name}</p>
+            <p className="mt-2 text-xs text-slate-500">
+              開始 {new Date(p.startDate).toLocaleDateString("ja-JP")} ／ 単価上限{" "}
+              {(p.rateMaxYen / 10_000).toLocaleString()}万円 ／ {REMOTE_LEVEL_LABELS[p.remoteLevel]}
+            </p>
+            {p.requiredSkills.length > 0 && (
+              <p className="mt-1 truncate text-xs text-slate-500">
+                必須: {p.requiredSkills.map((s) => s.name).join(", ")}
+              </p>
+            )}
+          </Link>
+        ))}
+        {projects.length === 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400 shadow-sm">
+            該当する案件がありません
+          </div>
+        )}
+      </div>
+
+      {/* PC: テーブル表示 */}
+      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm md:block">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
@@ -338,25 +403,7 @@ export default async function ProjectsPage({
                 <td className="whitespace-nowrap px-4 py-3 text-xs">{REMOTE_LEVEL_LABELS[p.remoteLevel]}</td>
                 <td className="px-4 py-3 text-xs">{p.requiredSkills.map((s) => s.name).join(", ")}</td>
                 <td className="whitespace-nowrap px-4 py-3">
-                  {p.own && p.status !== "PUBLISHED" && (
-                    <span className="mr-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">
-                      {PUBLISH_STATUS_LABELS[p.status]}
-                    </span>
-                  )}
-                  {/* 未公開の案件は応募を受けられないため「応募中」は表示しない */}
-                  {(p.status === "PUBLISHED" || p.workflowStatus !== "RECRUITING") && (
-                    <span
-                      className={`rounded px-1.5 py-0.5 text-xs ${
-                        p.workflowStatus === "RECRUITING"
-                          ? "bg-blue-50 text-blue-700"
-                          : p.workflowStatus === "CONTRACTED"
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {PROJECT_WORKFLOW_LABELS[p.workflowStatus]}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1.5">{statusBadges(p)}</span>
                 </td>
               </tr>
             ))}

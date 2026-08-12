@@ -62,7 +62,7 @@ export function ContractCreateForm({
         派遣事業許可（番号・有効期限・派遣元責任者）と直接雇用を自動チェックします。以下の確認事項は必須です。
       </p>
       {error && <p className="mb-3 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-      <div className="grid grid-cols-3 gap-3 text-sm">
+      <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-xs text-slate-600">契約形態</label>
           <select name="contractType" className={input} defaultValue={defaultContractType ?? "準委任"}>

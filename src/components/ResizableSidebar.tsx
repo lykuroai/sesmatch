@@ -32,7 +32,8 @@ export function ResizableSidebar({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="relative flex shrink-0 print:hidden" style={{ width }}>
+    // モバイル（md未満）ではサイドバーを出さずドロワーメニュー（MobileNav）を使う
+    <div className="relative hidden shrink-0 md:flex print:hidden" style={{ width }}>
       <aside className="min-w-0 flex-1 overflow-x-hidden border-r border-slate-200 bg-white">
         {children}
       </aside>

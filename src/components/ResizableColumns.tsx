@@ -43,18 +43,21 @@ export function ResizableColumns({
   };
 
   return (
-    <div ref={containerRef} className="flex items-stretch">
-      <div className="min-w-0" style={{ width: `${ratio}%` }}>
-        {left}
-      </div>
+    // モバイル（md未満）は縦積み・幅調整なし。md以上で従来の2カラム＋ドラッグ調整
+    <div
+      ref={containerRef}
+      className="flex flex-col gap-4 md:flex-row md:items-stretch md:gap-0"
+      style={{ "--left-w": `${ratio}%` } as React.CSSProperties}
+    >
+      <div className="min-w-0 md:w-[var(--left-w)]">{left}</div>
       <div
         onPointerDown={onPointerDown}
         title="ドラッグで幅を調整"
-        className="group flex w-6 shrink-0 cursor-col-resize items-center justify-center"
+        className="group hidden w-6 shrink-0 cursor-col-resize items-center justify-center md:flex"
       >
         <div className="h-16 w-1 rounded-full bg-slate-300 group-hover:bg-blue-400" />
       </div>
-      <div className="min-w-0 flex-1">{right}</div>
+      <div className="min-w-0 md:flex-1">{right}</div>
     </div>
   );
 }

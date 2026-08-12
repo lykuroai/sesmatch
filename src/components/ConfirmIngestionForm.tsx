@@ -137,7 +137,7 @@ export function ConfirmIngestionForm({
           抽出値を確認・修正して確定してください（確定すると人材が下書きで作成されます）
         </p>
         {error && <p className="rounded bg-red-50 p-2 text-xs text-red-700">{error}</p>}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
           <div>
             <label className={label}>氏名（原本を参照して入力）</label>
             <input name="name" required className={input} />
@@ -232,7 +232,7 @@ export function ConfirmIngestionForm({
         抽出値を確認・修正して確定してください（確定すると案件が下書きで作成されます）
       </p>
       {error && <p className="rounded bg-red-50 p-2 text-xs text-red-700">{error}</p>}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
         <div className="col-span-3">
           <label className={label}>案件名</label>
           <input name="name" defaultValue={d.name ?? ""} className={input} />

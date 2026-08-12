@@ -45,7 +45,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="text-2xl font-bold">
             <span className={`mr-2 rounded px-2 py-1 text-sm align-middle ${e.side === "DEMAND" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"}`}>
@@ -65,7 +65,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
             供給側承認: {e.supplyApproved ? "✓" : "未"} ／ 需要側承認: {e.demandApproved ? "✓" : "未"}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex shrink-0 flex-col items-stretch gap-2 md:items-end">
           {approvable && (
             <ActionButton
               path={`/api/v1/entries/${e.id}/approvals`}
@@ -99,7 +99,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
               開示日時: {new Date(e.disclosure.disclosedAt).toLocaleString("ja-JP")}
             </span>
           </div>
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {/* 案件側 */}
             <div className="space-y-2">
               <h3 className="text-xs font-bold text-emerald-700">案件</h3>
@@ -162,7 +162,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
         </section>
       )}
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">対象案件</h2>
           <Link href={`/projects/${e.project.id}`} className="text-sm font-medium text-blue-700 hover:underline">

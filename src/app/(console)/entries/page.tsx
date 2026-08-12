@@ -74,6 +74,13 @@ function formatUpdated(v: string | Date): string {
   });
 }
 
+// 商談相手（自社案件なら人材、自社人材なら案件）の表示名
+function counterpartOf(e: EntryRow): string {
+  return e.side === "DEMAND"
+    ? `${e.engineer.code}${e.disclosure?.engineerName ? ` ${e.disclosure.engineerName}` : ""}`
+    : `${e.project.code} ${e.project.name}`;
+}
+
 function statusBadgeClass(key: string): string {
   if (key === "PENDING_OWN") return "bg-amber-100 text-amber-800";
   if (key === "PROPOSING") return "bg-blue-50 text-blue-700";
@@ -202,7 +209,7 @@ export default async function EntriesPage({
             name="q"
             defaultValue={sp.q ?? ""}
             placeholder="案件名・人材名・ID・スキル"
-            className={`${select} w-96`}
+            className={`${select} min-w-0 w-full max-w-96`}
           />
         </div>
         <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -266,7 +273,7 @@ export default async function EntriesPage({
       </form>
 
       {/* タブ */}
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         {TABS.map(([k, v]) => (
           <Link
             key={k}
@@ -289,7 +296,34 @@ export default async function EntriesPage({
               {g.code}{g.name ? `：${g.name}` : ""}
             </Link>
           </div>
-          <table className="w-full text-sm">
+          {/* モバイル: 明細を縦積みで表示（md 未満） */}
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {g.rows.map((e) => {
+              const ds = displayStatusOf(e);
+              return (
+                <li key={e.id}>
+                  <Link href={`/entries/${e.id}`} className="block px-4 py-3 active:bg-slate-50">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className={`rounded px-2 py-0.5 text-xs ${statusBadgeClass(ds.key)}`}>{ds.label}</span>
+                      <span className="text-xs text-slate-400">{formatUpdated(e.updatedAt)}</span>
+                    </div>
+                    <p className="mt-1.5 text-sm text-slate-800">
+                      <span className="mr-1.5">
+                        <DirectionIcon own={e.createdByOwn} />
+                      </span>
+                      {counterpartOf(e)}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      商談先: {e.counterpartCompanyName ?? <span className="text-slate-400">非公開</span>}
+                    </p>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* PC: テーブル表示 */}
+          <table className="hidden w-full text-sm md:table">
             <thead className="text-left text-xs text-slate-500">
               <tr>
                 <th className="px-4 py-2 w-32">状況</th>
@@ -302,10 +336,7 @@ export default async function EntriesPage({
             <tbody>
               {g.rows.map((e) => {
                 const ds = displayStatusOf(e);
-                const counterpart =
-                  e.side === "DEMAND"
-                    ? `${e.engineer.code}${e.disclosure?.engineerName ? ` ${e.disclosure.engineerName}` : ""}`
-                    : `${e.project.code} ${e.project.name}`;
+                const counterpart = counterpartOf(e);
                 return (
                   <tr key={e.id} className="border-t border-slate-100 hover:bg-slate-50">
                     <td className="px-4 py-2.5">

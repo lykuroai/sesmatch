@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
 import { LogoutButton } from "@/components/LogoutButton";
 import { ResizableSidebar } from "@/components/ResizableSidebar";
+import { MobileNav } from "@/components/MobileNav";
 
 // 企業専用コンソール（§8）: ログイン後、所属企業コンソールを自動表示
 // アイコンは自己完結のインラインSVG（heroicons outline 相当のパス）
@@ -77,23 +78,29 @@ function MenuLink({ item }: { item: { href: string; label: string; icon: string 
 // 企業情報・担当者・通報・監査・プライバシー・企業間関係は
 // 会社マイページ（/company、ヘッダー右の会社名から）に集約
 
+// モバイルのドロワーメニューでは成約・稼働／成約手数料は案内しない（PC専用画面）
+const MOBILE_MENU = MENU.filter((m) => !["/contracts", "/billing"].includes(m.href));
+
 export default async function ConsoleLayout({ children }: { children: React.ReactNode }) {
   const auth = await getAuth();
   if (!auth) redirect("/login");
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 print:hidden">
-        <Link href="/" className="flex items-center gap-2 text-sm font-bold text-slate-800">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-mark.svg" alt="" className="h-6 w-6" />
-          SES DirectMatch
-        </Link>
-        <p className="text-sm text-slate-700">
+      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:px-6 print:hidden">
+        <div className="flex min-w-0 items-center gap-2">
+          <MobileNav items={MOBILE_MENU} manual={MANUAL_ITEM} />
+          <Link href="/" className="flex items-center gap-2 text-sm font-bold text-slate-800">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-mark.svg" alt="" className="h-6 w-6" />
+            SES DirectMatch
+          </Link>
+        </div>
+        <p className="min-w-0 truncate text-right text-sm text-slate-700">
           <Link href="/company" className="font-bold hover:underline" title="会社マイページ">
             {auth.companyName}
           </Link>
-          <span className="ml-3 text-slate-500">{auth.userName}</span>
+          <span className="ml-3 hidden text-slate-500 sm:inline">{auth.userName}</span>
         </p>
       </header>
       <div className="flex flex-1">
@@ -115,7 +122,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
             </div>
           </div>
         </ResizableSidebar>
-        <main className="min-w-0 flex-1 p-8 print:p-0">{children}</main>
+        <main className="min-w-0 flex-1 p-4 md:p-8 print:p-0">{children}</main>
       </div>
     </div>
   );

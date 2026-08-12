@@ -177,6 +177,27 @@ export default async function EngineersPage({
   const select = "rounded border border-slate-300 bg-white px-2 py-1.5 text-sm";
   const label = "w-20 shrink-0 text-xs text-slate-600";
 
+  // 状態バッジ（テーブル表示とモバイルのカード表示で共用）
+  const statusBadges = (e: (typeof engineers)[number]) => (
+    <>
+      {e.own && e.status !== "PUBLISHED" && (
+        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">
+          {PUBLISH_STATUS_LABELS[e.status]}
+        </span>
+      )}
+      {/* 未公開の人材は紹介できないため「紹介中」は表示しない */}
+      {(e.status === "PUBLISHED" || e.workStatus !== "PROPOSING") && (
+        <span
+          className={`rounded px-1.5 py-0.5 text-xs ${
+            e.workStatus === "WORKING" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
+          }`}
+        >
+          {ENGINEER_WORK_STATUS_LABELS[e.workStatus]}
+        </span>
+      )}
+    </>
+  );
+
   return (
     <div>
       <IngestPanel
@@ -208,7 +229,7 @@ export default async function EngineersPage({
             name="q"
             defaultValue={sp.q ?? ""}
             placeholder="人材名・ID・スキル・業務内容"
-            className={`${select} w-96`}
+            className={`${select} min-w-0 w-full max-w-96`}
           />
         </div>
         <div className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -230,9 +251,10 @@ export default async function EngineersPage({
               <option value="all">すべて</option>
             </select>
           </span>
-          <span className="flex items-center gap-2">
+          <span className="flex min-w-0 max-w-full items-center gap-2">
             <span className={label}>対象案件</span>
-            <select name="projectId" defaultValue={projectId} className={select}>
+            {/* 案件名が長いとセレクトが画面幅を超えるため、モバイルでは縮めて省略表示 */}
+            <select name="projectId" defaultValue={projectId} className={`${select} min-w-0 max-w-full`}>
               <option value="">指定なし</option>
               {ownProjects.items.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -316,7 +338,47 @@ export default async function EngineersPage({
       )}
 
       <p className="mb-3 text-xs text-slate-500">{filtered.length}件が該当</p>
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+
+      {/* モバイル: カード表示（md 未満） */}
+      <div className="space-y-3 md:hidden">
+        {engineers.map((e) => (
+          <Link
+            key={e.id}
+            href={`/engineers/${e.id}`}
+            className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm active:bg-slate-50"
+          >
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-medium text-blue-700">
+                {e.code}
+                {e.name ? ` ${e.name}` : ""}
+              </span>
+              {isNew(e.createdAt) && (
+                <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-600">NEW</span>
+              )}
+              <span className={`rounded px-1.5 py-0.5 text-xs ${e.own ? "bg-purple-50 text-purple-700" : "bg-slate-100 text-slate-600"}`}>
+                {e.own ? "自社" : "他社"}
+              </span>
+              {statusBadges(e)}
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              {e.ageBand} ／ {AFFILIATION_LABELS[e.affiliationType]} ／ 単価帯 {e.rateBand} ／{" "}
+              {REMOTE_LEVEL_LABELS[e.remotePreference]}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              稼働可能日 {e.availableFrom ? new Date(e.availableFrom).toLocaleDateString("ja-JP") : "-"} ／ 同意{" "}
+              {e.hasValidConsent ? "〇" : <span className="text-red-600">なし</span>}
+            </p>
+          </Link>
+        ))}
+        {engineers.length === 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400 shadow-sm">
+            該当する人材がありません
+          </div>
+        )}
+      </div>
+
+      {/* PC: テーブル表示 */}
+      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm md:block">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
@@ -356,21 +418,7 @@ export default async function EngineersPage({
                 </td>
                 <td className="px-4 py-3 text-xs">{REMOTE_LEVEL_LABELS[e.remotePreference]}</td>
                 <td className="px-4 py-3">
-                  {e.own && e.status !== "PUBLISHED" && (
-                    <span className="mr-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">
-                      {PUBLISH_STATUS_LABELS[e.status]}
-                    </span>
-                  )}
-                  {/* 未公開の人材は紹介できないため「紹介中」は表示しない */}
-                  {(e.status === "PUBLISHED" || e.workStatus !== "PROPOSING") && (
-                    <span
-                      className={`rounded px-1.5 py-0.5 text-xs ${
-                        e.workStatus === "WORKING" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
-                      }`}
-                    >
-                      {ENGINEER_WORK_STATUS_LABELS[e.workStatus]}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1.5">{statusBadges(e)}</span>
                 </td>
                 <td className="px-4 py-3">{e.hasValidConsent ? "〇" : <span className="text-red-600">なし</span>}</td>
               </tr>

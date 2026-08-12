@@ -36,7 +36,7 @@ export default async function AuditPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">監査ログ</h1>
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
