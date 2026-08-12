@@ -15,6 +15,7 @@ export function IngestUpload() {
   const [shots, setShots] = useState<File[]>([]); // カメラで撮影したページ画像
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   const isImage = (f: File) => f.type.startsWith("image/") || /\.(jpe?g|png|webp)$/i.test(f.name);
 
@@ -30,6 +31,7 @@ export function IngestUpload() {
     }
     setLoading(true);
     setError(null);
+    setInfo(null);
     const form = new FormData();
     for (const f of files) form.append("file", f);
     const res = await fetch("/api/v1/ingestions", { method: "POST", body: form });
@@ -37,6 +39,7 @@ export function IngestUpload() {
     if (res.ok) {
       if (fileRef.current) fileRef.current.value = "";
       setShots([]);
+      setInfo("取込を受け付けました。OCR・AI解析に1分ほどかかります（完了すると一覧に自動で表示されます）");
       router.refresh();
     } else {
       const b = await res.json().catch(() => null);
@@ -142,6 +145,7 @@ export function IngestUpload() {
         )}
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
+      {info && <p className="text-xs text-emerald-700">{info}</p>}
     </div>
   );
 }

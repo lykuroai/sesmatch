@@ -10,12 +10,14 @@ export function IngestPaste() {
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!text.trim()) return;
     setLoading(true);
     setError(null);
+    setInfo(null);
     const res = await fetch("/api/v1/ingestions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -25,6 +27,7 @@ export function IngestPaste() {
     if (res.ok) {
       setText("");
       setTitle("");
+      setInfo("取込を受け付けました。AI解析に1分ほどかかります（完了すると一覧に自動で表示されます）");
       router.refresh();
     } else {
       const b = await res.json().catch(() => null);
@@ -35,6 +38,7 @@ export function IngestPaste() {
   return (
     <form onSubmit={submit} className="space-y-3">
       {error && <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+      {info && <p className="rounded bg-emerald-50 p-2 text-sm text-emerald-700">{info}</p>}
       <div>
         <label className="mb-1 block text-xs text-slate-500">タイトル（任意・履歴での表示名）</label>
         <input

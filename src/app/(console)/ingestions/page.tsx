@@ -9,6 +9,7 @@ import { ConfirmIngestionForm } from "@/components/ConfirmIngestionForm";
 import { hasPermission } from "@/server/auth/rbac";
 import { Pager, parsePage } from "@/components/Pager";
 import { LIST_PAGE_SIZE } from "@/lib/constants";
+import { AutoRefresh } from "@/components/AutoRefresh";
 
 // 取込（§9）: ファイルアップロード → 匿名化 → LLM正規化 → 人手確認 → 確定
 export default async function IngestionsPage({
@@ -33,8 +34,12 @@ export default async function IngestionsPage({
   ]);
   const canConfirm = hasPermission(auth.roles, "ingestion.confirm");
 
+  const processing = jobs.some((j) => ["RECEIVED", "MASKING", "EXTRACTING"].includes(j.status));
+
   return (
     <div>
+      {/* 解析中のジョブがある間は自動更新して完了を反映する */}
+      <AutoRefresh active={processing} />
       <h1 className="mb-6 text-2xl font-bold">取込</h1>
       <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="mb-2 font-bold">テキスト貼り付け取込</h2>

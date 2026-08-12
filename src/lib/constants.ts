@@ -86,9 +86,9 @@ export function isNew(createdAt: string | Date): boolean {
 }
 
 export const INGESTION_STATUS_LABELS: Record<string, string> = {
-  RECEIVED: "受領",
-  MASKING: "匿名化中",
-  EXTRACTING: "抽出中",
+  RECEIVED: "解析中（文字起こし）",
+  MASKING: "解析中（匿名化）",
+  EXTRACTING: "解析中（AI抽出）",
   REVIEW_REQUIRED: "人手確認待ち",
   CONFIRMED: "確定済み",
   FAILED: "失敗",

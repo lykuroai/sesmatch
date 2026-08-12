@@ -63,7 +63,7 @@ export default async function EngineersPage({
     )
   );
 
-  const [own, pub, ownProjects, pendingJobs] = await Promise.all([
+  const [own, pub, ownProjects, pendingJobs, processingCount] = await Promise.all([
     listEngineers(auth, "own"),
     listEngineers(auth, "public"),
     listProjects(auth, "own"),
@@ -75,6 +75,10 @@ export default async function EngineersPage({
       },
       include: { sourceDocument: { select: { filename: true } } },
       orderBy: { createdAt: "desc" },
+    }),
+    // 解析中（種別確定前なので案件/人材の区別なし）
+    prisma.ingestionJob.count({
+      where: { tenantCompanyId: auth.companyId, status: { in: ["RECEIVED", "MASKING", "EXTRACTING"] } },
     }),
   ]);
   const all = [...own.items, ...pub.items];
@@ -219,6 +223,7 @@ export default async function EngineersPage({
           filename: j.sourceDocument.filename,
           createdAt: j.createdAt,
         }))}
+        processingCount={processingCount}
       />
 
       {/* 検索条件 */}

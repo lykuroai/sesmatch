@@ -72,31 +72,51 @@ export async function startIngestion(params: {
     metadata: { filename: params.filename },
   });
 
-  // ファイル形式に応じたテキスト抽出（PDF / Word / Excel / テキスト系）
-  let text: string | null = null;
-  try {
-    text = await extractDocumentText(params.filename, params.content);
-  } catch (e) {
-    await prisma.ingestionJob.update({
-      where: { id: job.id },
-      data: { status: "FAILED", error: e instanceof Error ? e.message : String(e) },
-    });
-  }
-
-  // MVP は同期実行（本番は非同期ジョブ §5, §32）
-  if (text !== null) {
-    await runPipeline({
-      tenantCompanyId: params.tenantCompanyId,
-      actorUserId: params.actorUserId,
-      docId: doc.id,
-      jobId: job.id,
-      text,
-    });
-  }
+  // 非同期実行（§5, §32）: 受付後すぐジョブを返し、テキスト抽出（OCR含む）〜LLM正規化は裏で進める。
+  // 同期実行だと画像OCR等で応答が60秒を超え、プロキシやモバイルブラウザ側で通信が切れて
+  // 「取込失敗」に見えるため（処理状況は取込履歴の status で確認できる）
+  void processDocument({
+    tenantCompanyId: params.tenantCompanyId,
+    actorUserId: params.actorUserId,
+    docId: doc.id,
+    jobId: job.id,
+    filename: params.filename,
+    content: params.content,
+  });
 
   return prisma.ingestionJob.findUniqueOrThrow({
     where: { id: job.id },
     include: { extraction: true, sourceDocument: true },
+  });
+}
+
+// テキスト抽出（OCR含む）→ パイプライン本体。失敗はジョブに記録し、例外は投げない
+async function processDocument(params: {
+  tenantCompanyId: string;
+  actorUserId: string;
+  docId: string;
+  jobId: string;
+  filename: string;
+  content: Buffer;
+}) {
+  let text: string;
+  try {
+    text = await extractDocumentText(params.filename, params.content);
+  } catch (e) {
+    await prisma.ingestionJob
+      .update({
+        where: { id: params.jobId },
+        data: { status: "FAILED", error: e instanceof Error ? e.message : String(e) },
+      })
+      .catch(() => {});
+    return;
+  }
+  await runPipeline({
+    tenantCompanyId: params.tenantCompanyId,
+    actorUserId: params.actorUserId,
+    docId: params.docId,
+    jobId: params.jobId,
+    text,
   });
 }
 
@@ -192,26 +212,23 @@ export async function retryIngestion(params: {
     return { error: { code: "VERSION_CONFLICT" as const, message: "失敗したジョブのみ再実行できます" } };
 
   const { readFile } = await import("fs/promises");
-  let text: string;
+  let content: Buffer;
   try {
-    const content = await readFile(job.sourceDocument.storagePath);
-    text = await extractDocumentText(job.sourceDocument.filename, content);
-  } catch (e) {
-    return {
-      error: {
-        code: "VALIDATION_ERROR" as const,
-        message: e instanceof Error ? e.message : "原本ファイルが見つかりません",
-      },
-    };
+    content = await readFile(job.sourceDocument.storagePath);
+  } catch {
+    return { error: { code: "VALIDATION_ERROR" as const, message: "原本ファイルが見つかりません" } };
   }
   await prisma.piiTokenMap.deleteMany({ where: { sourceDocumentId: job.sourceDocumentId } });
   await prisma.extractionResult.deleteMany({ where: { ingestionJobId: job.id } });
-  await runPipeline({
+  // 受付状態に戻し、再処理（テキスト抽出〜LLM正規化）は非同期で実行する
+  await prisma.ingestionJob.update({ where: { id: job.id }, data: { status: "RECEIVED", error: null } });
+  void processDocument({
     tenantCompanyId: params.tenantCompanyId,
     actorUserId: params.actorUserId,
     docId: job.sourceDocumentId,
     jobId: job.id,
-    text,
+    filename: job.sourceDocument.filename,
+    content,
   });
   return prisma.ingestionJob.findUniqueOrThrow({
     where: { id: job.id },
