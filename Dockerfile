@@ -29,6 +29,10 @@ RUN addgroup -S app && adduser -S app -G app
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+# pdf-parse はトレース漏れが多い（DOMMatrix ポリフィル用の @napi-rs/canvas は
+# オプション依存、pdf.worker.mjs は動的import）ため、モジュールごと明示的にコピーする
+COPY --from=builder /app/node_modules/@napi-rs ./node_modules/@napi-rs
+COPY --from=builder /app/node_modules/pdf-parse ./node_modules/pdf-parse
 RUN mkdir -p /data/storage && chown -R app:app /data
 USER app
 EXPOSE 3000

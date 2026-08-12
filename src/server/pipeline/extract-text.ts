@@ -18,20 +18,31 @@ export function isSkillSheetFile(filename: string): boolean {
   return SKILL_SHEET_EXTENSIONS.includes(ext(filename));
 }
 
+// pdf-parse は本文が無い画像PDFでもページ区切り（"-- 1 of 2 --"）だけを返すため、
+// それらを除いた本文が残るかで「テキスト層の有無」を判定する（無ければOCRへ）
+export function stripPdfPageMarkers(text: string): string {
+  return text.replace(/^-- \d+ of \d+ --$/gm, "").trim();
+}
+
 // ファイル内容をテキストへ変換する。未対応・破損ファイルは Error を投げる
 export async function extractDocumentText(filename: string, content: Buffer): Promise<string> {
   const e = ext(filename);
   if (e === ".pdf") {
-    const { PDFParse } = await import("pdf-parse");
-    const parser = new PDFParse({ data: content });
+    // テキスト層の抽出に失敗しても（破損PDF・実行環境のポリフィル不足等）OCRで復旧を試みる
     let text: string | undefined;
     try {
-      const result = await parser.getText();
-      text = result.text?.trim();
-    } finally {
-      await parser.destroy();
+      const { PDFParse } = await import("pdf-parse");
+      const parser = new PDFParse({ data: content });
+      try {
+        const result = await parser.getText();
+        text = result.text?.trim();
+      } finally {
+        await parser.destroy();
+      }
+    } catch {
+      text = undefined;
     }
-    if (text) return text;
+    if (text && stripPdfPageMarkers(text)) return text;
     // テキスト層がないPDF（スキャン・画像PDF）はOCRで文字起こしする
     const ocrText = await ocrPdf(content);
     if (!ocrText) throw new Error("PDF からテキストを抽出できませんでした（OCRでも文字を検出できません）");
