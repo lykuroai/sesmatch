@@ -11,6 +11,10 @@ export function isImageFilename(name: string): boolean {
   return /\.(jpe?g|png|webp)$/i.test(name);
 }
 
+// ページの表示サイズはA4幅相当に収める。ピクセル数をそのままポイントにすると
+// ポスター大のページになり、OCR前段の200dpi画像化が巨大化して制限時間を超える
+const A4_WIDTH_PT = 595;
+
 export async function mergeImagesToPdf(images: Buffer[]): Promise<Buffer> {
   const doc = await PDFDocument.create();
   for (const buf of images) {
@@ -21,8 +25,11 @@ export async function mergeImagesToPdf(images: Buffer[]): Promise<Buffer> {
       .jpeg({ quality: 85 })
       .toBuffer();
     const img = await doc.embedJpg(jpeg);
-    const page = doc.addPage([img.width, img.height]);
-    page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+    const scale = Math.min(1, A4_WIDTH_PT / img.width);
+    const w = img.width * scale;
+    const h = img.height * scale;
+    const page = doc.addPage([w, h]);
+    page.drawImage(img, { x: 0, y: 0, width: w, height: h });
   }
   return Buffer.from(await doc.save());
 }

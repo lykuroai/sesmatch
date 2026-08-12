@@ -20,6 +20,8 @@ describe("mergeImagesToPdf", () => {
     expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
     const doc = await PDFDocument.load(pdf);
     expect(doc.getPageCount()).toBe(3);
+    // ページはA4幅相当以下（巨大ページはOCR前段の画像化がタイムアウトするため）
+    for (const page of doc.getPages()) expect(page.getWidth()).toBeLessThanOrEqual(595);
   });
 
   it("1枚でも有効なPDFを生成する", async () => {
