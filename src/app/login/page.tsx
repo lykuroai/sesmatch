@@ -59,9 +59,9 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-slate-900">
-      <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-10 lg:flex-row lg:items-start lg:gap-14 lg:py-16">
-        {/* LP: サービス紹介 */}
-        <section className="flex-1 text-slate-100">
+      <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-8 lg:flex-row lg:items-start lg:gap-14 lg:px-6 lg:py-16">
+        {/* LP: サービス紹介（モバイルではログインフォームの下に表示） */}
+        <section className="order-2 flex-1 text-slate-100 lg:order-1">
           <p className="mb-3 inline-block rounded-full bg-blue-500/20 px-3 py-1 text-xs font-medium text-blue-300">
             SES企業間マッチングプラットフォーム
           </p>
@@ -133,9 +133,18 @@ export default function LoginPage() {
           </p>
         </section>
 
-        {/* ログイン */}
-        <div className="w-full lg:w-96 lg:shrink-0">
-          <form onSubmit={submit} className="rounded-xl border border-slate-200 bg-white p-8 shadow-lg">
+        {/* ログイン（モバイルでは最上部に表示） */}
+        <div className="order-1 w-full lg:order-2 lg:w-96 lg:shrink-0">
+          {/* モバイル用の簡易ブランドヘッダー（LPが下に回るため） */}
+          <div className="mb-4 flex items-center gap-3 lg:hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-mark.svg" alt="SES DirectMatch ロゴ" className="h-9 w-9" />
+            <div>
+              <p className="text-lg font-bold leading-tight text-slate-100">SES DirectMatch</p>
+              <p className="text-xs text-slate-400">案件と人材を、余計な商流なしで直接つなぐ。</p>
+            </div>
+          </div>
+          <form onSubmit={submit} className="rounded-xl border border-slate-200 bg-white p-6 shadow-lg lg:p-8">
             <h2 className="mb-1 text-xl font-bold">企業コンソール</h2>
             <p className="mb-6 text-sm text-slate-500">登録済みの企業アカウントでログイン</p>
             {error && <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
