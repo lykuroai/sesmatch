@@ -109,6 +109,7 @@ import {
   listEngineersWorkStatusForOperations,
 } from "@/server/services/operations-monitor";
 import { retryIngestion, startIngestion } from "@/server/pipeline/ingest";
+import { isImageFilename, MAX_MERGE_IMAGES, mergeImagesToPdf } from "@/server/pipeline/images-to-pdf";
 import { csvToCompanyRows, parseCsv } from "@/lib/csv";
 import { remoteLevelFromOnsiteDays, remoteLevelToOnsiteDays } from "@/lib/constants";
 import { registerNewTermAliases } from "@/server/services/skill-aliases";
@@ -877,14 +878,33 @@ app.post("/ingestions", requirePermission("ingestion.create"), async (c) => {
     content = Buffer.from(parsed.data.text, "utf-8");
   } else {
     const form = await c.req.formData().catch(() => null);
-    const file = form?.get("file");
-    if (!(file instanceof File)) return c.json(err("VALIDATION_ERROR", "file が必要です"), 400);
+    const files = (form?.getAll("file") ?? []).filter((f): f is File => f instanceof File);
+    if (files.length === 0) return c.json(err("VALIDATION_ERROR", "file が必要です"), 400);
     // サイズ上限（DoS対策）: メモリ全量展開・同期解析の前に拒否する
-    if (file.size > MAX_INGEST_BYTES)
-      return c.json(err("VALIDATION_ERROR", "ファイルは20MB以下にしてください"), 400);
-    filename = file.name;
-    mimeType = file.type || "text/plain";
-    content = Buffer.from(await file.arrayBuffer());
+    for (const f of files) {
+      if (f.size > MAX_INGEST_BYTES)
+        return c.json(err("VALIDATION_ERROR", "ファイルは1件20MB以下にしてください"), 400);
+    }
+    if (files.length === 1) {
+      const file = files[0];
+      filename = file.name;
+      mimeType = file.type || "text/plain";
+      content = Buffer.from(await file.arrayBuffer());
+    } else {
+      // 複数ファイル = 複数ページ撮影画像を1件として取込（画像のみ、1画像=1ページのPDFへ結合）
+      if (files.length > MAX_MERGE_IMAGES)
+        return c.json(err("VALIDATION_ERROR", `まとめて取り込める画像は${MAX_MERGE_IMAGES}枚までです`), 400);
+      if (!files.every((f) => isImageFilename(f.name) || f.type.startsWith("image/")))
+        return c.json(
+          err("VALIDATION_ERROR", "まとめて取込できるのは画像（撮影ページ）のみです。書類ファイルは1件ずつ取り込んでください"),
+          400
+        );
+      const buffers = await Promise.all(files.map(async (f) => Buffer.from(await f.arrayBuffer())));
+      content = await mergeImagesToPdf(buffers);
+      const base = files[0].name.replace(/\.[^.]+$/, "").replace(/[/\\]/g, "_") || "撮影取込";
+      filename = `${base}_${files.length}ページ.pdf`;
+      mimeType = "application/pdf";
+    }
     if (content.length > MAX_INGEST_BYTES)
       return c.json(err("VALIDATION_ERROR", "ファイルは20MB以下にしてください"), 400);
   }

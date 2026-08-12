@@ -50,6 +50,7 @@ export default async function IngestionsPage({
         <p className="mb-4 text-xs text-slate-500">
           PDF・Word（.doc/.docx）・Excel・テキスト/CSV・画像（JPEG/PNG）に対応しています。
           スキャン済みの画像PDFやスマホで撮影した写真はOCRで文字起こしします（手書き・不鮮明な写真は精度が落ちます）。
+          複数ページの書類は、画像を複数選択（スマホは1ページずつ続けて撮影）すると1件にまとまります（最大10ページ）。
         </p>
         <IngestUpload />
       </section>
