@@ -191,7 +191,8 @@ export default async function ProjectDetailPage({
         />
       )}
 
-      {canMatch && (
+      {/* 終了した案件は新たなマッチングを行わない */}
+      {canMatch && p.workflowStatus !== "ENDED" && (
         <MatchPanel
           direction="project-to-engineers"
           targetId={p.id}

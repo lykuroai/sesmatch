@@ -74,7 +74,12 @@ export async function matchProjectToEngineers(auth: AuthContext, projectId: stri
   if (!project) return null;
 
   const candidates = await prisma.engineer.findMany({
-    where: { deletedAt: null, OR: [{ status: "PUBLISHED" }, { tenantCompanyId: auth.companyId }] },
+    where: {
+      deletedAt: null,
+      // 成約・稼働中の人材は新たなマッチング候補にしない
+      workStatus: { notIn: ["CONTRACTED", "WORKING"] },
+      OR: [{ status: "PUBLISHED" }, { tenantCompanyId: auth.companyId }],
+    },
     include: { skills: true, consents: true },
   });
 
@@ -148,7 +153,12 @@ export async function passingEngineerMatchesForProject(
   });
   if (!project) return null;
   const candidates = await prisma.engineer.findMany({
-    where: { deletedAt: null, OR: [{ status: "PUBLISHED" }, { tenantCompanyId: auth.companyId }] },
+    where: {
+      deletedAt: null,
+      // 成約・稼働中の人材は新たなマッチング候補にしない
+      workStatus: { notIn: ["CONTRACTED", "WORKING"] },
+      OR: [{ status: "PUBLISHED" }, { tenantCompanyId: auth.companyId }],
+    },
     include: { skills: true, consents: true },
   });
   // 自社案件は公開前でも計算対象（matchProjectToEngineers と同じ扱い）
@@ -174,7 +184,11 @@ export async function passingProjectMatchesForEngineer(
   });
   if (!engineer) return null;
   const projects = await prisma.project.findMany({
-    where: { OR: [{ status: "PUBLISHED" }, { tenantCompanyId: auth.companyId }] },
+    where: {
+      // 終了した案件はマッチング候補にしない
+      workflowStatus: { not: "ENDED" },
+      OR: [{ status: "PUBLISHED" }, { tenantCompanyId: auth.companyId }],
+    },
     include: { skills: true },
   });
   // 自社人材は公開前でも計算対象（matchEngineerToProjects と同じ扱い）
@@ -197,7 +211,11 @@ export async function matchEngineerToProjects(auth: AuthContext, engineerId: str
   if (!engineer) return null;
 
   const projects = await prisma.project.findMany({
-    where: { OR: [{ status: "PUBLISHED" }, { tenantCompanyId: auth.companyId }] },
+    where: {
+      // 終了した案件はマッチング候補にしない
+      workflowStatus: { not: "ENDED" },
+      OR: [{ status: "PUBLISHED" }, { tenantCompanyId: auth.companyId }],
+    },
     include: { skills: true },
   });
 

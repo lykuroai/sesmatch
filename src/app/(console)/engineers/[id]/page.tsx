@@ -193,7 +193,8 @@ export default async function EngineerDetailPage({
         <EntryCreate type="SCOUT" fixedEngineerId={e.id} options={scoutOptions} />
       )}
 
-      {canMatch && (
+      {/* 成約・稼働中の人材は新たなマッチングを行わない */}
+      {canMatch && !["CONTRACTED", "WORKING"].includes(e.workStatus) && (
         <MatchPanel
           direction="engineer-to-projects"
           targetId={e.id}
