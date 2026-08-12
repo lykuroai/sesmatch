@@ -48,7 +48,8 @@ export default async function IngestionsPage({
       <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="mb-2 font-bold">ファイル取込</h2>
         <p className="mb-4 text-xs text-slate-500">
-          PDF・Word（.docx）・Excel・テキスト/CSV ファイルに対応しています（画像PDFのOCR・旧形式 .doc は未対応）。
+          PDF・Word（.doc/.docx）・Excel・テキスト/CSV・画像（JPEG/PNG）に対応しています。
+          スキャン済みの画像PDFやスマホで撮影した写真はOCRで文字起こしします（手書き・不鮮明な写真は精度が落ちます）。
         </p>
         <IngestUpload />
       </section>

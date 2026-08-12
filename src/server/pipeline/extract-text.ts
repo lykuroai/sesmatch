@@ -1,8 +1,10 @@
-// 取込・添付ファイルからのテキスト抽出（§9.2 OCR相当の前処理）
-// 対応形式: PDF / Word(.doc, .docx) / Excel(.xlsx, .xls) / テキスト系（.txt, .csv 等）
+// 取込・添付ファイルからのテキスト抽出（§9.2）
+// 対応形式: PDF（画像PDFはOCR） / Word(.doc, .docx) / Excel(.xlsx, .xls) /
+// 画像（.jpg, .png 等 → OCR） / テキスト系（.txt, .csv 等）
 
 import mammoth from "mammoth";
 import * as XLSX from "xlsx";
+import { OCR_IMAGE_EXTENSIONS, ocrImage, ocrPdf } from "./ocr";
 
 // 職務経歴書として添付を受け付ける拡張子（Excel / Word / PDF 限定）
 export const SKILL_SHEET_EXTENSIONS = [".pdf", ".doc", ".docx", ".xls", ".xlsx"];
@@ -22,14 +24,26 @@ export async function extractDocumentText(filename: string, content: Buffer): Pr
   if (e === ".pdf") {
     const { PDFParse } = await import("pdf-parse");
     const parser = new PDFParse({ data: content });
+    let text: string | undefined;
     try {
       const result = await parser.getText();
-      const text = result.text?.trim();
-      if (!text) throw new Error("PDF からテキストを抽出できませんでした（画像PDFはOCR未対応です）");
-      return text;
+      text = result.text?.trim();
     } finally {
       await parser.destroy();
     }
+    if (text) return text;
+    // テキスト層がないPDF（スキャン・画像PDF）はOCRで文字起こしする
+    const ocrText = await ocrPdf(content);
+    if (!ocrText) throw new Error("PDF からテキストを抽出できませんでした（OCRでも文字を検出できません）");
+    return ocrText;
+  }
+  if (OCR_IMAGE_EXTENSIONS.includes(e)) {
+    const text = await ocrImage(content);
+    if (!text)
+      throw new Error(
+        "画像から文字を検出できませんでした。明るい場所で真上から撮影し直すか、PDF等のファイルで取り込んでください"
+      );
+    return text;
   }
   if (e === ".docx") {
     const result = await mammoth.extractRawText({ buffer: content });
