@@ -170,7 +170,7 @@ export function ContractEditForm({ contractId }: { contractId: string }) {
           <label className="mb-1 block text-xs text-slate-600">契約終了日（任意）</label>
           <input type="date" name="endDate" defaultValue={latest.endDate ? latest.endDate.slice(0, 10) : ""} className={input} />
         </div>
-        <div className="col-span-3">
+        <div className="sm:col-span-3">
           <label className="mb-1 block text-xs text-slate-600">備考（任意）</label>
           <textarea name="notes" rows={3} maxLength={2000} defaultValue={latest.notes} className={input} />
         </div>

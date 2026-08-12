@@ -103,7 +103,7 @@ export function ContractCreateForm({
           <label className="mb-1 block text-xs text-slate-600">契約終了日（任意）</label>
           <input type="date" name="endDate" className={input} />
         </div>
-        <div className="col-span-3">
+        <div className="sm:col-span-3">
           <label className="mb-1 block text-xs text-slate-600">備考（任意）</label>
           <textarea
             name="notes"

@@ -179,11 +179,11 @@ export function ConfirmIngestionForm({
               className={input}
             />
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className={label}>工程（カンマ区切り）</label>
             <input name="processes" defaultValue={d.processes.join(", ")} className={input} />
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className={label}>役割（カンマ区切り: PM, PL 等）</label>
             <input name="roles" defaultValue={(d.roles ?? []).join(", ")} className={input} />
           </div>
@@ -233,7 +233,7 @@ export function ConfirmIngestionForm({
       </p>
       {error && <p className="rounded bg-red-50 p-2 text-xs text-red-700">{error}</p>}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-        <div className="col-span-3">
+        <div className="sm:col-span-2 md:col-span-3">
           <label className={label}>案件名</label>
           <input name="name" defaultValue={d.name ?? ""} className={input} />
         </div>
@@ -261,15 +261,15 @@ export function ConfirmIngestionForm({
             <option value="true">不可</option>
           </select>
         </div>
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <label className={label}>勤務地</label>
           <LocationInput name="locationCity" initial={d.locationCity} className={input} />
         </div>
-        <div className="col-span-3">
+        <div className="sm:col-span-2 md:col-span-3">
           <label className={label}>必須スキル（カンマ区切り）</label>
           <input name="requiredSkills" defaultValue={d.requiredSkills.join(", ")} className={input} />
         </div>
-        <div className="col-span-3">
+        <div className="sm:col-span-2 md:col-span-3">
           <label className={label}>尚可スキル（カンマ区切り）</label>
           <input name="preferredSkills" defaultValue={d.preferredSkills.join(", ")} className={input} />
         </div>
