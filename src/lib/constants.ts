@@ -65,7 +65,7 @@ export const PUBLISH_STATUS_LABELS: Record<string, string> = {
 
 // 案件の進行状態（商談開始・成約で自動更新、手動で上書き可能）
 export const PROJECT_WORKFLOW_LABELS: Record<string, string> = {
-  RECRUITING: "応募中",
+  RECRUITING: "募集中",
   NEGOTIATING: "商談中",
   CONTRACTED: "成約",
   ENDED: "終了",

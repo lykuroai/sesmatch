@@ -172,7 +172,7 @@ export default async function ProjectsPage({
           {PUBLISH_STATUS_LABELS[p.status]}
         </span>
       )}
-      {/* 未公開の案件は応募を受けられないため「応募中」は表示しない */}
+      {/* 未公開の案件は応募を受けられないため「募集中」は表示しない */}
       {(p.status === "PUBLISHED" || p.workflowStatus !== "RECRUITING") && (
         <span
           className={`rounded px-1.5 py-0.5 text-xs ${

@@ -295,7 +295,7 @@ export async function publishProject(auth: AuthContext, projectId: string) {
   return { ok: true as const };
 }
 
-// 案件の進行状態（応募中/成約/終了）の手動設定
+// 案件の進行状態（募集中/成約/終了）の手動設定
 export async function setProjectWorkflowStatus(
   auth: AuthContext,
   projectId: string,

@@ -133,7 +133,7 @@ export const AUDIT_METADATA_LABELS: Record<string, string> = {
 const AUDIT_VALUE_LABELS: Record<string, string> = {
   SUPPLY: "供給側",
   DEMAND: "需要側",
-  RECRUITING: "応募中",
+  RECRUITING: "募集中",
   CONTRACTED: "成約",
   ENDED: "終了",
   PROPOSING: "紹介中",

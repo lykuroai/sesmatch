@@ -565,7 +565,7 @@ export async function cancelContract(auth: AuthContext, contractId: string) {
   if (["CANCELLED", "TERMINATED", "COMPLETED"].includes(c.status))
     return { error: { code: "VERSION_CONFLICT" as const, message: "既に終了しています" } };
   await prisma.contract.update({ where: { id: contractId }, data: { status: "CANCELLED" } });
-  // この案件に他の有効な契約がなければ進行状態を応募中へ戻す
+  // この案件に他の有効な契約がなければ進行状態を募集中へ戻す
   const otherContracts = await prisma.contract.count({
     where: { projectId: c.projectId, status: { in: ["EXECUTED", "ACTIVE"] } },
   });

@@ -821,7 +821,7 @@ app.delete("/projects/:id", requirePermission("project.create"), async (c) => {
   return c.json(result);
 });
 
-// 案件の進行状態（応募中/商談中/成約/終了）の手動設定
+// 案件の進行状態（募集中/商談中/成約/終了）の手動設定
 app.post("/projects/:id/workflow-status", requirePermission("project.create"), async (c) => {
   const parsed = z
     .object({ status: z.enum(["RECRUITING", "NEGOTIATING", "CONTRACTED", "ENDED"]) })

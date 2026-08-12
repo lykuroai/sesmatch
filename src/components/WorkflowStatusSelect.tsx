@@ -37,7 +37,8 @@ export function WorkflowStatusSelect({
         value={current}
         onChange={(e) => change(e.target.value)}
         disabled={saving}
-        className="rounded border border-slate-300 bg-white px-2 py-1 text-xs disabled:opacity-50"
+        title="選択すると状態を変更できます"
+        className="rounded border border-blue-300 bg-white px-2 py-1 text-sm font-medium text-slate-800 hover:border-blue-500 disabled:opacity-50"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>

@@ -121,7 +121,7 @@ describe("終了案件へのエントリー禁止", () => {
     expect(result.error?.message).toContain("終了した案件");
   });
 
-  it("終了から応募中に戻せば再びエントリーできる", async () => {
+  it("終了から募集中に戻せば再びエントリーできる", async () => {
     const demand = await makeCompany("需要側企業");
     const supply = await makeCompany("供給側企業");
     const project = await makeProject(demand, "再開案件");

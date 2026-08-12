@@ -50,23 +50,43 @@ export default async function EngineerDetailPage({
             {e.name && <span className="ml-2">{e.name}</span>}
             {!e.own && <span className="ml-3 rounded bg-indigo-50 px-2 py-1 text-xs text-indigo-600">他社（匿名表示）</span>}
           </h1>
-          <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
-            <span>
-              {e.ageBand} / {AFFILIATION_LABELS[e.affiliationType]}
-            </span>
-            {e.status !== "PUBLISHED" && (
-              <span className="rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
-                {PUBLISH_STATUS_LABELS[e.status]}
+          <p className="mt-1 text-sm text-slate-500">
+            {e.ageBand} / {AFFILIATION_LABELS[e.affiliationType]}
+          </p>
+          {/* 状態表示: 「公開状態」（自社のみ）と「稼働状況」をラベル付きで並べる */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+            {e.own && (
+              <span className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-500">公開状態</span>
+                <span
+                  className={`rounded px-2 py-0.5 text-xs font-medium ${
+                    e.status === "PUBLISHED"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : e.status === "DRAFT"
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {PUBLISH_STATUS_LABELS[e.status]}
+                </span>
+                {e.status === "DRAFT" && (
+                  <span className="text-xs text-slate-400">他社には表示されません（「公開する」で公開）</span>
+                )}
               </span>
             )}
-            {/* 未公開の人材は紹介できないため稼働状態（紹介中）は表示・設定しない */}
-            {(e.status === "PUBLISHED" || e.workStatus !== "PROPOSING") &&
-              (e.own && hasPermission(auth.roles, "engineer.create") ? (
-                <WorkflowStatusSelect
-                  path={`/api/v1/engineers/${e.id}/work-status`}
-                  current={e.workStatus}
-                  options={Object.entries(ENGINEER_WORK_STATUS_LABELS).map(([value, label]) => ({ value, label }))}
-                />
+            <span className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500">稼働状況</span>
+              {/* 未公開の人材は紹介できないため稼働状態（紹介中）は設定しない */}
+              {e.own && hasPermission(auth.roles, "engineer.create") ? (
+                e.status === "PUBLISHED" || e.workStatus !== "PROPOSING" ? (
+                  <WorkflowStatusSelect
+                    path={`/api/v1/engineers/${e.id}/work-status`}
+                    current={e.workStatus}
+                    options={Object.entries(ENGINEER_WORK_STATUS_LABELS).map(([value, label]) => ({ value, label }))}
+                  />
+                ) : (
+                  <span className="text-xs text-slate-400">公開すると「紹介中」になります</span>
+                )
               ) : (
                 <span
                   className={`rounded px-2 py-0.5 text-xs ${
@@ -75,8 +95,16 @@ export default async function EngineerDetailPage({
                 >
                   {ENGINEER_WORK_STATUS_LABELS[e.workStatus]}
                 </span>
-              ))}
-          </p>
+              )}
+            </span>
+          </div>
+          {e.own &&
+            hasPermission(auth.roles, "engineer.create") &&
+            (e.status === "PUBLISHED" || e.workStatus !== "PROPOSING") && (
+              <p className="mt-1 text-xs text-slate-400">
+                稼働状況は商談開始・成約で自動更新されます。プルダウンから手動でも変更できます
+              </p>
+            )}
         </div>
         <div className="flex items-center gap-3">
           {/* 職務経歴書（原本・PII含む）: 自社のPII権限保持者のみダウンロード可 */}
