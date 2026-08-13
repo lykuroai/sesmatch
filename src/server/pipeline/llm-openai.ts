@@ -71,8 +71,12 @@ const PROJECT_SCHEMA = `{
                                        // 「外国籍可」「国籍不問」等なら false、記載がなければ null
   "requiredSkills": string[],          // 必須スキル。技術要素（言語・フレームワーク・DB・クラウド・製品・技術領域）のみ、重要な順に最大5個。
                                        // マッチングでスキル名の完全一致・全充足が求められるため、真に必須の技術だけに絞る。
-                                       // 「資料作成」「顧客折衝」「関係者調整」「会議ファシリテーション」等の職務要件・ソフトスキルは含めない（summary に書く）
-  "preferredSkills": string[],         // 尚可スキル。「尚可」「歓迎」とされた技術要素と、必須から溢れた技術要素
+                                       // 「資料作成」「顧客折衝」「関係者調整」「会議ファシリテーション」等の職務要件・ソフトスキルは含めない（summary に書く）。
+                                       // 応募者が既に持っているべき経験・技術のみを必須とする。案件で利用する環境・製品の紹介
+                                       // （「〜を使って開発」等）はそれ自体では必須にせず、「取得技術」「習得予定」「勉強期間あり」
+                                       // 「経験がなくても可」等と明記された技術は必須に含めない（preferredSkills か summary へ）。
+                                       // 同じ技術が必須の記載と取得技術・習得予定の記載の両方に現れる場合は、習得予定を優先して必須に含めない
+  "preferredSkills": string[],         // 尚可スキル。「尚可」「歓迎」とされた技術要素、参画後に習得予定の技術要素、必須から溢れた技術要素
   "summary": string                    // 匿名要約。自然な日本語で書く。エンド企業名は「大手金融機関」等の抽象カテゴリに置換
 }`;
 
@@ -169,7 +173,16 @@ export class OpenAiCompatGateway implements LlmGateway {
     const isEngineer = kind === "ENGINEER_SHEET";
     const instruction = isEngineer
       ? `次のスキルシートから構造化データを抽出し、次のスキーマに従うJSONのみを出力してください。\n${ENGINEER_SCHEMA}`
-      : `次の案件情報から構造化データを抽出し、次のスキーマに従うJSONのみを出力してください。\n${PROJECT_SCHEMA}`;
+      : `次の案件情報から構造化データを抽出し、次のスキーマに従うJSONのみを出力してください。
+
+【requiredSkills の判定ルール（重要）】
+requiredSkills には「応募者が参画前から持っているべき経験・技術」だけを入れる。
+次のいずれかに当てはまる技術は、たとえ必須欄に書かれていても requiredSkills に入れず preferredSkills に入れること:
+- 「取得技術」「習得予定」「勉強期間があります」「キャッチアップ可」「経験がなくても可」等、参画後に習得できると明記されている
+- 「〜を使って開発」「〜環境」等、案件で利用する環境・製品の紹介にとどまり、応募者の経験要件として書かれていない
+例: 必須欄に「Spring Boot、AWSを使って開発」とあり、取得技術欄に「AWSの技術力（稼働内で勉強期間があります）」とある場合
+→ requiredSkills には AWS を入れず、preferredSkills に入れる。
+${PROJECT_SCHEMA}`;
     const raw = await this.call(
       `extract:${kind}`,
       `${instruction}\n\n---\n${maskedText}`,

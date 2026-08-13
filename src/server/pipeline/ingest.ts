@@ -10,6 +10,7 @@ import { maskPii, verifyMasked } from "./pii";
 import { llmGateway } from "./llm";
 import { extractDocumentText } from "./extract-text";
 import { splitFilename, splitProjectItems } from "./split";
+import { demoteLearnableSkills } from "./skill-rules";
 import { audit } from "@/server/audit";
 
 export const STORAGE_DIR = process.env.STORAGE_DIR ?? "./storage";
@@ -261,7 +262,15 @@ async function runPipeline(params: {
     const kind = await llmGateway.classify(masked);
     if (kind === "UNKNOWN") throw new Error("文書種別を判定できませんでした");
     await prisma.sourceDocument.update({ where: { id: docId }, data: { kind } });
-    const extracted = await llmGateway.extract(masked, kind);
+    let extracted = await llmGateway.extract(masked, kind);
+    // 案件: 「取得技術」等の習得予定と明記された技術はLLMが必須に入れても尚可へ移す（決定的な補正）
+    if (kind === "PROJECT_DESCRIPTION") {
+      const d = extracted as { requiredSkills?: string[]; preferredSkills?: string[] };
+      extracted = {
+        ...d,
+        ...demoteLearnableSkills(masked, d.requiredSkills ?? [], d.preferredSkills ?? []),
+      } as typeof extracted;
+    }
 
     // 人手確認待ちへ
     await prisma.extractionResult.create({
