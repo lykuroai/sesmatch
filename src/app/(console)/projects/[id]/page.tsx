@@ -221,12 +221,17 @@ export default async function ProjectDetailPage({
         />
       )}
 
-      {/* 終了した案件は新たなマッチングを行わない */}
+      {/* 終了した案件は新たなマッチングを行わない。非公開（下書き・停止中）は実行不可 */}
       {canMatch && p.workflowStatus !== "ENDED" && (
         <MatchPanel
           direction="project-to-engineers"
           targetId={p.id}
           canEntry={p.own && hasPermission(auth.roles, "entry.submit")}
+          disabledReason={
+            p.status !== "PUBLISHED"
+              ? "非公開（下書き）の案件はマッチングを実行できません。「公開する」と実行できるようになります"
+              : undefined
+          }
         />
       )}
     </div>

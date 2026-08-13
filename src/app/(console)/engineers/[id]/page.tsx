@@ -223,12 +223,17 @@ export default async function EngineerDetailPage({
         <EntryCreate type="SCOUT" fixedEngineerId={e.id} options={scoutOptions} />
       )}
 
-      {/* 成約・稼働中の人材は新たなマッチングを行わない */}
+      {/* 成約・稼働中の人材は新たなマッチングを行わない。非公開（下書き・停止中）は実行不可 */}
       {canMatch && !["CONTRACTED", "WORKING"].includes(e.workStatus) && (
         <MatchPanel
           direction="engineer-to-projects"
           targetId={e.id}
           canEntry={e.own && hasPermission(auth.roles, "entry.submit")}
+          disabledReason={
+            e.status !== "PUBLISHED"
+              ? "非公開（下書き）の人材はマッチングを実行できません。「公開する」と実行できるようになります"
+              : undefined
+          }
         />
       )}
     </div>

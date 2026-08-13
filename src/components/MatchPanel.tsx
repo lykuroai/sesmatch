@@ -24,10 +24,12 @@ export function MatchPanel({
   direction,
   targetId,
   canEntry = false,
+  disabledReason,
 }: {
   direction: "project-to-engineers" | "engineer-to-projects";
   targetId: string;
   canEntry?: boolean; // entry.submit 権限（他社候補へのスカウト/提案ボタンを表示）
+  disabledReason?: string; // 指定時はマッチング実行を無効化し理由を表示（非公開の案件・人材など）
 }) {
   const [rows, setRows] = useState<MatchRow[] | null>(null);
   // 必須スキル充足率のしきい値（既定: 1 = 全て充足した候補のみ。0.9 なら9割以上充足で候補に含める）
@@ -105,7 +107,7 @@ export function MatchPanel({
           <select
             value={minRatio}
             onChange={(e) => changeRatio(Number(e.target.value))}
-            disabled={loading}
+            disabled={loading || !!disabledReason}
             className="rounded border border-slate-300 bg-white px-2 py-1 text-sm disabled:opacity-50"
           >
             <option value={1}>100%（全て充足）</option>
@@ -117,12 +119,14 @@ export function MatchPanel({
         </label>
         <button
           onClick={() => run()}
-          disabled={loading}
+          disabled={loading || !!disabledReason}
+          title={disabledReason}
           className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
         >
           {loading ? "計算中..." : "マッチング実行"}
         </button>
       </div>
+      {disabledReason && <p className="text-sm text-slate-500">{disabledReason}</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
       {rows && rows.length === 0 && (
         <p className="text-sm text-slate-500">
