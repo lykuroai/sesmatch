@@ -30,6 +30,7 @@ export function MatchPanel({
   canEntry?: boolean; // entry.submit 権限（他社候補へのスカウト/提案ボタンを表示）
 }) {
   const [rows, setRows] = useState<MatchRow[] | null>(null);
+  const [minScore, setMinScore] = useState(90); // 適合度のしきい値（既定: 90%以上）
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [entryStates, setEntryStates] = useState<Record<string, EntryState>>({});
@@ -82,13 +83,28 @@ export function MatchPanel({
   }
 
   const actionLabel = direction === "project-to-engineers" ? "商談を申し込む" : "人材提案";
+  // 適合度のしきい値で表示を絞り込む（計算結果はしきい値に関係なく全件保持）
+  const visible = rows?.filter((r) => r.result.score >= minScore) ?? null;
 
   return (
     <div className="mt-8">
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <h2 className="text-lg font-bold">
           {direction === "project-to-engineers" ? "候補人材マッチング" : "適合案件マッチング"}
         </h2>
+        <label className="flex items-center gap-1.5 text-xs text-slate-600">
+          適合度
+          <select
+            value={minScore}
+            onChange={(e) => setMinScore(Number(e.target.value))}
+            className="rounded border border-slate-300 bg-white px-2 py-1 text-sm"
+          >
+            <option value={90}>90%以上</option>
+            <option value={80}>80%以上</option>
+            <option value={70}>70%以上</option>
+            <option value={0}>すべて</option>
+          </select>
+        </label>
         <button
           onClick={run}
           disabled={loading}
@@ -101,9 +117,19 @@ export function MatchPanel({
       {rows && rows.length === 0 && (
         <p className="text-sm text-slate-500">ハードフィルターを通過した候補はありません。</p>
       )}
-      {rows && rows.length > 0 && (
+      {rows && rows.length > 0 && visible && visible.length === 0 && (
+        <p className="text-sm text-slate-500">
+          適合度{minScore}%以上の候補はありません（全{rows.length}件。しきい値を下げると表示されます）。
+        </p>
+      )}
+      {visible && visible.length > 0 && (
         <div className="space-y-3">
-          {rows.map((row, i) => {
+          {rows && rows.length > visible.length && (
+            <p className="text-xs text-slate-500">
+              適合度{minScore}%以上の{visible.length}件を表示（全{rows.length}件）
+            </p>
+          )}
+          {visible.map((row, i) => {
             const target = row.engineer ?? row.project;
             if (!target) return null;
             const href = row.engineer ? `/engineers/${target.id}` : `/projects/${target.id}`;
