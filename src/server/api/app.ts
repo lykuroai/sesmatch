@@ -856,18 +856,27 @@ app.post("/projects/:id/unpublish", requirePermission("project.publish"), async 
 
 // ---- マッチング（§19, §28）----
 
+// minRequiredSkillRatio: 必須スキル充足率のしきい値（0.5〜1、省略時1=全て充足）
 app.post("/matches/project-to-engineers", requirePermission("match.run"), async (c) => {
-  const parsed = z.object({ projectId: z.string() }).safeParse(await c.req.json().catch(() => null));
+  const parsed = z
+    .object({ projectId: z.string(), minRequiredSkillRatio: z.number().min(0.5).max(1).optional() })
+    .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
-  const result = await matchProjectToEngineers(c.get("auth"), parsed.data.projectId);
+  const result = await matchProjectToEngineers(c.get("auth"), parsed.data.projectId, {
+    minRequiredSkillRatio: parsed.data.minRequiredSkillRatio,
+  });
   if (!result) return c.json(err("NOT_FOUND"), 404);
   return c.json(result);
 });
 
 app.post("/matches/engineer-to-projects", requirePermission("match.run"), async (c) => {
-  const parsed = z.object({ engineerId: z.string() }).safeParse(await c.req.json().catch(() => null));
+  const parsed = z
+    .object({ engineerId: z.string(), minRequiredSkillRatio: z.number().min(0.5).max(1).optional() })
+    .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
-  const result = await matchEngineerToProjects(c.get("auth"), parsed.data.engineerId);
+  const result = await matchEngineerToProjects(c.get("auth"), parsed.data.engineerId, {
+    minRequiredSkillRatio: parsed.data.minRequiredSkillRatio,
+  });
   if (!result) return c.json(err("NOT_FOUND"), 404);
   return c.json(result);
 });

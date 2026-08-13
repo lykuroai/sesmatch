@@ -65,8 +65,15 @@ function toProjectForMatch(p: Project & { skills: ProjectSkill[] }): ProjectForM
   };
 }
 
+// マッチング実行時の画面条件（必須スキル充足率のしきい値。既定1=全て充足）
+export type MatchRunOptions = { minRequiredSkillRatio?: number };
+
 // 案件→人材（自社案件に対する候補人材を全公開人材から探す）
-export async function matchProjectToEngineers(auth: AuthContext, projectId: string) {
+export async function matchProjectToEngineers(
+  auth: AuthContext,
+  projectId: string,
+  runOpts?: MatchRunOptions
+) {
   const project = await prisma.project.findFirst({
     where: { id: projectId, tenantCompanyId: auth.companyId },
     include: { skills: true },
@@ -91,7 +98,10 @@ export async function matchProjectToEngineers(auth: AuthContext, projectId: stri
   const results = candidates
     .map((e) => ({
       engineer: serializeEngineer(e, auth),
-      result: score(pmForCalc, toEngineerForMatch(e), { normalize }),
+      result: score(pmForCalc, toEngineerForMatch(e), {
+        normalize,
+        minRequiredSkillRatio: runOpts?.minRequiredSkillRatio,
+      }),
     }))
     .filter((r) => r.result.passed)
     .sort((a, b) => b.result.score - a.result.score);
@@ -203,7 +213,11 @@ export async function passingProjectMatchesForEngineer(
 }
 
 // 人材→案件（自社人材に合う案件を全公開案件から探す）
-export async function matchEngineerToProjects(auth: AuthContext, engineerId: string) {
+export async function matchEngineerToProjects(
+  auth: AuthContext,
+  engineerId: string,
+  runOpts?: MatchRunOptions
+) {
   const engineer = await prisma.engineer.findFirst({
     where: { id: engineerId, tenantCompanyId: auth.companyId, deletedAt: null },
     include: { skills: true, consents: true },
@@ -227,7 +241,10 @@ export async function matchEngineerToProjects(auth: AuthContext, engineerId: str
   const results = projects
     .map((p) => ({
       project: serializeProject(p, auth),
-      result: score(toProjectForMatch(p), emForCalc, { normalize }),
+      result: score(toProjectForMatch(p), emForCalc, {
+        normalize,
+        minRequiredSkillRatio: runOpts?.minRequiredSkillRatio,
+      }),
     }))
     .filter((r) => r.result.passed)
     .sort((a, b) => b.result.score - a.result.score);

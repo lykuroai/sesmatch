@@ -30,17 +30,20 @@ export function MatchPanel({
   canEntry?: boolean; // entry.submit 権限（他社候補へのスカウト/提案ボタンを表示）
 }) {
   const [rows, setRows] = useState<MatchRow[] | null>(null);
-  const [minScore, setMinScore] = useState(90); // 適合度のしきい値（既定: 90%以上）
+  // 必須スキル充足率のしきい値（既定: 1 = 全て充足した候補のみ。0.9 なら9割以上充足で候補に含める）
+  const [minRatio, setMinRatio] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [entryStates, setEntryStates] = useState<Record<string, EntryState>>({});
   const [submitting, setSubmitting] = useState<string | null>(null);
 
-  async function run() {
+  async function run(ratio = minRatio) {
     setLoading(true);
     setError(null);
-    const body =
-      direction === "project-to-engineers" ? { projectId: targetId } : { engineerId: targetId };
+    const body = {
+      ...(direction === "project-to-engineers" ? { projectId: targetId } : { engineerId: targetId }),
+      ...(ratio < 1 ? { minRequiredSkillRatio: ratio } : {}),
+    };
     const res = await fetch(`/api/v1/matches/${direction}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -55,6 +58,12 @@ export function MatchPanel({
     const data = await res.json();
     setRows(data.results);
     setEntryStates({});
+  }
+
+  // しきい値変更: 計算済みなら新しい条件で自動再計算する
+  function changeRatio(v: number) {
+    setMinRatio(v);
+    if (rows !== null && !loading) void run(v);
   }
 
   // スカウト（案件→他社人材）/ 人材提案（人材→他社案件）のエントリー作成
@@ -83,8 +92,6 @@ export function MatchPanel({
   }
 
   const actionLabel = direction === "project-to-engineers" ? "商談を申し込む" : "人材提案";
-  // 適合度のしきい値で表示を絞り込む（計算結果はしきい値に関係なく全件保持）
-  const visible = rows?.filter((r) => r.result.score >= minScore) ?? null;
 
   return (
     <div className="mt-8">
@@ -92,21 +99,24 @@ export function MatchPanel({
         <h2 className="text-lg font-bold">
           {direction === "project-to-engineers" ? "候補人材マッチング" : "適合案件マッチング"}
         </h2>
-        <label className="flex items-center gap-1.5 text-xs text-slate-600">
-          適合度
+        {/* 必須スキルの充足率条件: 100%（全て充足）が既定。下げると一部不足の候補も抽出する */}
+        <label className="flex items-center gap-1.5 text-xs text-slate-600" title="必須スキルをどこまで満たす候補を抽出するか">
+          必須スキル適合
           <select
-            value={minScore}
-            onChange={(e) => setMinScore(Number(e.target.value))}
-            className="rounded border border-slate-300 bg-white px-2 py-1 text-sm"
+            value={minRatio}
+            onChange={(e) => changeRatio(Number(e.target.value))}
+            disabled={loading}
+            className="rounded border border-slate-300 bg-white px-2 py-1 text-sm disabled:opacity-50"
           >
-            <option value={90}>90%以上</option>
-            <option value={80}>80%以上</option>
-            <option value={70}>70%以上</option>
-            <option value={0}>すべて</option>
+            <option value={1}>100%（全て充足）</option>
+            <option value={0.9}>90%以上</option>
+            <option value={0.8}>80%以上</option>
+            <option value={0.7}>70%以上</option>
+            <option value={0.5}>50%以上</option>
           </select>
         </label>
         <button
-          onClick={run}
+          onClick={() => run()}
           disabled={loading}
           className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
         >
@@ -115,21 +125,20 @@ export function MatchPanel({
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       {rows && rows.length === 0 && (
-        <p className="text-sm text-slate-500">ハードフィルターを通過した候補はありません。</p>
-      )}
-      {rows && rows.length > 0 && visible && visible.length === 0 && (
         <p className="text-sm text-slate-500">
-          適合度{minScore}%以上の候補はありません（全{rows.length}件。しきい値を下げると表示されます）。
+          {minRatio < 1
+            ? "条件を満たす候補はありません。"
+            : "ハードフィルターを通過した候補はありません（「必須スキル適合」を下げると一部不足の候補も抽出できます）。"}
         </p>
       )}
-      {visible && visible.length > 0 && (
+      {rows && rows.length > 0 && (
         <div className="space-y-3">
-          {rows && rows.length > visible.length && (
+          {minRatio < 1 && (
             <p className="text-xs text-slate-500">
-              適合度{minScore}%以上の{visible.length}件を表示（全{rows.length}件）
+              必須スキルを{Math.round(minRatio * 100)}%以上満たす{rows.length}件（不足スキルは各候補の△に表示）
             </p>
           )}
-          {visible.map((row, i) => {
+          {rows.map((row, i) => {
             const target = row.engineer ?? row.project;
             if (!target) return null;
             const href = row.engineer ? `/engineers/${target.id}` : `/projects/${target.id}`;

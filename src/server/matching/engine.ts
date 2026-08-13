@@ -57,7 +57,12 @@ export type MatchResult = {
 // 名称の比較は正規化後の完全一致（§19 名寄せ）。
 // 既定は接尾辞正規化（normalizeSkillTerm）。用語辞書を使う場合は呼び出し側が
 // 辞書引き当てを含む normalize を注入する（エンジンは純粋関数のまま保つ）
-export type MatchOptions = { normalize?: (name: string) => string };
+export type MatchOptions = {
+  normalize?: (name: string) => string;
+  // 必須スキルの充足率しきい値（0〜1、既定1=全て充足が必要）。
+  // 例: 0.9 なら必須スキルの90%以上を満たす人材も候補として通す（不足分は不足条件に表示）
+  minRequiredSkillRatio?: number;
+};
 
 type Normalizer = (name: string) => string;
 
@@ -90,19 +95,24 @@ export function hardFilter(
   if (project.status !== "PUBLISHED") failures.push("案件が公開状態でない");
 
   // 必須スキル（工程・役割・業種名の場合は各欄でも充足）
+  const skillFailures: string[] = [];
   for (const rs of project.requiredSkills) {
     const skill = findSkill(engineer, rs.name, n);
     if (skill) {
       if (rs.minMonths && skill.months < rs.minMonths)
-        failures.push(`必須スキル経験不足: ${rs.name}（${skill.months}ヶ月 < ${rs.minMonths}ヶ月）`);
+        skillFailures.push(`必須スキル経験不足: ${rs.name}（${skill.months}ヶ月 < ${rs.minMonths}ヶ月）`);
     } else if (hasProcessRoleOrIndustry(engineer, rs.name, n)) {
       // 工程・役割・業種での充足は経験月数を持たないため、月数条件付きの場合は不足扱い
       if (rs.minMonths)
-        failures.push(`必須スキル経験不足: ${rs.name}（経験月数未登録 < ${rs.minMonths}ヶ月）`);
+        skillFailures.push(`必須スキル経験不足: ${rs.name}（経験月数未登録 < ${rs.minMonths}ヶ月）`);
     } else {
-      failures.push(`必須スキル不足: ${rs.name}`);
+      skillFailures.push(`必須スキル不足: ${rs.name}`);
     }
   }
+  // 充足率がしきい値以上なら必須スキルの不足は許容する（画面の「必須スキル適合」条件。既定は100%）
+  const reqCount = project.requiredSkills.length;
+  const fulfilledRatio = reqCount === 0 ? 1 : (reqCount - skillFailures.length) / reqCount;
+  if (fulfilledRatio + 1e-9 < (opts?.minRequiredSkillRatio ?? 1)) failures.push(...skillFailures);
 
   // 稼働開始日
   if (engineer.availableFrom && engineer.availableFrom > project.startDate)
@@ -166,6 +176,17 @@ export function score(
   }).length;
   breakdown["必須スキル"] = reqTotal === 0 ? 30 : Math.round((reqHit / reqTotal) * 30);
   if (reqTotal > 0 && reqHit === reqTotal) matched.push("必須スキルを全て充足");
+  // しきい値緩和で通過した場合、不足した必須スキルを不足条件として表示する
+  if (reqTotal > 0 && reqHit < reqTotal && !failures.some((f) => f.startsWith("必須スキル"))) {
+    const unmet = project.requiredSkills
+      .filter((rs) => {
+        const s = findSkill(engineer, rs.name, n);
+        if (s) return rs.minMonths != null && s.months < rs.minMonths;
+        return rs.minMonths != null || !hasProcessRoleOrIndustry(engineer, rs.name, n);
+      })
+      .map((rs) => rs.name);
+    if (unmet.length > 0) missing.push(`必須スキル不足: ${unmet.join(", ")}`);
+  }
 
   // 尚可スキル (10)
   const prefTotal = project.preferredSkills.length;
