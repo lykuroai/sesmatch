@@ -586,6 +586,26 @@ export async function publishEngineer(auth: AuthContext, engineerId: string) {
   return { ok: true as const };
 }
 
+// 公開の取り下げ（公開中 → 下書き）。検索・マッチング対象から外れる。進行中の商談には影響しない
+export async function unpublishEngineer(auth: AuthContext, engineerId: string) {
+  const engineer = await prisma.engineer.findFirst({
+    where: { id: engineerId, tenantCompanyId: auth.companyId, deletedAt: null },
+  });
+  if (!engineer) return { error: "NOT_FOUND" as const };
+  await prisma.engineer.update({
+    where: { id: engineerId },
+    data: { status: "DRAFT", updatedByMemberId: auth.memberId },
+  });
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "EngineerUnpublished",
+    targetType: "Engineer",
+    targetId: engineerId,
+  });
+  return { ok: true as const };
+}
+
 // 人材の稼働状態（紹介中/稼働中）の手動設定
 export async function setEngineerWorkStatus(
   auth: AuthContext,

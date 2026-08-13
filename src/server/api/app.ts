@@ -26,6 +26,7 @@ import {
   listEngineers,
   deleteEngineer,
   publishEngineer,
+  unpublishEngineer,
   setEngineerWorkStatus,
   updateEngineer,
 } from "@/server/services/engineers";
@@ -35,6 +36,7 @@ import {
   listProjects,
   deleteProject,
   publishProject,
+  unpublishProject,
   setProjectWorkflowStatus,
   updateProject,
 } from "@/server/services/projects";
@@ -751,6 +753,13 @@ app.post("/engineers/:id/publish", requirePermission("engineer.publish"), async 
   return c.json(result);
 });
 
+// 公開の取り下げ（公開中 → 下書き）
+app.post("/engineers/:id/unpublish", requirePermission("engineer.publish"), async (c) => {
+  const result = await unpublishEngineer(c.get("auth"), c.req.param("id"));
+  if ("error" in result) return c.json(err("NOT_FOUND"), 404);
+  return c.json(result);
+});
+
 // ---- 案件 ----
 
 app.get("/projects", requirePermission("project.read"), async (c) => {
@@ -834,6 +843,13 @@ app.post("/projects/:id/workflow-status", requirePermission("project.create"), a
 
 app.post("/projects/:id/publish", requirePermission("project.publish"), async (c) => {
   const result = await publishProject(c.get("auth"), c.req.param("id"));
+  if ("error" in result) return c.json(err("NOT_FOUND"), 404);
+  return c.json(result);
+});
+
+// 公開の取り下げ（公開中 → 下書き）
+app.post("/projects/:id/unpublish", requirePermission("project.publish"), async (c) => {
+  const result = await unpublishProject(c.get("auth"), c.req.param("id"));
   if ("error" in result) return c.json(err("NOT_FOUND"), 404);
   return c.json(result);
 });

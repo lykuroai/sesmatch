@@ -54,7 +54,7 @@ export default async function ProjectDetailPage({
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             {p.own && (
               <span className="flex items-center gap-1.5">
-                <span className="text-xs text-slate-500">公開状態</span>
+                <span className="shrink-0 whitespace-nowrap text-xs text-slate-500">公開状態</span>
                 <span
                   className={`rounded px-2 py-0.5 text-xs font-medium ${
                     p.status === "PUBLISHED"
@@ -69,21 +69,25 @@ export default async function ProjectDetailPage({
                 {p.status === "DRAFT" && (
                   <span className="text-xs text-slate-400">他社には表示されません（「公開する」で公開）</span>
                 )}
+                {/* 公開の取り下げ（手動で下書きへ戻す） */}
+                {p.status === "PUBLISHED" && canPublish && (
+                  <ActionButton
+                    path={`/api/v1/projects/${p.id}/unpublish`}
+                    label="非公開にする"
+                    variant="secondary"
+                    confirmMessage="非公開（下書き）に戻しますか？他社の検索・マッチング対象から外れます。進行中の商談には影響しません。"
+                  />
+                )}
               </span>
             )}
             <span className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-500">案件状況</span>
-              {/* 未公開の案件は応募を受けられないため進行状態（募集中）は設定しない */}
+              <span className="shrink-0 whitespace-nowrap text-xs text-slate-500">案件状況</span>
               {p.own && hasPermission(auth.roles, "project.create") ? (
-                p.status === "PUBLISHED" || p.workflowStatus !== "RECRUITING" ? (
-                  <WorkflowStatusSelect
-                    path={`/api/v1/projects/${p.id}/workflow-status`}
-                    current={p.workflowStatus}
-                    options={Object.entries(PROJECT_WORKFLOW_LABELS).map(([value, label]) => ({ value, label }))}
-                  />
-                ) : (
-                  <span className="text-xs text-slate-400">公開すると「募集中」になります</span>
-                )
+                <WorkflowStatusSelect
+                  path={`/api/v1/projects/${p.id}/workflow-status`}
+                  current={p.workflowStatus}
+                  options={Object.entries(PROJECT_WORKFLOW_LABELS).map(([value, label]) => ({ value, label }))}
+                />
               ) : (
                 <span
                   className={`rounded px-2 py-0.5 text-xs ${
@@ -99,13 +103,11 @@ export default async function ProjectDetailPage({
               )}
             </span>
           </div>
-          {p.own &&
-            hasPermission(auth.roles, "project.create") &&
-            (p.status === "PUBLISHED" || p.workflowStatus !== "RECRUITING") && (
-              <p className="mt-1 text-xs text-slate-400">
-                案件状況は商談開始・成約で自動更新されます。プルダウンから手動でも変更できます
-              </p>
-            )}
+          {p.own && hasPermission(auth.roles, "project.create") && (
+            <p className="mt-1 text-xs text-slate-400">
+              案件状況は商談開始・成約で自動更新されます。プルダウンから手動でも変更できます
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {p.own && hasPermission(auth.roles, "project.create") && (

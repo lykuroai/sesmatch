@@ -27,6 +27,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   ProjectUpdated: "案件を更新",
   ProjectDeleted: "案件を削除",
   ProjectRouteOpened: "案件ルートを開設",
+  ProjectUnpublished: "案件を非公開化",
+  EngineerUnpublished: "人材を非公開化",
   EngineerCreated: "人材を登録",
   EngineerUpdated: "人材を更新",
   EngineerDeleted: "人材を削除",

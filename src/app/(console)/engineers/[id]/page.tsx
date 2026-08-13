@@ -57,7 +57,7 @@ export default async function EngineerDetailPage({
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             {e.own && (
               <span className="flex items-center gap-1.5">
-                <span className="text-xs text-slate-500">公開状態</span>
+                <span className="shrink-0 whitespace-nowrap text-xs text-slate-500">公開状態</span>
                 <span
                   className={`rounded px-2 py-0.5 text-xs font-medium ${
                     e.status === "PUBLISHED"
@@ -72,21 +72,25 @@ export default async function EngineerDetailPage({
                 {e.status === "DRAFT" && (
                   <span className="text-xs text-slate-400">他社には表示されません（「公開する」で公開）</span>
                 )}
+                {/* 公開の取り下げ（手動で下書きへ戻す） */}
+                {e.status === "PUBLISHED" && canPublish && (
+                  <ActionButton
+                    path={`/api/v1/engineers/${e.id}/unpublish`}
+                    label="非公開にする"
+                    variant="secondary"
+                    confirmMessage="非公開（下書き）に戻しますか？他社の検索・マッチング対象から外れます。進行中の商談には影響しません。"
+                  />
+                )}
               </span>
             )}
             <span className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-500">稼働状況</span>
-              {/* 未公開の人材は紹介できないため稼働状態（紹介中）は設定しない */}
+              <span className="shrink-0 whitespace-nowrap text-xs text-slate-500">稼働状況</span>
               {e.own && hasPermission(auth.roles, "engineer.create") ? (
-                e.status === "PUBLISHED" || e.workStatus !== "PROPOSING" ? (
-                  <WorkflowStatusSelect
-                    path={`/api/v1/engineers/${e.id}/work-status`}
-                    current={e.workStatus}
-                    options={Object.entries(ENGINEER_WORK_STATUS_LABELS).map(([value, label]) => ({ value, label }))}
-                  />
-                ) : (
-                  <span className="text-xs text-slate-400">公開すると「紹介中」になります</span>
-                )
+                <WorkflowStatusSelect
+                  path={`/api/v1/engineers/${e.id}/work-status`}
+                  current={e.workStatus}
+                  options={Object.entries(ENGINEER_WORK_STATUS_LABELS).map(([value, label]) => ({ value, label }))}
+                />
               ) : (
                 <span
                   className={`rounded px-2 py-0.5 text-xs ${
@@ -98,13 +102,11 @@ export default async function EngineerDetailPage({
               )}
             </span>
           </div>
-          {e.own &&
-            hasPermission(auth.roles, "engineer.create") &&
-            (e.status === "PUBLISHED" || e.workStatus !== "PROPOSING") && (
-              <p className="mt-1 text-xs text-slate-400">
-                稼働状況は商談開始・成約で自動更新されます。プルダウンから手動でも変更できます
-              </p>
-            )}
+          {e.own && hasPermission(auth.roles, "engineer.create") && (
+            <p className="mt-1 text-xs text-slate-400">
+              稼働状況は商談開始・成約で自動更新されます。プルダウンから手動でも変更できます
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {/* 職務経歴書（原本・PII含む）: 自社のPII権限保持者のみダウンロード可 */}

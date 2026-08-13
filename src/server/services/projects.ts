@@ -295,6 +295,26 @@ export async function publishProject(auth: AuthContext, projectId: string) {
   return { ok: true as const };
 }
 
+// 公開の取り下げ（公開中 → 下書き）。検索・マッチング対象から外れる。進行中の商談には影響しない
+export async function unpublishProject(auth: AuthContext, projectId: string) {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, tenantCompanyId: auth.companyId },
+  });
+  if (!project) return { error: "NOT_FOUND" as const };
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { status: "DRAFT", updatedByMemberId: auth.memberId },
+  });
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "ProjectUnpublished",
+    targetType: "Project",
+    targetId: projectId,
+  });
+  return { ok: true as const };
+}
+
 // 案件の進行状態（募集中/成約/終了）の手動設定
 export async function setProjectWorkflowStatus(
   auth: AuthContext,

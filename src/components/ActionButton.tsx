@@ -9,11 +9,13 @@ export function ActionButton({
   body,
   label,
   confirmMessage,
+  variant = "primary",
 }: {
   path: string;
   body?: object;
   label: string;
   confirmMessage?: string;
+  variant?: "primary" | "secondary"; // secondary: 枠線のみの控えめ表示（非公開化など）
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -42,7 +44,11 @@ export function ActionButton({
       <button
         onClick={run}
         disabled={loading}
-        className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className={
+          variant === "secondary"
+            ? "rounded border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            : "rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        }
       >
         {loading ? "処理中..." : label}
       </button>
