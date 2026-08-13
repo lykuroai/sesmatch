@@ -10,6 +10,7 @@ import { isNew, PROJECT_WORKFLOW_LABELS, PUBLISH_STATUS_LABELS, REMOTE_LEVEL_LAB
 import { IngestPanel } from "@/components/IngestPanel";
 import { PendingIngestions } from "@/components/PendingIngestions";
 import { Pager, parsePage, slicePage } from "@/components/Pager";
+import { NewBadge } from "@/components/NewBadge";
 import { SkillChipsInput } from "@/components/SkillChipsInput";
 
 const START_WITHIN_OPTIONS: [string, string][] = [
@@ -344,7 +345,7 @@ export default async function ProjectsPage({
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="font-medium text-blue-700">{p.code}</span>
               {isNew(p.createdAt) && (
-                <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-600">NEW</span>
+                <NewBadge />
               )}
               <span className={`rounded px-1.5 py-0.5 text-xs ${p.own ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
                 {p.own ? "自社" : "他社"}
@@ -393,7 +394,7 @@ export default async function ProjectsPage({
                     {p.code}
                   </Link>
                   {isNew(p.createdAt) && (
-                    <span className="ml-1.5 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-600 align-middle">NEW</span>
+                    <NewBadge className="ml-1.5" />
                   )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3">
