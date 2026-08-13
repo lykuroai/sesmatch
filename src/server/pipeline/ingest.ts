@@ -9,6 +9,7 @@ import { prisma } from "@/server/db";
 import { maskPii, verifyMasked } from "./pii";
 import { llmGateway } from "./llm";
 import { extractDocumentText } from "./extract-text";
+import { splitFilename, splitProjectItems } from "./split";
 import { audit } from "@/server/audit";
 
 export const STORAGE_DIR = process.env.STORAGE_DIR ?? "./storage";
@@ -78,6 +79,7 @@ export async function startIngestion(params: {
   void processDocument({
     tenantCompanyId: params.tenantCompanyId,
     actorUserId: params.actorUserId,
+    memberId: params.memberId,
     docId: doc.id,
     jobId: job.id,
     filename: params.filename,
@@ -94,6 +96,7 @@ export async function startIngestion(params: {
 async function processDocument(params: {
   tenantCompanyId: string;
   actorUserId: string;
+  memberId?: string | null;
   docId: string;
   jobId: string;
   filename: string;
@@ -111,6 +114,29 @@ async function processDocument(params: {
       .catch(() => {});
     return;
   }
+
+  // 複数案件が含まれる場合（【案件名】見出しが2つ以上）は案件ごとに分割し、
+  // それぞれ別の取込（原本・ジョブ・人手確認）として処理する
+  const segments = splitProjectItems(text);
+
+  // 分割済み（ファイル名に（i/N）付き）のジョブの再実行では分割し直さない。
+  // 1件目の原本には全文が保存されているため、自分の担当分（先頭セグメント）のみ処理する
+  if (/（\d+\/\d+）/.test(params.filename)) {
+    await runPipeline({
+      tenantCompanyId: params.tenantCompanyId,
+      actorUserId: params.actorUserId,
+      docId: params.docId,
+      jobId: params.jobId,
+      text: segments[0],
+    });
+    return;
+  }
+
+  if (segments.length > 1) {
+    await processSegments(params, segments);
+    return;
+  }
+
   await runPipeline({
     tenantCompanyId: params.tenantCompanyId,
     actorUserId: params.actorUserId,
@@ -118,6 +144,75 @@ async function processDocument(params: {
     jobId: params.jobId,
     text,
   });
+}
+
+// 分割された案件テキストを順に処理する。
+// 1件目は元の原本・ジョブを使い、2件目以降は分割分の原本（PII置換表を分離するため）とジョブを作成する
+async function processSegments(
+  params: {
+    tenantCompanyId: string;
+    actorUserId: string;
+    memberId?: string | null;
+    docId: string;
+    jobId: string;
+    filename: string;
+  },
+  segments: string[]
+) {
+  const total = segments.length;
+  // 元の原本の表示名に（1/N）を付けて分割されたことを分かるようにする
+  await prisma.sourceDocument
+    .update({
+      where: { id: params.docId },
+      data: { filename: splitFilename(params.filename, 1, total) },
+    })
+    .catch(() => {});
+
+  for (let i = 0; i < total; i++) {
+    let docId = params.docId;
+    let jobId = params.jobId;
+    if (i > 0) {
+      const filename = splitFilename(params.filename, i + 1, total);
+      const content = Buffer.from(segments[i], "utf-8");
+      await mkdir(path.join(STORAGE_DIR, params.tenantCompanyId), { recursive: true });
+      const storagePath = path.join(
+        STORAGE_DIR,
+        params.tenantCompanyId,
+        `${Date.now()}_${truncateFilenameBytes(filename, 180)}`
+      );
+      await writeFile(storagePath, content);
+      const doc = await prisma.sourceDocument.create({
+        data: {
+          tenantCompanyId: params.tenantCompanyId,
+          filename,
+          storagePath,
+          mimeType: "text/plain",
+          size: content.length,
+          uploadedByMemberId: params.memberId ?? null,
+        },
+      });
+      const job = await prisma.ingestionJob.create({
+        data: { tenantCompanyId: params.tenantCompanyId, sourceDocumentId: doc.id },
+      });
+      await audit({
+        tenantCompanyId: params.tenantCompanyId,
+        actorUserId: params.actorUserId,
+        action: "DocumentReceived",
+        targetType: "SourceDocument",
+        targetId: doc.id,
+        metadata: { filename, splitFromDocumentId: params.docId, part: `${i + 1}/${total}` },
+      });
+      docId = doc.id;
+      jobId = job.id;
+    }
+    await runPipeline({
+      tenantCompanyId: params.tenantCompanyId,
+      actorUserId: params.actorUserId,
+      docId,
+      jobId,
+      text: segments[i],
+    });
+  }
 }
 
 // パイプライン本体（PII匿名化 → 検査 → 分類 → LLM正規化 → 人手確認待ち）。
@@ -225,6 +320,7 @@ export async function retryIngestion(params: {
   void processDocument({
     tenantCompanyId: params.tenantCompanyId,
     actorUserId: params.actorUserId,
+    memberId: job.sourceDocument.uploadedByMemberId,
     docId: job.sourceDocumentId,
     jobId: job.id,
     filename: job.sourceDocument.filename,
