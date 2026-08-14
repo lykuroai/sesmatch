@@ -1054,6 +1054,38 @@ app.post("/ingestions/:id/retry", requirePermission("ingestion.create"), async (
   return c.json(result);
 });
 
+// 取込の削除（人手確認待ち・失敗のみ）。確定前のデータを原本・PII置換表ごと破棄する
+app.delete("/ingestions/:id", requirePermission("ingestion.confirm"), async (c) => {
+  const auth = c.get("auth");
+  const job = await prisma.ingestionJob.findFirst({
+    where: { id: c.req.param("id"), tenantCompanyId: auth.companyId }, // テナント分離
+    include: { sourceDocument: { include: { skillSheetOfEngineers: { select: { id: true } } } } },
+  });
+  if (!job) return c.json(err("NOT_FOUND"), 404);
+  if (!["REVIEW_REQUIRED", "FAILED"].includes(job.status))
+    return c.json(err("VERSION_CONFLICT", "人手確認待ちまたは失敗した取込のみ削除できます"), 409);
+  await prisma.extractionResult.deleteMany({ where: { ingestionJobId: job.id } });
+  await prisma.ingestionJob.delete({ where: { id: job.id } });
+  // 同じ原本を参照する他のジョブ・職務経歴書参照がなければ、原本ファイルとPII置換表も削除する
+  const otherJobs = await prisma.ingestionJob.count({
+    where: { sourceDocumentId: job.sourceDocumentId },
+  });
+  if (otherJobs === 0 && job.sourceDocument.skillSheetOfEngineers.length === 0) {
+    await prisma.piiTokenMap.deleteMany({ where: { sourceDocumentId: job.sourceDocumentId } });
+    await prisma.sourceDocument.delete({ where: { id: job.sourceDocumentId } });
+    const { unlink } = await import("fs/promises");
+    await unlink(job.sourceDocument.storagePath).catch(() => {});
+  }
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "IngestionDeleted",
+    targetType: "IngestionJob",
+    targetId: job.id,
+  });
+  return c.json({ ok: true });
+});
+
 app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), async (c) => {
   const auth = c.get("auth");
   const job = await prisma.ingestionJob.findFirst({

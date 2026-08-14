@@ -36,6 +36,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   ConsentRegistered: "本人同意を登録",
   // 取込パイプライン
   DocumentReceived: "書類を受領",
+  IngestionDeleted: "取込を削除",
   PiiMasked: "個人情報を匿名化",
   LlmRequest: "LLMへ抽出依頼",
   ExtractionCompleted: "自動抽出が完了",

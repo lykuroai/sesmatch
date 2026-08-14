@@ -3,6 +3,7 @@ import { getAuth } from "@/server/session-rsc";
 import { prisma } from "@/server/db";
 import { INGESTION_STATUS_LABELS } from "@/lib/constants";
 import { ActionButton } from "@/components/ActionButton";
+import { DeleteResourceButton } from "@/components/DeleteResourceButton";
 import { ConfirmIngestionForm } from "@/components/ConfirmIngestionForm";
 import { hasPermission } from "@/server/auth/rbac";
 import { Pager, parsePage } from "@/components/Pager";
@@ -64,18 +65,28 @@ export default async function IngestionsPage({
             {new Date(job.createdAt).toLocaleString("ja-JP")} / {kindLabel(job)}
           </p>
         </div>
-        <span
-          className={`rounded px-2 py-1 text-xs font-medium ${
-            job.status === "REVIEW_REQUIRED"
-              ? "bg-amber-50 text-amber-700"
-              : job.status === "CONFIRMED"
-                ? "bg-emerald-50 text-emerald-700"
-                : job.status === "FAILED"
-                  ? "bg-red-50 text-red-700"
-                  : "bg-slate-100 text-slate-600"
-          }`}
-        >
-          {INGESTION_STATUS_LABELS[job.status]}
+        <span className="flex items-center gap-2">
+          <span
+            className={`rounded px-2 py-1 text-xs font-medium ${
+              job.status === "REVIEW_REQUIRED"
+                ? "bg-amber-50 text-amber-700"
+                : job.status === "CONFIRMED"
+                  ? "bg-emerald-50 text-emerald-700"
+                  : job.status === "FAILED"
+                    ? "bg-red-50 text-red-700"
+                    : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            {INGESTION_STATUS_LABELS[job.status]}
+          </span>
+          {/* 誤った取込の破棄（確定前のみ）。原本・抽出値ごと削除する */}
+          {canConfirm && ["REVIEW_REQUIRED", "FAILED"].includes(job.status) && (
+            <DeleteResourceButton
+              path={`/api/v1/ingestions/${job.id}`}
+              confirmText="この取込を削除しますか？（原本・抽出値ごと削除され、元に戻せません）"
+              redirectTo="/ingestions"
+            />
+          )}
         </span>
       </div>
       {job.error && <p className="mt-2 text-xs text-red-600">{job.error}</p>}
