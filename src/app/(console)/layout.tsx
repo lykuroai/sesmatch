@@ -96,7 +96,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:px-6 print:hidden">
         <div className="flex min-w-0 items-center gap-2">
-          <MobileNav items={MOBILE_MENU} footer={[MANUAL_ITEM, SUPPORT_ITEM]} />
+          <MobileNav items={MOBILE_MENU} footer={[MANUAL_ITEM]} />
           {/* ロゴの遷移先: モバイルは案件一覧（ホームは案内しない）、PCはホーム */}
           <Link href="/projects" className="flex items-center gap-2 text-sm font-bold text-slate-800 md:hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -109,12 +109,34 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
             SES DirectMatch
           </Link>
         </div>
-        <p className="min-w-0 truncate text-right text-sm text-slate-700">
-          <Link href="/company" className="font-bold hover:underline" title="会社マイページ">
-            {auth.companyName}
+        <div className="flex min-w-0 items-center gap-4">
+          {/* お問合せはヘッダー常設（モバイルはアイコンのみ） */}
+          <Link
+            href="/support"
+            title="お問合せ（Q&A・問い合わせフォーム）"
+            className="flex shrink-0 items-center gap-1 text-sm text-slate-600 hover:text-blue-700"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+            >
+              <path d={SUPPORT_ITEM.icon} />
+            </svg>
+            <span className="hidden sm:inline">お問合せ</span>
           </Link>
-          <span className="ml-3 hidden text-slate-500 sm:inline">{auth.userName}</span>
-        </p>
+          <p className="min-w-0 truncate text-right text-sm text-slate-700">
+            <Link href="/company" className="font-bold hover:underline" title="会社マイページ">
+              {auth.companyName}
+            </Link>
+            <span className="ml-3 hidden text-slate-500 sm:inline">{auth.userName}</span>
+          </p>
+        </div>
       </header>
       <div className="flex flex-1">
         <ResizableSidebar>
@@ -124,11 +146,10 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
                 <MenuLink key={m.href} item={m} />
               ))}
             </nav>
-            {/* 画面最下部に操作マニュアル・お問合せとログアウトを固定 */}
+            {/* 画面最下部に操作マニュアルとログアウトを固定（お問合せはヘッダー常設） */}
             <div className="mt-auto p-2">
               <div className="border-t border-slate-100 pt-2">
                 <MenuLink item={MANUAL_ITEM} />
-                <MenuLink item={SUPPORT_ITEM} />
               </div>
             </div>
             <div className="px-4 pb-4">
