@@ -31,10 +31,15 @@ export default async function ProjectDetailPage({
   const canMatch = p.own && hasPermission(auth.roles, "match.run");
   const canPropose = !p.own && hasPermission(auth.roles, "entry.submit");
 
-  // 他社案件: 提案候補となる自社の公開・同意済み人材（§20.1）
+  // 他社案件: 提案候補となる自社の公開・同意済み人材（§20.1）。成約・稼働中の人材は提案対象外
   const proposalOptions = canPropose
     ? (await listEngineers(auth, "own")).items
-        .filter((e) => e.status === "PUBLISHED" && e.hasValidConsent)
+        .filter(
+          (e) =>
+            e.status === "PUBLISHED" &&
+            e.hasValidConsent &&
+            !["CONTRACTED", "WORKING"].includes(e.workStatus)
+        )
         .map((e) => ({
           id: e.id,
           label: `${e.code}${e.name ? ` ${e.name}` : ""}（${e.rateBand}）`,

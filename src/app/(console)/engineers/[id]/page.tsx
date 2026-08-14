@@ -34,10 +34,12 @@ export default async function EngineerDetailPage({
   const canMatch = e.own && hasPermission(auth.roles, "match.run");
   const canScout = !e.own && hasPermission(auth.roles, "entry.submit");
 
-  // 他社人材: スカウト先となる自社の公開案件（§20.1）
+  // 他社人材: スカウト先となる自社の公開案件（§20.1）。成約・終了した案件は提案対象外
   const scoutOptions = canScout
     ? (await listProjects(auth, "own")).items
-        .filter((p) => p.status === "PUBLISHED")
+        .filter(
+          (p) => p.status === "PUBLISHED" && !["CONTRACTED", "ENDED"].includes(p.workflowStatus)
+        )
         .map((p) => ({ id: p.id, label: `${p.code} ${p.name}` }))
     : [];
 
