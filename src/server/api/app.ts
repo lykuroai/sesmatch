@@ -111,6 +111,7 @@ import {
   listEngineersWorkStatusForOperations,
 } from "@/server/services/operations-monitor";
 import { retryIngestion, startIngestion } from "@/server/pipeline/ingest";
+import { appBaseUrl, sendMail } from "@/server/mail";
 import { isImageFilename, MAX_MERGE_IMAGES, mergeImagesToPdf } from "@/server/pipeline/images-to-pdf";
 import { csvToCompanyRows, parseCsv } from "@/lib/csv";
 import { remoteLevelFromOnsiteDays, remoteLevelToOnsiteDays } from "@/lib/constants";
@@ -415,6 +416,37 @@ app.put("/operations/skill-aliases/:id", requireAdminToken, async (c) => {
 
 app.delete("/operations/skill-aliases/:id", requireAdminToken, async (c) => {
   await prisma.skillAlias.delete({ where: { id: c.req.param("id") } }).catch(() => null);
+  return c.json({ ok: true });
+});
+
+// お問合せ（運営側）: 一覧・対応状況の更新
+app.get("/operations/inquiries", requireAdminToken, async (c) => {
+  const inquiries = await prisma.inquiry.findMany({ orderBy: { createdAt: "desc" }, take: 200 });
+  const companies = await prisma.company.findMany({
+    where: { id: { in: inquiries.map((q) => q.tenantCompanyId) } },
+    select: { id: true, name: true },
+  });
+  const nameById = new Map(companies.map((co) => [co.id, co.name]));
+  return c.json({
+    items: inquiries.map((q) => ({ ...q, companyName: nameById.get(q.tenantCompanyId) ?? "?" })),
+  });
+});
+
+app.post("/operations/inquiries/:id/status", requireAdminToken, async (c) => {
+  const parsed = z
+    .object({ status: z.enum(["REVIEWING", "RESOLVED"]) })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const inquiry = await prisma.inquiry.findUnique({ where: { id: c.req.param("id") } });
+  if (!inquiry) return c.json(err("NOT_FOUND"), 404);
+  await prisma.inquiry.update({ where: { id: inquiry.id }, data: { status: parsed.data.status } });
+  await audit({
+    tenantCompanyId: inquiry.tenantCompanyId,
+    action: "InquiryStatusUpdated",
+    targetType: "Inquiry",
+    targetId: inquiry.id,
+    metadata: { status: parsed.data.status },
+  });
   return c.json({ ok: true });
 });
 
@@ -1428,6 +1460,49 @@ app.post("/reports", requirePermission("report.create"), async (c) => {
     metadata: { category: report.category },
   });
   return c.json(report, 201);
+});
+
+// ---- お問合せ（企業→運営）----
+
+// 認証済みの担当者なら誰でも送信できる（権限不要）
+app.post("/inquiries", async (c) => {
+  const parsed = z
+    .object({ category: z.string().min(1).max(50), body: z.string().min(1).max(5000) })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR", "分類と内容を入力してください"), 400);
+  const auth = c.get("auth");
+  const inquiry = await prisma.inquiry.create({
+    data: { tenantCompanyId: auth.companyId, memberId: auth.memberId, ...parsed.data },
+  });
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "InquirySubmitted",
+    targetType: "Inquiry",
+    targetId: inquiry.id,
+    metadata: { category: inquiry.category },
+  });
+  // 運営宛の通知メール（OPERATIONS_MAIL 未設定時は送らない。送信失敗しても受付は成立）
+  const opsMail = process.env.OPERATIONS_MAIL;
+  if (opsMail) {
+    await sendMail({
+      to: opsMail,
+      subject: `【お問合せ】${inquiry.category} — ${auth.companyName}`,
+      body: `企業: ${auth.companyName}\n担当者: ${auth.userName}\n分類: ${inquiry.category}\n\n${inquiry.body}\n\n運営コンソール: ${appBaseUrl()}/admin#inquiries`,
+    });
+  }
+  return c.json(inquiry, 201);
+});
+
+// 自社のお問合せ履歴
+app.get("/inquiries", async (c) => {
+  const auth = c.get("auth");
+  const items = await prisma.inquiry.findMany({
+    where: { tenantCompanyId: auth.companyId },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+  return c.json({ items });
 });
 
 // ---- 監査（§28, §31）----

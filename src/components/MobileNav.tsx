@@ -26,7 +26,7 @@ function ItemIcon({ path }: { path: string }) {
   );
 }
 
-export function MobileNav({ items, manual }: { items: MobileNavItem[]; manual: MobileNavItem }) {
+export function MobileNav({ items, footer }: { items: MobileNavItem[]; footer: MobileNavItem[] }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
 
@@ -95,14 +95,17 @@ export function MobileNav({ items, manual }: { items: MobileNavItem[]; manual: M
             </nav>
             <div className="p-2">
               <div className="border-t border-slate-100 pt-2">
-                <Link
-                  href={manual.href}
-                  onClick={close}
-                  className="flex items-center gap-3 rounded px-3 py-3 text-sm text-slate-700 hover:bg-slate-100"
-                >
-                  <ItemIcon path={manual.icon} />
-                  <span>{manual.label}</span>
-                </Link>
+                {footer.map((m) => (
+                  <Link
+                    key={m.href}
+                    href={m.href}
+                    onClick={close}
+                    className="flex items-center gap-3 rounded px-3 py-3 text-sm text-slate-700 hover:bg-slate-100"
+                  >
+                    <ItemIcon path={m.icon} />
+                    <span>{m.label}</span>
+                  </Link>
+                ))}
               </div>
             </div>
             <div className="px-5 pb-5">

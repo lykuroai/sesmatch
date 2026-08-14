@@ -43,6 +43,15 @@ type AdminReport = {
   createdAt: string;
 };
 
+type AdminInquiry = {
+  id: string;
+  companyName: string;
+  category: string;
+  body: string;
+  status: string;
+  createdAt: string;
+};
+
 // 機能ごとの画面（メニューで切り替え）
 const MENU = [
   { key: "review", label: "企業審査" },
@@ -52,6 +61,7 @@ const MENU = [
   { key: "mail", label: "メール配信" },
   { key: "aliases", label: "用語辞書" },
   { key: "reports", label: "通報対応" },
+  { key: "inquiries", label: "お問合せ" },
 ] as const;
 type MenuKey = (typeof MENU)[number]["key"];
 
@@ -61,6 +71,7 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [companies, setCompanies] = useState<PendingCompany[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
+  const [inquiries, setInquiries] = useState<AdminInquiry[]>([]);
   const [allCompanies, setAllCompanies] = useState<AdminCompany[]>([]);
   const [tab, setTab] = useState<MenuKey>("review");
 
@@ -76,15 +87,17 @@ export default function AdminPage() {
 
   const load = useCallback(async (t: string) => {
     const headers = { "X-Admin-Token": t };
-    const [cRes, rRes, aRes] = await Promise.all([
+    const [cRes, rRes, aRes, qRes] = await Promise.all([
       fetch("/api/v1/operations/companies", { headers }),
       fetch("/api/v1/operations/reports", { headers }),
       fetch("/api/v1/operations/companies/all", { headers }),
+      fetch("/api/v1/operations/inquiries", { headers }),
     ]);
-    if (!cRes.ok || !rRes.ok || !aRes.ok) throw new Error("認証エラー");
+    if (!cRes.ok || !rRes.ok || !aRes.ok || !qRes.ok) throw new Error("認証エラー");
     setCompanies((await cRes.json()).items);
     setReports((await rRes.json()).items);
     setAllCompanies((await aRes.json()).items);
+    setInquiries((await qRes.json()).items);
   }, []);
 
   useEffect(() => {
@@ -132,8 +145,9 @@ export default function AdminPage() {
   }
 
   const openReports = reports.filter((r) => r.status !== "RESOLVED").length;
+  const openInquiries = inquiries.filter((q) => q.status !== "RESOLVED").length;
   const badge = (key: MenuKey) =>
-    key === "review" ? companies.length : key === "reports" ? openReports : 0;
+    key === "review" ? companies.length : key === "reports" ? openReports : key === "inquiries" ? openInquiries : 0;
 
   return (
     <main className="min-h-screen bg-slate-100 p-8">
@@ -190,6 +204,9 @@ export default function AdminPage() {
             {tab === "aliases" && <SkillAliasSection token={token} />}
             {tab === "reports" && (
               <ReportsSection token={token} reports={reports} reload={() => load(token)} />
+            )}
+            {tab === "inquiries" && (
+              <InquiriesSection token={token} inquiries={inquiries} reload={() => load(token)} />
             )}
           </div>
         </div>
@@ -546,6 +563,86 @@ function CompanyListSection({
             </table>
           </div>
         </section>
+    </div>
+  );
+}
+
+// お問合せ対応（企業からの問い合わせフォーム）
+function InquiriesSection({
+  token,
+  inquiries,
+  reload,
+}: {
+  token: string;
+  inquiries: AdminInquiry[];
+  reload: () => Promise<void>;
+}) {
+  const [error, setError] = useState<string | null>(null);
+
+  async function post(path: string, body?: object) {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (res.ok) await reload();
+    else setError("操作に失敗しました");
+  }
+
+  return (
+    <div>
+      {error && <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-1 font-bold">お問合せ対応</h2>
+        <p className="mb-3 text-xs text-slate-500">
+          企業コンソールの「お問合せ」フォームから届いた内容。回答は各企業の登録メールアドレスへ直接連絡する
+        </p>
+        {inquiries.length === 0 && <p className="text-sm text-slate-400">お問合せはありません</p>}
+        <div className="space-y-2">
+          {inquiries.map((q) => (
+            <div key={q.id} className="rounded border border-slate-100 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium">
+                  {q.category}
+                  <span className="ml-2 text-xs font-normal text-slate-500">
+                    {q.companyName} ／ {new Date(q.createdAt).toLocaleString("ja-JP")}
+                  </span>
+                </p>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`rounded px-2 py-0.5 text-xs ${
+                      q.status === "OPEN"
+                        ? "bg-amber-50 text-amber-700"
+                        : q.status === "REVIEWING"
+                          ? "bg-blue-50 text-blue-700"
+                          : "bg-emerald-50 text-emerald-700"
+                    }`}
+                  >
+                    {q.status === "OPEN" ? "未対応" : q.status === "REVIEWING" ? "対応中" : "対応済み"}
+                  </span>
+                  {q.status === "OPEN" && (
+                    <button
+                      onClick={() => post(`/api/v1/operations/inquiries/${q.id}/status`, { status: "REVIEWING" })}
+                      className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50"
+                    >
+                      対応開始
+                    </button>
+                  )}
+                  {q.status !== "RESOLVED" && (
+                    <button
+                      onClick={() => post(`/api/v1/operations/inquiries/${q.id}/status`, { status: "RESOLVED" })}
+                      className="rounded border border-emerald-300 px-2 py-1 text-xs text-emerald-700 hover:bg-emerald-50"
+                    >
+                      対応済みにする
+                    </button>
+                  )}
+                </div>
+              </div>
+              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{q.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

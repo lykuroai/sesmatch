@@ -746,6 +746,20 @@ model Report {
   @@map("reports")
 }
 
+// お問合せ（企業→運営。問い合わせフォーム）。状態は通報と同じ OPEN/REVIEWING/RESOLVED
+model Inquiry {
+  id              String       @id @default(cuid())
+  tenantCompanyId String
+  memberId        String?
+  category        String // 操作方法 / 不具合 / 取込・AI解析 / 商談・契約 / 手数料・請求 / その他
+  body            String
+  status          ReportStatus @default(OPEN)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@map("inquiries")
+}
+
 // ---- 監査 (§31, §32): 追記型。更新・削除パスを実装しないこと ----
 
 model AuditEvent {

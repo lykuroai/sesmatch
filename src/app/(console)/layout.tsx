@@ -45,11 +45,17 @@ const MENU: { href: string; label: string; icon: string }[] = [
   },
 ];
 
-// 操作マニュアルは画面最下部（ログアウトの上）に固定表示する
+// 操作マニュアル・お問合せは画面最下部（ログアウトの上）に固定表示する
 const MANUAL_ITEM = {
   href: "/manual",
   label: "操作マニュアル",
   icon: "M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25",
+};
+
+const SUPPORT_ITEM = {
+  href: "/support",
+  label: "お問合せ",
+  icon: "M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z",
 };
 
 // メニュー項目の共通描画（アイコン＋ラベル）
@@ -90,7 +96,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:px-6 print:hidden">
         <div className="flex min-w-0 items-center gap-2">
-          <MobileNav items={MOBILE_MENU} manual={MANUAL_ITEM} />
+          <MobileNav items={MOBILE_MENU} footer={[MANUAL_ITEM, SUPPORT_ITEM]} />
           {/* ロゴの遷移先: モバイルは案件一覧（ホームは案内しない）、PCはホーム */}
           <Link href="/projects" className="flex items-center gap-2 text-sm font-bold text-slate-800 md:hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -118,10 +124,11 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
                 <MenuLink key={m.href} item={m} />
               ))}
             </nav>
-            {/* 画面最下部に操作マニュアルとログアウトを固定 */}
+            {/* 画面最下部に操作マニュアル・お問合せとログアウトを固定 */}
             <div className="mt-auto p-2">
               <div className="border-t border-slate-100 pt-2">
                 <MenuLink item={MANUAL_ITEM} />
+                <MenuLink item={SUPPORT_ITEM} />
               </div>
             </div>
             <div className="px-4 pb-4">
