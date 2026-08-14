@@ -195,8 +195,8 @@ export async function passingProjectMatchesForEngineer(
   if (!engineer) return null;
   const projects = await prisma.project.findMany({
     where: {
-      // 終了した案件はマッチング候補にしない
-      workflowStatus: { not: "ENDED" },
+      // 終了・成約した案件はマッチング候補にしない
+      workflowStatus: { notIn: ["ENDED", "CONTRACTED"] },
       OR: [{ status: "PUBLISHED" }, { tenantCompanyId: auth.companyId }],
     },
     include: { skills: true },
@@ -226,8 +226,8 @@ export async function matchEngineerToProjects(
 
   const projects = await prisma.project.findMany({
     where: {
-      // 終了した案件はマッチング候補にしない
-      workflowStatus: { not: "ENDED" },
+      // 終了・成約した案件はマッチング候補にしない
+      workflowStatus: { notIn: ["ENDED", "CONTRACTED"] },
       OR: [{ status: "PUBLISHED" }, { tenantCompanyId: auth.companyId }],
     },
     include: { skills: true },

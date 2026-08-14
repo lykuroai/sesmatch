@@ -221,7 +221,7 @@ export default async function ProjectDetailPage({
         />
       )}
 
-      {/* 終了した案件は新たなマッチングを行わない。非公開（下書き・停止中）は実行不可 */}
+      {/* 終了した案件は新たなマッチングを行わない。非公開（下書き・停止中）・成約は実行不可 */}
       {canMatch && p.workflowStatus !== "ENDED" && (
         <MatchPanel
           direction="project-to-engineers"
@@ -230,7 +230,9 @@ export default async function ProjectDetailPage({
           disabledReason={
             p.status !== "PUBLISHED"
               ? "非公開（下書き）の案件はマッチングを実行できません。「公開する」と実行できるようになります"
-              : undefined
+              : p.workflowStatus === "CONTRACTED"
+                ? "成約した案件はマッチングを実行できません。追加募集する場合は案件状況を「募集中」に戻してください"
+                : undefined
           }
         />
       )}
