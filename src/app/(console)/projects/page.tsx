@@ -256,8 +256,10 @@ export default async function ProjectsPage({
             {/* 人材名が長いとセレクトが画面幅を超えるため、モバイルでは縮めて省略表示 */}
             <select name="engineerId" defaultValue={engineerId} className={`${select} min-w-0 max-w-full`}>
               <option value="">指定なし</option>
-              {/* 下書き（非公開）の人材は対象にしない */}
-              {engineers.items.filter((e) => e.status === "PUBLISHED").map((e) => (
+              {/* 下書き（非公開）・成約・稼働中の人材は対象にしない（マッチング候補と同じ仕様） */}
+              {engineers.items
+                .filter((e) => e.status === "PUBLISHED" && !["CONTRACTED", "WORKING"].includes(e.workStatus))
+                .map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.code}
                   {e.name ? ` ${e.name}` : ""}

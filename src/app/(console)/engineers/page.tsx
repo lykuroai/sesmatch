@@ -269,8 +269,10 @@ export default async function EngineersPage({
             {/* 案件名が長いとセレクトが画面幅を超えるため、モバイルでは縮めて省略表示 */}
             <select name="projectId" defaultValue={projectId} className={`${select} min-w-0 max-w-full`}>
               <option value="">指定なし</option>
-              {/* 下書き（非公開）の案件は対象にしない */}
-              {ownProjects.items.filter((p) => p.status === "PUBLISHED").map((p) => (
+              {/* 下書き（非公開）・成約・終了の案件は対象にしない（マッチング候補と同じ仕様） */}
+              {ownProjects.items
+                .filter((p) => p.status === "PUBLISHED" && !["CONTRACTED", "ENDED"].includes(p.workflowStatus))
+                .map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.code} {p.name}
                 </option>
