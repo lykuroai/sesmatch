@@ -45,6 +45,8 @@ services:
       # メール配信（Amazon SES）。MAIL_FROM 未設定ならログのみのモック動作
       MAIL_FROM: ${MAIL_FROM:-}
       FROM_NAME: ${FROM_NAME:-}
+      # お問合せ受付の運営宛通知先（未設定なら通知メールなし）
+      OPERATIONS_MAIL: ${OPERATIONS_MAIL:-}
       APP_BASE_URL: ${APP_BASE_URL:-https://ses.lykuro.ai}
       AWS_REGION: ${AWS_REGION:-ap-northeast-1}
       # EC2 インスタンスロールを使う場合は以下2つは不要
