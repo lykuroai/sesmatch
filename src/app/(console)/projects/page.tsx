@@ -83,7 +83,13 @@ export default async function ProjectsPage({
   const filtered = all.filter((p) => {
     if (source === "own" && !p.own) return false;
     if (source === "other" && p.own) return false;
-    if (wf !== "all" && p.workflowStatus !== wf) return false;
+    // 下書き（非公開）は「下書き」条件でのみ表示し、募集中などの進行状態の条件には含めない
+    const isDraft = p.own && p.status !== "PUBLISHED";
+    if (wf === "DRAFT") {
+      if (!isDraft) return false;
+    } else if (wf !== "all") {
+      if (isDraft || p.workflowStatus !== wf) return false;
+    }
     if (matches) {
       const m = matches.get(p.id);
       if (!m) return false;
@@ -241,6 +247,7 @@ export default async function ProjectsPage({
               <option value="NEGOTIATING">商談中</option>
               <option value="CONTRACTED">成約</option>
               <option value="ENDED">終了</option>
+              <option value="DRAFT">下書き</option>
               <option value="all">すべて</option>
             </select>
           </span>
@@ -249,7 +256,8 @@ export default async function ProjectsPage({
             {/* 人材名が長いとセレクトが画面幅を超えるため、モバイルでは縮めて省略表示 */}
             <select name="engineerId" defaultValue={engineerId} className={`${select} min-w-0 max-w-full`}>
               <option value="">指定なし</option>
-              {engineers.items.map((e) => (
+              {/* 下書き（非公開）の人材は対象にしない */}
+              {engineers.items.filter((e) => e.status === "PUBLISHED").map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.code}
                   {e.name ? ` ${e.name}` : ""}
