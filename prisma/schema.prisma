@@ -749,6 +749,7 @@ model Report {
 // お問合せ（企業→運営。問い合わせフォーム）。状態は通報と同じ OPEN/REVIEWING/RESOLVED
 model Inquiry {
   id              String       @id @default(cuid())
+  code            String       @unique // お問合せ番号（Q+6桁。例: Q000001）
   tenantCompanyId String
   memberId        String?
   category        String // 操作方法 / 不具合 / 取込・AI解析 / 商談・契約 / 手数料・請求 / その他
@@ -757,7 +758,22 @@ model Inquiry {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
+  messages InquiryMessage[]
+
   @@map("inquiries")
+}
+
+// お問合せのスレッド（運営の回答と企業の追記）
+model InquiryMessage {
+  id           String   @id @default(cuid())
+  inquiryId    String
+  fromOperator Boolean // true: 運営からの回答 / false: 企業からの追記
+  body         String
+  createdAt    DateTime @default(now())
+
+  inquiry Inquiry @relation(fields: [inquiryId], references: [id])
+
+  @@map("inquiry_messages")
 }
 
 // ---- 監査 (§31, §32): 追記型。更新・削除パスを実装しないこと ----

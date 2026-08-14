@@ -67,6 +67,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   ReportStatusUpdated: "通報の対応状況を更新",
   InquirySubmitted: "お問合せを送信",
   InquiryStatusUpdated: "お問合せの対応状況を更新",
+  InquiryReplied: "お問合せに返信",
   PrivacyRequestReceived: "本人削除請求を受付",
   PrivacyRequestApproved: "削除請求を承認",
   PrivacyRequestRejected: "削除請求を却下",

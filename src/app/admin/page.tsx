@@ -45,11 +45,13 @@ type AdminReport = {
 
 type AdminInquiry = {
   id: string;
+  code: string;
   companyName: string;
   category: string;
   body: string;
   status: string;
   createdAt: string;
+  messages: { id: string; fromOperator: boolean; body: string; createdAt: string }[];
 };
 
 // 機能ごとの画面（メニューで切り替え）
@@ -603,7 +605,7 @@ function InquiriesSection({
             <div key={q.id} className="rounded border border-slate-100 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">
-                  {q.category}
+                  {q.code}　{q.category}
                   <span className="ml-2 text-xs font-normal text-slate-500">
                     {q.companyName} ／ {new Date(q.createdAt).toLocaleString("ja-JP")}
                   </span>
@@ -639,11 +641,82 @@ function InquiriesSection({
                 </div>
               </div>
               <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{q.body}</p>
+              {q.messages.length > 0 && (
+                <div className="mt-2 space-y-2 border-l-2 border-slate-200 pl-3">
+                  {q.messages.map((m) => (
+                    <div
+                      key={m.id}
+                      className={`rounded-lg p-2.5 text-sm ${m.fromOperator ? "bg-blue-50" : "bg-slate-50"}`}
+                    >
+                      <p className="mb-1 text-xs text-slate-500">
+                        {m.fromOperator ? "運営" : q.companyName} ・ {new Date(m.createdAt).toLocaleString("ja-JP")}
+                      </p>
+                      <p className="whitespace-pre-wrap text-slate-700">{m.body}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <AdminInquiryReply token={token} inquiryId={q.id} reload={reload} />
             </div>
           ))}
         </div>
       </section>
     </div>
+  );
+}
+
+// お問合せへのスレッド回答（運営）。送信すると状態は対応中になり、問い合わせ者へメール通知される
+function AdminInquiryReply({
+  token,
+  inquiryId,
+  reload,
+}: {
+  token: string;
+  inquiryId: string;
+  reload: () => Promise<void>;
+}) {
+  const [body, setBody] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!body.trim()) return;
+    setLoading(true);
+    setError(null);
+    const res = await fetch(`/api/v1/operations/inquiries/${inquiryId}/messages`, {
+      method: "POST",
+      headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+      body: JSON.stringify({ body }),
+    });
+    setLoading(false);
+    if (res.ok) {
+      setBody("");
+      await reload();
+    } else setError("送信に失敗しました");
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-2">
+      {error && <p className="mb-1 text-xs text-red-600">{error}</p>}
+      <div className="flex items-start gap-2">
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={2}
+          maxLength={5000}
+          className="min-w-0 flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
+          placeholder="回答を入力（送信すると企業側のお問合せページに表示され、担当者へメール通知されます）"
+        />
+        <button
+          type="submit"
+          disabled={loading || !body.trim()}
+          className="rounded bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? "送信中..." : "回答を送信"}
+        </button>
+      </div>
+    </form>
   );
 }
 

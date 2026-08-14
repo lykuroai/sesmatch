@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
 import { prisma } from "@/server/db";
 import { InquiryForm } from "@/components/InquiryForm";
+import { InquiryReplyForm } from "@/components/InquiryReplyForm";
 
 // お問合せ: Q&A集（よくある質問）と運営への問い合わせフォーム・履歴
 const FAQ: { q: string; a: React.ReactNode }[] = [
@@ -107,6 +108,7 @@ export default async function SupportPage() {
   if (!auth) redirect("/login");
   const inquiries = await prisma.inquiry.findMany({
     where: { tenantCompanyId: auth.companyId },
+    include: { messages: { orderBy: { createdAt: "asc" } } },
     orderBy: { createdAt: "desc" },
     take: 20,
   });
@@ -155,6 +157,7 @@ export default async function SupportPage() {
             {inquiries.map((q) => (
               <li key={q.id} className="py-3">
                 <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium text-slate-700">{q.code}</span>
                   <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{q.category}</span>
                   <span
                     className={`rounded px-2 py-0.5 text-xs ${
@@ -172,6 +175,23 @@ export default async function SupportPage() {
                   </span>
                 </div>
                 <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{q.body}</p>
+                {/* スレッド（運営の回答・自社の追記） */}
+                {q.messages.length > 0 && (
+                  <div className="mt-2 space-y-2 border-l-2 border-slate-200 pl-3">
+                    {q.messages.map((m) => (
+                      <div
+                        key={m.id}
+                        className={`rounded-lg p-2.5 text-sm ${m.fromOperator ? "bg-blue-50" : "bg-slate-50"}`}
+                      >
+                        <p className="mb-1 text-xs text-slate-500">
+                          {m.fromOperator ? "運営" : "自社"} ・ {new Date(m.createdAt).toLocaleString("ja-JP")}
+                        </p>
+                        <p className="whitespace-pre-wrap text-slate-700">{m.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <InquiryReplyForm inquiryId={q.id} />
               </li>
             ))}
           </ul>
