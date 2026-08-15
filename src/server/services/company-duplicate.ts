@@ -69,7 +69,12 @@ export function judgeCompanyDuplicate(
   const candName = normalizeCompanyName(candidate.name);
   const candAddr = candidate.address ? normalizeAddress(candidate.address) : "";
   const candJur = registryJurisdiction(candidate.address);
+  // 警告の理由は具体的な順に優先: 会社名一致 ＞ 所在地の完全一致 ＞ 管轄（都道府県）一致
+  const rank: Record<string, number> = { name: 3, address: 2, jurisdiction: 1 };
   let warning: DuplicateJudgement | null = null;
+  const consider = (w: DuplicateJudgement) => {
+    if (!warning || rank[w.matchedField ?? ""] > rank[warning.matchedField ?? ""]) warning = w;
+  };
   for (const c of existing) {
     const sameName = candName !== "" && normalizeCompanyName(c.name) === candName;
     const sameAddr = candAddr !== "" && !!c.address && normalizeAddress(c.address) === candAddr;
@@ -77,10 +82,10 @@ export function judgeCompanyDuplicate(
       candJur !== null && registryJurisdiction(c.address) === candJur;
     if (sameName && (sameJurisdiction || sameAddr))
       return { level: "ng", matchedName: c.name };
-    if (sameName) warning ??= { level: "warning", matchedName: c.name, matchedField: "name" };
+    if (sameName) consider({ level: "warning", matchedName: c.name, matchedField: "name" });
+    else if (sameAddr) consider({ level: "warning", matchedName: c.name, matchedField: "address" });
     else if (sameJurisdiction)
-      warning ??= { level: "warning", matchedName: c.name, matchedField: "jurisdiction" };
-    else if (sameAddr) warning ??= { level: "warning", matchedName: c.name, matchedField: "address" };
+      consider({ level: "warning", matchedName: c.name, matchedField: "jurisdiction" });
   }
   return warning ?? { level: "ok" };
 }

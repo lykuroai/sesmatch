@@ -98,13 +98,13 @@ describe("judgeCompanyDuplicate", () => {
     expect(r.matchedName).toBe("株式会社ABC");
   });
 
-  it("所在地一致（同一住所）→ 警告（管轄一致として検出）", () => {
+  it("所在地の完全一致＋会社名不一致 → 警告（所在地一致）", () => {
     const r = judgeCompanyDuplicate(
       { name: "株式会社まったく別の会社", address: "東京都台東区上野１丁目１番１号" },
       existing
     );
     expect(r.level).toBe("warning");
-    expect(["jurisdiction", "address"]).toContain(r.matchedField);
+    expect(r.matchedField).toBe("address");
     expect(r.matchedName).toBe("株式会社ABC");
   });
 
@@ -131,6 +131,19 @@ describe("judgeCompanyDuplicate", () => {
       existing
     );
     expect(r.level).toBe("ok");
+  });
+
+  it("複数企業が一致する場合はより具体的な警告理由を優先する（管轄一致より所在地完全一致）", () => {
+    const r = judgeCompanyDuplicate(
+      { name: "株式会社まったく別の会社", address: "東京都台東区上野1-1-1" },
+      [
+        { name: "テスト合同会社", address: "東京都千代田区1-1" }, // 管轄のみ一致
+        { name: "株式会社ABC", address: "東京都台東区上野１丁目１番１号" }, // 所在地の完全一致
+      ]
+    );
+    expect(r.level).toBe("warning");
+    expect(r.matchedField).toBe("address");
+    expect(r.matchedName).toBe("株式会社ABC");
   });
 
   it("警告があっても NG 企業が別にあれば NG を優先する", () => {
