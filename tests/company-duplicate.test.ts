@@ -88,14 +88,33 @@ describe("judgeCompanyDuplicate", () => {
     expect(r.matchedName).toBe("株式会社ABC");
   });
 
-  it("所在地のみ一致 → 警告（所在地一致）", () => {
+  it("管轄（都道府県）のみ一致 → 警告（管轄一致）", () => {
+    const r = judgeCompanyDuplicate(
+      { name: "株式会社まったく別の会社", address: "東京都新宿区西新宿9-9-9" },
+      existing
+    );
+    expect(r.level).toBe("warning");
+    expect(r.matchedField).toBe("jurisdiction");
+    expect(r.matchedName).toBe("株式会社ABC");
+  });
+
+  it("所在地一致（同一住所）→ 警告（管轄一致として検出）", () => {
     const r = judgeCompanyDuplicate(
       { name: "株式会社まったく別の会社", address: "東京都台東区上野１丁目１番１号" },
       existing
     );
     expect(r.level).toBe("warning");
-    expect(r.matchedField).toBe("address");
+    expect(["jurisdiction", "address"]).toContain(r.matchedField);
     expect(r.matchedName).toBe("株式会社ABC");
+  });
+
+  it("都道府県表記のない同一所在地 → 警告（所在地一致）", () => {
+    const r = judgeCompanyDuplicate(
+      { name: "株式会社まったく別の会社", address: "台東区上野1-1-1" },
+      [{ name: "株式会社ABC", address: "台東区上野１丁目１番１号" }]
+    );
+    expect(r.level).toBe("warning");
+    expect(r.matchedField).toBe("address");
   });
 
   it("同名＋所在地一致（都道府県表記なし同士でも）→ NG", () => {
@@ -106,12 +125,23 @@ describe("judgeCompanyDuplicate", () => {
     expect(r.level).toBe("ng");
   });
 
-  it("社名も所在地も一致しない → OK", () => {
+  it("社名も管轄も一致しない → OK", () => {
     const r = judgeCompanyDuplicate(
       { name: "株式会社XYZ", address: "愛知県名古屋市中区栄5-5-5" },
       existing
     );
     expect(r.level).toBe("ok");
+  });
+
+  it("警告があっても NG 企業が別にあれば NG を優先する", () => {
+    const r = judgeCompanyDuplicate(
+      { name: "株式会社ABC", address: "東京都新宿区西新宿3-3-3" },
+      [
+        { name: "テスト合同会社", address: "東京都千代田区1-1" }, // 管轄一致 → 警告候補
+        { name: "ABC株式会社", address: "東京都港区2-2" }, // 同名＋同一管轄 → NG
+      ]
+    );
+    expect(r.level).toBe("ng");
   });
 
   it("申込側に所在地がない場合は社名一致でも警告どまり", () => {

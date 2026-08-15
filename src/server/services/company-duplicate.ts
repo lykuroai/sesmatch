@@ -2,7 +2,7 @@
 //
 // ルール:
 // - 正規化した企業名が一致 かつ 管轄法務局が一致 → NG（商業登記上、同一管轄での同名登記は同一企業とみなす）
-// - 企業名のみ一致、または正規化した所在地のみ一致 → 警告（申込者が確認すれば続行可、運営審査で最終確認）
+// - 企業名・管轄法務局の片方のみ一致 → 警告（申込者が確認すれば続行可＝登録できる、運営審査で最終確認）
 //
 // 管轄法務局: 商業・法人登記の管轄は都道府県の本局に集約されているため都道府県単位で判定する
 // （例外の北海道は札幌/函館/旭川/釧路の4管轄だが、道内の同名企業は稀なため都道府県単位の近似で扱う）
@@ -10,7 +10,7 @@
 export type DuplicateJudgement = {
   level: "ng" | "warning" | "ok";
   matchedName?: string;
-  matchedField?: "name" | "address";
+  matchedField?: "name" | "jurisdiction" | "address";
 };
 
 const PREFECTURES = [
@@ -78,6 +78,8 @@ export function judgeCompanyDuplicate(
     if (sameName && (sameJurisdiction || sameAddr))
       return { level: "ng", matchedName: c.name };
     if (sameName) warning ??= { level: "warning", matchedName: c.name, matchedField: "name" };
+    else if (sameJurisdiction)
+      warning ??= { level: "warning", matchedName: c.name, matchedField: "jurisdiction" };
     else if (sameAddr) warning ??= { level: "warning", matchedName: c.name, matchedField: "address" };
   }
   return warning ?? { level: "ok" };
