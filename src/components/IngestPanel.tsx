@@ -10,11 +10,13 @@ import { IngestUpload } from "./IngestUpload";
 export function IngestPanel({
   label,
   hint,
+  note,
   title,
   action,
 }: {
   label: string;
   hint: string;
+  note?: string; // 取込の注意書き（複数案件の分割の制限など）
   title?: string; // 指定時は画面見出し行ごと描画し、取込ボタンを action と同じ行に並べる
   action?: React.ReactNode; // 「案件を登録」等の主ボタン
 }) {
@@ -46,6 +48,11 @@ export function IngestPanel({
             {hint}
             PII匿名化 → AI正規化 → 人手確認を経て登録されます（種別は自動判定）。
           </p>
+          {note && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+              {note}
+            </div>
+          )}
           <div>
             <h3 className="mb-2 text-sm font-bold">テキスト貼り付け</h3>
             <IngestPaste />
