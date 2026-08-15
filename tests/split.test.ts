@@ -31,6 +31,25 @@ describe("splitProjectItems", () => {
     const text = "【案件名】A\n【案件概要】説明\n【案件詳細】detail";
     expect(splitProjectItems(text)).toHaveLength(1);
   });
+
+  it("OCRで括弧が半角に化けた見出し（[ 案件名】）でも分割する", () => {
+    const text = [
+      "現在急ぎ募集している案件情報をお送りいたします。",
+      "[ 案件名】外資生保向けペーパレスシステム開発支援",
+      "【概要】要件定義からの上流工程",
+      "[ 案件名】生保向けコールセンターシステム基盤更改",
+      "【概要】クラウドリフト",
+    ].join("\n");
+    const segs = splitProjectItems(text);
+    expect(segs).toHaveLength(2);
+    expect(segs[0]).toContain("ペーパレスシステム");
+    expect(segs[1]).toContain("コールセンターシステム");
+  });
+
+  it("括弧ゆれの類似見出し（[案件概要] 等）では分割しない", () => {
+    const text = "[案件名] A\n[案件概要] 説明\n〔案件詳細〕detail";
+    expect(splitProjectItems(text)).toHaveLength(1);
+  });
 });
 
 describe("splitFilename", () => {

@@ -6,8 +6,10 @@
 // 分割の上限（超えた分は最後のセグメントにまとめて含める）
 export const MAX_SPLIT_ITEMS = 10;
 
-// 「【案件名】」「【案件】」のみに一致（【案件概要】等には一致しない）
-const ITEM_MARKER = /【案件名?】/g;
+// 「【案件名】」「【案件】」のみに一致（【案件概要】等には一致しない）。
+// OCR経由のテキストは全角括弧「【】」が半角「[ ]」等に化けることがあるため、
+// 括弧の表記ゆれ（[ ］ 〔 〕）と括弧内側の空白を許容する
+const ITEM_MARKER = /[【\[［〔]\s*案件名?\s*[】\]］〕]/g;
 
 export function splitProjectItems(text: string): string[] {
   const indices = [...text.matchAll(ITEM_MARKER)].map((m) => m.index ?? 0);
