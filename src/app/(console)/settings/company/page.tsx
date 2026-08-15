@@ -67,7 +67,7 @@ export default async function CompanySettingsPage() {
       </section>
       {!canManage && (
         <p className="mt-3 text-xs text-slate-500">
-          企業情報の修正は企業オーナー・企業管理者のみ行えます。
+          企業情報の修正は代表・企業管理者のみ行えます。
         </p>
       )}
     </div>

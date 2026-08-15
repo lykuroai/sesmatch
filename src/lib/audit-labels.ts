@@ -17,7 +17,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   MemberRolesUpdated: "メンバーのロールを変更",
   MemberProfileUpdated: "メンバー情報を更新",
   MemberProfileUpdatedByOperations: "運営がメンバー情報を更新",
-  MemberPromotedToOwnerByOperations: "運営がオーナーへ昇格",
+  MemberPromotedToOwnerByOperations: "運営が代表へ昇格",
   MemberSuspended: "メンバーを停止",
   MemberDeleted: "メンバーを削除",
   MemberDeletedByOperations: "運営がメンバーを削除",

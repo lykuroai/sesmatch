@@ -257,7 +257,7 @@ function CompanyReviewSection({
   async function approveOne(co: PendingCompany) {
     if (
       !window.confirm(
-        `${co.name} を承認して開通しますか？\n申込フローのオーナーには承認通知メールが送信されます（CSV取込企業の担当者へは、開通後に「初期パスワード再発行」で個別に発行してください）。`
+        `${co.name} を承認して開通しますか？\n申込フローの代表には承認通知メールが送信されます（CSV取込企業の担当者へは、開通後に「初期パスワード再発行」で個別に発行してください）。`
       )
     )
       return;
@@ -274,7 +274,7 @@ function CompanyReviewSection({
   async function approveAll() {
     if (
       !window.confirm(
-        `審査待ち ${companies.length} 社をすべて承認して開通しますか？\n申込フローのオーナーには承認通知メールが送信されます（CSV取込企業の担当者へは初期パスワードを自動発行しません）。`
+        `審査待ち ${companies.length} 社をすべて承認して開通しますか？\n申込フローの代表には承認通知メールが送信されます（CSV取込企業の担当者へは初期パスワードを自動発行しません）。`
       )
     )
       return;
@@ -311,7 +311,7 @@ function CompanyReviewSection({
           {companies.length > 0 && (
             <div className="mb-3 flex flex-wrap items-center gap-3 rounded border border-slate-100 bg-slate-50 p-3">
               <p className="w-full text-xs text-slate-500">
-                承認すると企業が有効になり、申込フローのオーナーへ承認通知メールが送信されます。
+                承認すると企業が有効になり、申込フローの代表へ承認通知メールが送信されます。
                 CSV取込企業の担当者へは初期パスワードを自動発行しません。開通後、各担当者の「初期パスワード再発行」で個別に発行してください。
               </p>
               <button
@@ -1657,7 +1657,7 @@ function CompanyMembersPanel({ companyId, token }: { companyId: string; token: s
   }
 
   async function promote(m: AdminMember) {
-    if (!window.confirm(`${m.name} を企業オーナーにしますか？（既存のロールは維持されます）`)) return;
+    if (!window.confirm(`${m.name} を代表にしますか？（既存のロールは維持されます）`)) return;
     setError(null);
     const res = await fetch(`/api/v1/operations/members/${m.id}/promote-owner`, {
       method: "POST",
@@ -1666,7 +1666,7 @@ function CompanyMembersPanel({ companyId, token }: { companyId: string; token: s
     if (res.ok) await loadMembers();
     else {
       const b = await res.json().catch(() => null);
-      setError(b?.error?.message ?? "オーナー昇格に失敗しました");
+      setError(b?.error?.message ?? "代表昇格に失敗しました");
     }
   }
 
@@ -1702,7 +1702,7 @@ function CompanyMembersPanel({ companyId, token }: { companyId: string; token: s
                 <span className="font-medium">{m.name}</span>
                 <span className="text-slate-500">{m.email}</span>
                 {m.roles.includes("OWNER") && (
-                  <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">オーナー</span>
+                  <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">代表</span>
                 )}
                 <span className={`rounded px-2 py-0.5 text-xs ${m.passwordIssued ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
                   {m.passwordIssued ? "パスワード発行済み" : "未発行"}
@@ -1728,7 +1728,7 @@ function CompanyMembersPanel({ companyId, token }: { companyId: string; token: s
                   </button>
                   {!m.roles.includes("OWNER") && (
                     <button onClick={() => promote(m)} className="rounded border border-indigo-300 px-2 py-1 text-xs text-indigo-700 hover:bg-indigo-50">
-                      オーナーにする
+                      代表にする
                     </button>
                   )}
                   <button onClick={() => reinvite(m)} className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100">

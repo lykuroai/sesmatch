@@ -179,12 +179,16 @@ app.post("/companies/applications", async (c) => {
       password: z.string().min(8),
       agreedToTerms: z.boolean(),
       emailVerificationCode: z.string().min(1),
+      duplicateWarningConfirmed: z.boolean().optional(),
     })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR", "入力内容を確認してください（パスワードは8文字以上）"), 400);
   const result = await applyCompany(parsed.data);
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  // 類似企業あり（社名 or 所在地の片方一致）→ 警告。クライアントは確認の上 duplicateWarningConfirmed で再送する
+  if ("duplicateWarning" in result)
+    return c.json({ ok: false, duplicateWarning: result.duplicateWarning }, 200);
   return c.json({ ok: true, companyId: (result as { companyId: string }).companyId }, 201);
 });
 

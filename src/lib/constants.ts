@@ -1,7 +1,7 @@
 // 仕様書に基づく共通定数・表示ラベル
 
 export const ROLE_LABELS: Record<string, string> = {
-  OWNER: "企業オーナー",
+  OWNER: "代表",
   ADMIN: "企業管理者",
   SALES: "営業担当",
   HR_MANAGER: "人材管理担当",

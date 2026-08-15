@@ -7,6 +7,7 @@ import type { AuthContext } from "@/server/auth/session";
 import { randomBytes } from "crypto";
 import { sendMail, appBaseUrl } from "@/server/mail";
 import { checkCompanyDuplicate } from "@/server/pipeline/llm-company-check";
+import { judgeCompanyDuplicate } from "@/server/services/company-duplicate";
 
 // 企業IDから現在の企業名を引くマップ（社名変更を表示へ即時反映するため。開示スナップショットの代替表示に使う）
 export async function companyNameMap(ids: string[]): Promise<Map<string, string>> {
@@ -53,6 +54,7 @@ export async function applyCompany(input: {
   password: string;
   agreedToTerms: boolean;
   emailVerificationCode: string;
+  duplicateWarningConfirmed?: boolean; // 警告画面で「別企業として申込む」を確認済み
 }) {
   if (!input.agreedToTerms)
     return { error: { code: "VALIDATION_ERROR" as const, message: "規約・基本契約への同意が必要です" } };
@@ -80,9 +82,9 @@ export async function applyCompany(input: {
     return { error: { code: "DUPLICATE_ENTRY" as const, message: "このメールアドレスは登録済みです" } };
 
   // ---- 企業の重複チェック ----
+  // 正規化名＋管轄法務局が一致 → NG / 片方のみ一致 → 警告（確認の上で続行可）
   const allCompanies = await prisma.company.findMany({
     select: { name: true, address: true, corporateNumber: true },
-    take: 300,
   });
   // ① 法人番号の完全一致（決定的）
   if (
@@ -93,35 +95,55 @@ export async function applyCompany(input: {
       error: {
         code: "DUPLICATE_ENTRY" as const,
         message:
-          "この法人番号の企業は既に登録されています。担当者として参加する場合は既存企業のオーナーから招待を受けてください",
+          "この法人番号の企業は既に登録されています。担当者として参加する場合は既存企業の代表から招待を受けてください",
       },
     };
-  // ② 企業名の完全一致（決定的）
-  if (allCompanies.some((c) => c.name.trim() === input.companyName.trim()))
-    return {
-      error: {
-        code: "DUPLICATE_ENTRY" as const,
-        message:
-          "同名の企業が既に登録されています。担当者として参加する場合は既存企業のオーナーから招待を受けてください（別企業の場合は運営へお問い合わせください）",
-      },
-    };
-  // ③ LLM による表記ゆれ・同一企業判定（名称＋所在地。障害時はスキップ）
-  const llmCheck = await checkCompanyDuplicate(
+  // ② 正規化した企業名・所在地（管轄法務局）による決定的判定
+  const judgement = judgeCompanyDuplicate(
     { name: input.companyName, address: input.address },
     allCompanies
   );
-  if (llmCheck?.duplicate) {
+  if (judgement.level === "ng") {
     await audit({
       action: "CompanyDuplicateDetected",
       targetType: "Company",
-      metadata: { matchedName: llmCheck.matchedName, reason: llmCheck.reason.slice(0, 200) },
+      metadata: { matchedName: judgement.matchedName, method: "deterministic" },
     });
     return {
       error: {
         code: "DUPLICATE_ENTRY" as const,
-        message: `既に登録されている企業（${llmCheck.matchedName ?? "既存企業"}）と同一と判断されました。担当者として参加する場合は既存企業のオーナーから招待を受けてください（別企業の場合は運営へお問い合わせください）`,
+        message: `同一管轄（都道府県）内に同名の企業（${judgement.matchedName}）が既に登録されています。担当者として参加する場合は既存企業の代表から招待を受けてください（別企業の場合は運営へお問い合わせください）`,
       },
     };
+  }
+  if (judgement.level === "warning" && !input.duplicateWarningConfirmed) {
+    return {
+      duplicateWarning: {
+        matchedName: judgement.matchedName ?? "",
+        matchedField: judgement.matchedField ?? "name",
+      },
+    };
+  }
+  // ③ LLM による表記ゆれ・同一企業判定（名称＋所在地。障害時はスキップ）。
+  // 検出時も即ブロックせず警告扱い（誤判定の可能性があるため申込者の確認で続行可）
+  if (!input.duplicateWarningConfirmed) {
+    const llmCheck = await checkCompanyDuplicate(
+      { name: input.companyName, address: input.address },
+      allCompanies
+    );
+    if (llmCheck?.duplicate) {
+      await audit({
+        action: "CompanyDuplicateDetected",
+        targetType: "Company",
+        metadata: { matchedName: llmCheck.matchedName, reason: llmCheck.reason.slice(0, 200), method: "llm" },
+      });
+      return {
+        duplicateWarning: {
+          matchedName: llmCheck.matchedName ?? "",
+          matchedField: "name" as const,
+        },
+      };
+    }
   }
 
   const passwordHash = await hashPassword(input.password);
@@ -150,7 +172,11 @@ export async function applyCompany(input: {
     action: "CompanyApplied",
     targetType: "Company",
     targetId: company.id,
-    metadata: { companyType: input.companyType },
+    metadata: {
+      companyType: input.companyType,
+      // 重複警告を確認済みで申込んだ場合は運営審査で注意できるよう記録する
+      duplicateWarningConfirmed: input.duplicateWarningConfirmed === true,
+    },
   });
   await sendMail({
     to: input.email,
@@ -502,7 +528,7 @@ export async function promoteMemberToOwnerByOperations(memberId: string) {
   });
   if (!member) return { error: { code: "NOT_FOUND" as const } };
   if (member.roles.some((r) => r.role === "OWNER"))
-    return { error: { code: "VERSION_CONFLICT" as const, message: "既にオーナーです" } };
+    return { error: { code: "VERSION_CONFLICT" as const, message: "既に代表です" } };
   await prisma.companyMemberRole.create({ data: { memberId, role: "OWNER" } });
   await audit({
     tenantCompanyId: member.companyId,
@@ -834,7 +860,7 @@ export async function inviteMember(
     (ASSIGNABLE_ROLES as readonly string[]).includes(r)
   );
   if (roles.length === 0)
-    return { error: { code: "VALIDATION_ERROR" as const, message: "ロールを1つ以上選択してください（オーナーは招待できません）" } };
+    return { error: { code: "VALIDATION_ERROR" as const, message: "ロールを1つ以上選択してください（代表は招待できません）" } };
   const existing = await prisma.userAccount.findUnique({ where: { email: input.email } });
   if (existing)
     return { error: { code: "DUPLICATE_ENTRY" as const, message: "このメールアドレスは登録済みです" } };
@@ -889,7 +915,7 @@ export async function updateMemberRoles(
   });
   if (!member) return { error: { code: "NOT_FOUND" as const } };
   if (member.roles.some((r) => r.role === "OWNER"))
-    return { error: { code: "FORBIDDEN" as const, message: "企業オーナーのロールは変更できません" } };
+    return { error: { code: "FORBIDDEN" as const, message: "代表のロールは変更できません" } };
 
   const nextRoles = roles.filter((r): r is AssignableRole =>
     (ASSIGNABLE_ROLES as readonly string[]).includes(r)
@@ -922,7 +948,7 @@ export async function suspendMember(auth: AuthContext, memberId: string) {
   });
   if (!member) return { error: { code: "NOT_FOUND" as const } };
   if (member.roles.some((r) => r.role === "OWNER"))
-    return { error: { code: "FORBIDDEN" as const, message: "企業オーナーは停止できません" } };
+    return { error: { code: "FORBIDDEN" as const, message: "代表は停止できません" } };
   if (member.id === auth.memberId)
     return { error: { code: "FORBIDDEN" as const, message: "自分自身は停止できません" } };
 
@@ -952,7 +978,7 @@ export async function updateMemberProfile(
   });
   if (!member) return { error: { code: "NOT_FOUND" as const } };
   if (member.roles.some((r) => r.role === "OWNER"))
-    return { error: { code: "FORBIDDEN" as const, message: "企業オーナーの情報は変更できません" } };
+    return { error: { code: "FORBIDDEN" as const, message: "代表の情報は変更できません" } };
   if (input.email !== member.userAccount.email) {
     const dup = await prisma.userAccount.findUnique({ where: { email: input.email } });
     if (dup)
@@ -982,7 +1008,7 @@ export async function reinviteMember(auth: AuthContext, memberId: string) {
   });
   if (!member) return { error: { code: "NOT_FOUND" as const } };
   if (member.roles.some((r) => r.role === "OWNER"))
-    return { error: { code: "FORBIDDEN" as const, message: "企業オーナーは再招待できません" } };
+    return { error: { code: "FORBIDDEN" as const, message: "代表は再招待できません" } };
   if (member.id === auth.memberId)
     return { error: { code: "FORBIDDEN" as const, message: "自分自身は再招待できません" } };
 
@@ -1025,7 +1051,7 @@ export async function deleteMember(auth: AuthContext, memberId: string) {
   });
   if (!member) return { error: { code: "NOT_FOUND" as const } };
   if (member.roles.some((r) => r.role === "OWNER"))
-    return { error: { code: "FORBIDDEN" as const, message: "企業オーナーは削除できません" } };
+    return { error: { code: "FORBIDDEN" as const, message: "代表は削除できません" } };
   if (member.id === auth.memberId)
     return { error: { code: "FORBIDDEN" as const, message: "自分自身は削除できません" } };
 

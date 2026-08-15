@@ -64,7 +64,7 @@ export function csvToCompanyRows(lines: string[][]): CompanyCsvRow[] {
       name: find(/企業名|会社名/),
       type: find(/種別/),
       corp: find(/法人番号/),
-      owner: find(/オーナー|担当/),
+      owner: find(/代表者|オーナー|担当/),
       email: find(/メール|mail/i),
     };
   } else if (first.length <= 3) {
