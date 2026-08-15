@@ -24,6 +24,16 @@ export function stripPdfPageMarkers(text: string): string {
   return text.replace(/^-- \d+ of \d+ --$/gm, "").trim();
 }
 
+// テキスト層に日本語（ひらがな・カタカナ・漢字）が何文字あるか。
+// フォント未埋め込み（Adobe-Japan1 参照等）のPDFは pdf-parse が日本語だけを取りこぼし、
+// 英数字・記号のみの壊れたテキスト層になるため、CJKの量でテキスト層の信頼性を判定する
+export function countCjkChars(text: string): number {
+  return (text.match(/[぀-ヿ㐀-鿿豈-﫿]/g) ?? []).length;
+}
+
+// この文字数未満しか日本語が無いテキスト層は「日本語の抽出に失敗している疑い」として OCR と比較する
+export const MIN_CJK_FOR_TEXT_LAYER = 25;
+
 // ファイル内容をテキストへ変換する。未対応・破損ファイルは Error を投げる
 export async function extractDocumentText(filename: string, content: Buffer): Promise<string> {
   const e = ext(filename);
@@ -42,7 +52,19 @@ export async function extractDocumentText(filename: string, content: Buffer): Pr
     } catch {
       text = undefined;
     }
-    if (text && stripPdfPageMarkers(text)) return text;
+    const body = text ? stripPdfPageMarkers(text) : "";
+    if (body && countCjkChars(body) >= MIN_CJK_FOR_TEXT_LAYER) return text!;
+    if (body) {
+      // テキスト層はあるが日本語がほぼ無い: フォント未埋め込み等で日本語が欠落している疑い。
+      // OCR と比較して日本語が多い方を採用する（英語のみの文書は従来どおりテキスト層を使う）
+      try {
+        const ocrText = await ocrPdf(content);
+        if (ocrText && countCjkChars(ocrText) > countCjkChars(body)) return ocrText;
+      } catch {
+        // OCR環境なし・OCR失敗時はテキスト層をそのまま使う（取込を止めない）
+      }
+      return text!;
+    }
     // テキスト層がないPDF（スキャン・画像PDF）はOCRで文字起こしする
     const ocrText = await ocrPdf(content);
     if (!ocrText) throw new Error("PDF からテキストを抽出できませんでした（OCRでも文字を検出できません）");

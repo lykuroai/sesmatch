@@ -23,8 +23,9 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-# ローカルOCR（§25: 原本画像を外部に送らない）: tesseract（日本語）と画像PDF変換用 poppler
-RUN apk add --no-cache tesseract-ocr tesseract-ocr-data-jpn tesseract-ocr-data-eng poppler-utils
+# ローカルOCR（§25: 原本画像を外部に送らない）: tesseract（日本語）と画像PDF変換用 poppler。
+# poppler-data（Adobe-Japan1 等の CMap）と日本語フォントは、フォント未埋め込みPDFの描画に必須
+RUN apk add --no-cache tesseract-ocr tesseract-ocr-data-jpn tesseract-ocr-data-eng poppler-utils poppler-data font-noto-cjk
 RUN addgroup -S app && adduser -S app -G app
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
