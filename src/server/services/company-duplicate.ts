@@ -2,7 +2,8 @@
 //
 // ルール:
 // - 正規化した企業名が一致 かつ 管轄法務局が一致 → NG（商業登記上、同一管轄での同名登記は同一企業とみなす）
-// - 企業名・管轄法務局の片方のみ一致 → 警告（申込者が確認すれば続行可＝登録できる、運営審査で最終確認）
+// - 企業名のみ一致、または所在地の完全一致（会社名不一致）→ 警告（申込者が確認すれば続行可＝登録できる、運営審査で最終確認）
+// - 管轄（都道府県）のみの一致は警告しない（2026-08-15 仕様変更。同一都道府県の別企業は通常の申込）
 //
 // 管轄法務局: 商業・法人登記の管轄は都道府県の本局に集約されているため都道府県単位で判定する
 // （例外の北海道は札幌/函館/旭川/釧路の4管轄だが、道内の同名企業は稀なため都道府県単位の近似で扱う）
@@ -10,7 +11,7 @@
 export type DuplicateJudgement = {
   level: "ng" | "warning" | "ok";
   matchedName?: string;
-  matchedField?: "name" | "jurisdiction" | "address";
+  matchedField?: "name" | "address";
 };
 
 const PREFECTURES = [
@@ -69,8 +70,8 @@ export function judgeCompanyDuplicate(
   const candName = normalizeCompanyName(candidate.name);
   const candAddr = candidate.address ? normalizeAddress(candidate.address) : "";
   const candJur = registryJurisdiction(candidate.address);
-  // 警告の理由は具体的な順に優先: 会社名一致 ＞ 所在地の完全一致 ＞ 管轄（都道府県）一致
-  const rank: Record<string, number> = { name: 3, address: 2, jurisdiction: 1 };
+  // 警告の理由は具体的な順に優先: 会社名一致 ＞ 所在地の完全一致
+  const rank: Record<string, number> = { name: 2, address: 1 };
   let warning: DuplicateJudgement | null = null;
   const consider = (w: DuplicateJudgement) => {
     if (!warning || rank[w.matchedField ?? ""] > rank[warning.matchedField ?? ""]) warning = w;
@@ -84,8 +85,6 @@ export function judgeCompanyDuplicate(
       return { level: "ng", matchedName: c.name };
     if (sameName) consider({ level: "warning", matchedName: c.name, matchedField: "name" });
     else if (sameAddr) consider({ level: "warning", matchedName: c.name, matchedField: "address" });
-    else if (sameJurisdiction)
-      consider({ level: "warning", matchedName: c.name, matchedField: "jurisdiction" });
   }
   return warning ?? { level: "ok" };
 }

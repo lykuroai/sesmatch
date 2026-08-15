@@ -21,7 +21,7 @@ function ApplyGuide() {
           <li>
             ・重複登録は次のとおり防止されます:
             同一管轄（都道府県）内に同名の企業が既にある場合は<b>登録できません</b>。
-            社名・管轄（都道府県）の片方のみが既存企業と一致する場合は<b>警告を表示</b>し、内容を確認の上で申込めます。
+            社名または所在地が既存企業と一致する場合は<b>警告を表示</b>し、内容を確認の上で申込めます。
           </li>
           <li>・既存の登録企業に担当者として参加する場合は、新規申込ではなく既存企業の代表からの招待を受けてください。</li>
           <li>・所在地は必須です。管轄の判定に使用するため、都道府県から入力してください。</li>
@@ -170,11 +170,9 @@ export default function ApplyPage() {
           <div className="mb-4 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
             <p className="font-medium">類似する企業が既に登録されています</p>
             <p className="mt-1">
-              {warning.matchedField === "jurisdiction"
-                ? `同じ管轄（都道府県）に企業（${warning.matchedName}）が登録済みです。`
-                : warning.matchedField === "address"
-                  ? `同じ所在地の企業（${warning.matchedName}）が登録済みです。`
-                  : `同名または類似名の企業（${warning.matchedName}）が登録済みです。`}
+              {warning.matchedField === "address"
+                ? `同じ所在地の企業（${warning.matchedName}）が登録済みです。`
+                : `同名または類似名の企業（${warning.matchedName}）が登録済みです。`}
               既存企業の担当者として参加する場合は、そのまま申込まず既存企業の代表から招待を受けてください。
             </p>
             <div className="mt-3 flex gap-2">
