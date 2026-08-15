@@ -24,6 +24,7 @@ function ApplyGuide() {
             社名・管轄（都道府県）の片方のみが既存企業と一致する場合は<b>警告を表示</b>し、内容を確認の上で申込めます。
           </li>
           <li>・既存の登録企業に担当者として参加する場合は、新規申込ではなく既存企業の代表からの招待を受けてください。</li>
+          <li>・所在地は必須です。管轄の判定に使用するため、都道府県から入力してください。</li>
           <li>・法人番号（13桁）は任意です。入力すると重複判定に使用され、審査がスムーズになります。</li>
           <li>・申込後は運営審査を行い、承認されるとメールでお知らせします。審査完了までログインはできません。</li>
           <li>・利用開始（承認）から30日間は成約手数料が無料です。</li>
@@ -222,7 +223,7 @@ export default function ApplyPage() {
             </div>
           )}
           <div>
-            <label className={label}>所在地</label>
+            <label className={label}>所在地（必須・都道府県から）</label>
             <input name="address" required className={input} placeholder="例: 東京都台東区上野1-1-1" />
           </div>
           <div>

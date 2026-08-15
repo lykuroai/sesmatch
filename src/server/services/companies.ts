@@ -7,7 +7,7 @@ import type { AuthContext } from "@/server/auth/session";
 import { randomBytes } from "crypto";
 import { sendMail, appBaseUrl } from "@/server/mail";
 import { checkCompanyDuplicate } from "@/server/pipeline/llm-company-check";
-import { judgeCompanyDuplicate } from "@/server/services/company-duplicate";
+import { judgeCompanyDuplicate, registryJurisdiction } from "@/server/services/company-duplicate";
 
 // 企業IDから現在の企業名を引くマップ（社名変更を表示へ即時反映するため。開示スナップショットの代替表示に使う）
 export async function companyNameMap(ids: string[]): Promise<Map<string, string>> {
@@ -48,7 +48,7 @@ export async function applyCompany(input: {
   companyName: string;
   companyType: "CORPORATION" | "SOLE_PROPRIETOR";
   corporateNumber?: string;
-  address?: string;
+  address: string; // 必須。都道府県から入力（管轄法務局の重複判定に使用）
   ownerName: string;
   email: string;
   password: string;
@@ -76,6 +76,17 @@ export async function applyCompany(input: {
   // 法人番号は任意入力。指定時のみ形式を検査（§6.4 の事業者情報確認は運営審査で行う）
   if (input.corporateNumber && !/^\d{13}$/.test(input.corporateNumber))
     return { error: { code: "VALIDATION_ERROR" as const, message: "法人番号は13桁で入力してください" } };
+  // 所在地は必須。管轄法務局（都道府県）の重複判定に使うため、都道府県からの入力を求める
+  const address = input.address.trim();
+  if (!address)
+    return { error: { code: "VALIDATION_ERROR" as const, message: "所在地を入力してください" } };
+  if (!registryJurisdiction(address))
+    return {
+      error: {
+        code: "VALIDATION_ERROR" as const,
+        message: "所在地は都道府県から入力してください（例: 東京都台東区上野1-1-1）",
+      },
+    };
 
   const existing = await prisma.userAccount.findUnique({ where: { email: input.email } });
   if (existing)
@@ -100,7 +111,7 @@ export async function applyCompany(input: {
     };
   // ② 正規化した企業名・所在地（管轄法務局）による決定的判定
   const judgement = judgeCompanyDuplicate(
-    { name: input.companyName, address: input.address },
+    { name: input.companyName, address },
     allCompanies
   );
   if (judgement.level === "ng") {
@@ -128,7 +139,7 @@ export async function applyCompany(input: {
   // 検出時も即ブロックせず警告扱い（誤判定の可能性があるため申込者の確認で続行可）
   if (!input.duplicateWarningConfirmed) {
     const llmCheck = await checkCompanyDuplicate(
-      { name: input.companyName, address: input.address },
+      { name: input.companyName, address },
       allCompanies
     );
     if (llmCheck?.duplicate) {
@@ -153,7 +164,7 @@ export async function applyCompany(input: {
         name: input.companyName,
         companyType: input.companyType,
         corporateNumber: input.corporateNumber,
-        address: input.address,
+        address,
         status: "APPLIED", // 運営審査待ち
       },
     });

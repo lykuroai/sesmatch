@@ -173,7 +173,7 @@ app.post("/companies/applications", async (c) => {
       companyName: z.string().min(1),
       companyType: z.enum(["CORPORATION", "SOLE_PROPRIETOR"]),
       corporateNumber: z.string().optional(),
-      address: z.string().min(1),
+      address: z.string().trim().min(1),
       ownerName: z.string().min(1),
       email: z.string().email(),
       password: z.string().min(8),
