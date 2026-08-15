@@ -316,22 +316,48 @@ export async function listAllCompanies() {
   });
 }
 
-// 運営: 企業情報の修正（取込した不完全データの補完。名称・種別・法人番号）
+// 運営: 企業情報の修正（取込した不完全データの補完。企業情報の全項目を修正できる）
 export async function updateCompanyByOperations(
   companyId: string,
-  input: { name: string; companyType: "CORPORATION" | "SOLE_PROPRIETOR"; corporateNumber?: string }
+  input: {
+    name: string;
+    companyType: "CORPORATION" | "SOLE_PROPRIETOR";
+    corporateNumber?: string;
+    address?: string;
+    dispatchLicenseNumber?: string;
+    dispatchLicenseExpiry?: string;
+    dispatchManagerName?: string;
+  }
 ) {
   const company = await prisma.company.findUnique({ where: { id: companyId } });
   if (!company) return { error: { code: "NOT_FOUND" as const } };
   const corporateNumber = (input.corporateNumber ?? "").replace(/\D/g, "");
   if (corporateNumber && !/^\d{13}$/.test(corporateNumber))
     return { error: { code: "VALIDATION_ERROR" as const, message: "法人番号は13桁で入力してください" } };
+  // 派遣許可情報の検査は企業側の修正（updateOwnCompany）と同じルール
+  const dispatchLicenseNumber = input.dispatchLicenseNumber?.trim() || null;
+  const dispatchLicenseExpiry = input.dispatchLicenseExpiry
+    ? new Date(input.dispatchLicenseExpiry)
+    : null;
+  if (dispatchLicenseNumber && !dispatchLicenseExpiry)
+    return {
+      error: {
+        code: "VALIDATION_ERROR" as const,
+        message: "労働者派遣事業許可番号を登録する場合は許可有効期限も入力してください",
+      },
+    };
+  if (dispatchLicenseExpiry && isNaN(dispatchLicenseExpiry.getTime()))
+    return { error: { code: "VALIDATION_ERROR" as const, message: "許可有効期限の日付が不正です" } };
   await prisma.company.update({
     where: { id: companyId },
     data: {
       name: input.name,
       companyType: input.companyType,
       corporateNumber: corporateNumber || null,
+      address: input.address?.trim() || null,
+      dispatchLicenseNumber,
+      dispatchLicenseExpiry,
+      dispatchManagerName: input.dispatchManagerName?.trim() || null,
     },
   });
   await audit({

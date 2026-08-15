@@ -19,6 +19,10 @@ type AdminCompany = {
   name: string;
   companyType: string;
   corporateNumber: string | null;
+  address: string | null;
+  dispatchLicenseNumber: string | null;
+  dispatchLicenseExpiry: string | null;
+  dispatchManagerName: string | null;
   status: string;
   createdAt: string;
   _count: { members: number };
@@ -413,7 +417,15 @@ function CompanyListSection({
   const [error, setError] = useState<string | null>(null);
   const [editCompanyId, setEditCompanyId] = useState<string | null>(null);
   const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
-  const [editCo, setEditCo] = useState({ name: "", companyType: "CORPORATION", corporateNumber: "" });
+  const [editCo, setEditCo] = useState({
+    name: "",
+    companyType: "CORPORATION",
+    corporateNumber: "",
+    address: "",
+    dispatchLicenseNumber: "",
+    dispatchLicenseExpiry: "",
+    dispatchManagerName: "",
+  });
 
   async function saveCompany(id: string) {
     setError(null);
@@ -457,7 +469,7 @@ function CompanyListSection({
         <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-1 font-bold">企業一覧（{allCompanies.length}社）</h2>
           <p className="mb-3 text-xs text-slate-500">
-            取込した不完全なデータ（種別・法人番号など）はここで修正できます。
+            企業情報の全項目（企業名・種別・法人番号・所在地・派遣許可情報）をここで修正できます。
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -476,39 +488,77 @@ function CompanyListSection({
                   <Fragment key={co.id}>
                   {editCompanyId === co.id ? (
                     <tr className="border-t border-slate-100 bg-slate-50">
-                      <td className="px-3 py-2">
-                        <input
-                          value={editCo.name}
-                          onChange={(e) => setEditCo({ ...editCo, name: e.target.value })}
-                          className="w-full rounded border border-slate-300 px-2 py-1"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <select
-                          value={editCo.companyType}
-                          onChange={(e) => setEditCo({ ...editCo, companyType: e.target.value })}
-                          className="rounded border border-slate-300 px-2 py-1"
-                        >
-                          <option value="CORPORATION">法人</option>
-                          <option value="SOLE_PROPRIETOR">個人事業者</option>
-                        </select>
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          value={editCo.corporateNumber}
-                          onChange={(e) => setEditCo({ ...editCo, corporateNumber: e.target.value })}
-                          placeholder="13桁（任意）"
-                          className="w-36 rounded border border-slate-300 px-2 py-1"
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-xs">{co.status === "ACTIVE" ? "開通" : co.status === "APPLIED" ? "審査待ち" : "停止"}</td>
-                      <td className="px-3 py-2 text-xs">{co._count.members}</td>
-                      <td className="px-3 py-2 text-right text-xs">
-                        <div className="flex justify-end gap-2">
-                          <button onClick={() => saveCompany(co.id)} className="rounded bg-blue-600 px-2 py-1 text-white">
+                      <td colSpan={6} className="px-3 py-3">
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                          <label className="block text-xs">
+                            <span className="mb-1 block font-medium text-slate-600">企業名</span>
+                            <input
+                              value={editCo.name}
+                              onChange={(e) => setEditCo({ ...editCo, name: e.target.value })}
+                              className="w-full rounded border border-slate-300 px-2 py-1"
+                            />
+                          </label>
+                          <label className="block text-xs">
+                            <span className="mb-1 block font-medium text-slate-600">種別</span>
+                            <select
+                              value={editCo.companyType}
+                              onChange={(e) => setEditCo({ ...editCo, companyType: e.target.value })}
+                              className="w-full rounded border border-slate-300 px-2 py-1"
+                            >
+                              <option value="CORPORATION">法人</option>
+                              <option value="SOLE_PROPRIETOR">個人事業者</option>
+                            </select>
+                          </label>
+                          <label className="block text-xs">
+                            <span className="mb-1 block font-medium text-slate-600">法人番号（13桁・任意）</span>
+                            <input
+                              value={editCo.corporateNumber}
+                              onChange={(e) => setEditCo({ ...editCo, corporateNumber: e.target.value })}
+                              placeholder="1234567890123"
+                              className="w-full rounded border border-slate-300 px-2 py-1"
+                            />
+                          </label>
+                          <label className="block text-xs md:col-span-3">
+                            <span className="mb-1 block font-medium text-slate-600">所在地</span>
+                            <input
+                              value={editCo.address}
+                              onChange={(e) => setEditCo({ ...editCo, address: e.target.value })}
+                              placeholder="例: 東京都台東区上野1-1-1"
+                              className="w-full rounded border border-slate-300 px-2 py-1"
+                            />
+                          </label>
+                          <label className="block text-xs">
+                            <span className="mb-1 block font-medium text-slate-600">労働者派遣事業許可番号</span>
+                            <input
+                              value={editCo.dispatchLicenseNumber}
+                              onChange={(e) => setEditCo({ ...editCo, dispatchLicenseNumber: e.target.value })}
+                              placeholder="例: 派13-123456"
+                              className="w-full rounded border border-slate-300 px-2 py-1"
+                            />
+                          </label>
+                          <label className="block text-xs">
+                            <span className="mb-1 block font-medium text-slate-600">許可有効期限</span>
+                            <input
+                              type="date"
+                              value={editCo.dispatchLicenseExpiry}
+                              onChange={(e) => setEditCo({ ...editCo, dispatchLicenseExpiry: e.target.value })}
+                              className="w-full rounded border border-slate-300 px-2 py-1"
+                            />
+                          </label>
+                          <label className="block text-xs">
+                            <span className="mb-1 block font-medium text-slate-600">派遣元責任者</span>
+                            <input
+                              value={editCo.dispatchManagerName}
+                              onChange={(e) => setEditCo({ ...editCo, dispatchManagerName: e.target.value })}
+                              className="w-full rounded border border-slate-300 px-2 py-1"
+                            />
+                          </label>
+                        </div>
+                        <div className="mt-3 flex justify-end gap-2 text-xs">
+                          <button onClick={() => saveCompany(co.id)} className="rounded bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700">
                             保存
                           </button>
-                          <button onClick={() => setEditCompanyId(null)} className="rounded border border-slate-300 px-2 py-1">
+                          <button onClick={() => setEditCompanyId(null)} className="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-100">
                             取消
                           </button>
                         </div>
@@ -530,6 +580,12 @@ function CompanyListSection({
                                 name: co.name,
                                 companyType: co.companyType,
                                 corporateNumber: co.corporateNumber ?? "",
+                                address: co.address ?? "",
+                                dispatchLicenseNumber: co.dispatchLicenseNumber ?? "",
+                                dispatchLicenseExpiry: co.dispatchLicenseExpiry
+                                  ? co.dispatchLicenseExpiry.slice(0, 10)
+                                  : "",
+                                dispatchManagerName: co.dispatchManagerName ?? "",
                               });
                             }}
                             className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50"

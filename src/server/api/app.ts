@@ -266,6 +266,10 @@ app.put("/operations/companies/:id", requireAdminToken, async (c) => {
       name: z.string().min(1),
       companyType: z.enum(["CORPORATION", "SOLE_PROPRIETOR"]),
       corporateNumber: z.string().optional(),
+      address: z.string().optional(),
+      dispatchLicenseNumber: z.string().optional(),
+      dispatchLicenseExpiry: z.string().optional(),
+      dispatchManagerName: z.string().optional(),
     })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
