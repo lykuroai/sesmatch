@@ -21,7 +21,21 @@ SESマッチングプラットフォーム（ses.lykuro.ai、以下「親サー�
   → 原本が親サーバの取込APIへ送られ、親側で正規の解析・人手確認を経て登録
 ```
 
-## セットアップ
+## かんたんインストール
+
+事前に Node.js 20 以上（[nodejs.org](https://nodejs.org/ja) のLTS版）をインストールしてください。
+
+- **Windows**: [install.bat](https://raw.githubusercontent.com/lykuroai/lykuro-connector/main/install.bat) を右クリック→「名前を付けて保存」でダウンロードして実行。
+  `%USERPROFILE%\lykuro-connector` に導入され、設定ファイルがメモ帳で開きます。以後は `start.bat` で起動
+- **Linux / macOS**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lykuroai/lykuro-connector/main/install.sh | bash
+```
+
+再実行すると最新版へ更新されます（`config.json`・`data/` は保持されます）。
+
+## 手動セットアップ
 
 1. Node.js 20 以上をインストールし、依存パッケージを導入
 
