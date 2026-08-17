@@ -15,6 +15,14 @@ import { audit } from "@/server/audit";
 
 export const STORAGE_DIR = process.env.STORAGE_DIR ?? "./storage";
 
+// 取込パネルで指定される期待種別（案件取込 / 人材取込）
+export type ExpectedKind = "ENGINEER_SHEET" | "PROJECT_DESCRIPTION";
+
+const KIND_LABELS: Record<ExpectedKind, string> = {
+  ENGINEER_SHEET: "人材（スキルシート）",
+  PROJECT_DESCRIPTION: "案件",
+};
+
 // 保存用ファイル名をUTF-8のバイト長で安全に切り詰める（ext4等の255バイト制限対策。拡張子は保持）。
 // 表示用の filename（DB）は切り詰めず、ディスク上のパスだけを短くする。
 // パストラバーサル対策（§31）: ディレクトリ区切り・先頭ドットを除去し、保存先ディレクトリの
@@ -42,6 +50,7 @@ export async function startIngestion(params: {
   filename: string;
   mimeType: string;
   content: Buffer; // MVP はテキスト系ファイルのみ対応
+  expectedKind?: ExpectedKind; // 取込元パネルの期待種別。指定時はLLM分類との不一致を失敗にする
 }) {
   // 原本保存
   await mkdir(path.join(STORAGE_DIR, params.tenantCompanyId), { recursive: true });
@@ -63,7 +72,11 @@ export async function startIngestion(params: {
     },
   });
   const job = await prisma.ingestionJob.create({
-    data: { tenantCompanyId: params.tenantCompanyId, sourceDocumentId: doc.id },
+    data: {
+      tenantCompanyId: params.tenantCompanyId,
+      sourceDocumentId: doc.id,
+      expectedKind: params.expectedKind ?? null,
+    },
   });
   await audit({
     tenantCompanyId: params.tenantCompanyId,
@@ -71,7 +84,7 @@ export async function startIngestion(params: {
     action: "DocumentReceived",
     targetType: "SourceDocument",
     targetId: doc.id,
-    metadata: { filename: params.filename },
+    metadata: { filename: params.filename, expectedKind: params.expectedKind ?? null },
   });
 
   // 非同期実行（§5, §32）: 受付後すぐジョブを返し、テキスト抽出（OCR含む）〜LLM正規化は裏で進める。
@@ -85,6 +98,7 @@ export async function startIngestion(params: {
     jobId: job.id,
     filename: params.filename,
     content: params.content,
+    expectedKind: params.expectedKind,
   });
 
   return prisma.ingestionJob.findUniqueOrThrow({
@@ -102,6 +116,7 @@ async function processDocument(params: {
   jobId: string;
   filename: string;
   content: Buffer;
+  expectedKind?: ExpectedKind;
 }) {
   let text: string;
   try {
@@ -117,8 +132,12 @@ async function processDocument(params: {
   }
 
   // 複数案件が含まれる場合（【案件名】見出しが2つ以上）は案件ごとに分割し、
-  // それぞれ別の取込（原本・ジョブ・人手確認）として処理する
-  const segments = splitProjectItems(text);
+  // それぞれ別の取込（原本・ジョブ・人手確認）として処理する。
+  // 人材取込（期待種別=ENGINEER_SHEET）では分割しない: スキルシートの職務経歴は
+  // 「案件名」「期間」「業務内容」等が経歴ごとに繰り返される構造のため、案件分割の
+  // 見出し判定に誤ヒットして1名分の経歴が裁断されるのを防ぐ
+  const segments =
+    params.expectedKind === "ENGINEER_SHEET" ? [text] : splitProjectItems(text);
 
   // 分割済み（ファイル名に（i/N）付き）のジョブの再実行では分割し直さない。
   // 1件目の原本には全文が保存されているため、自分の担当分（先頭セグメント）のみ処理する
@@ -129,11 +148,45 @@ async function processDocument(params: {
       docId: params.docId,
       jobId: params.jobId,
       text: segments[0],
+      expectedKind: params.expectedKind,
     });
     return;
   }
 
   if (segments.length > 1) {
+    // 分割前に文書全体の種別を確認する（匿名化済みテキストのみLLMへ送信 §25）。
+    // 全体がスキルシートなら分割しない: 職務経歴の「案件名」繰り返しに分割判定が
+    // 誤ヒットした場合に、経歴の断片が案件として誤登録されるのを防ぐ
+    const { masked } = maskPii(text);
+    const wholeKind = verifyMasked(masked).ok
+      ? await llmGateway.classify(masked).catch(() => "UNKNOWN" as const)
+      : ("UNKNOWN" as const);
+    if (wholeKind === "ENGINEER_SHEET") {
+      if (params.expectedKind === "PROJECT_DESCRIPTION") {
+        await prisma.ingestionJob
+          .update({
+            where: { id: params.jobId },
+            data: {
+              status: "FAILED",
+              error:
+                `KIND_MISMATCH: この書類は${KIND_LABELS.ENGINEER_SHEET}と判定されました。` +
+                `${KIND_LABELS.PROJECT_DESCRIPTION}の取込パネルからは取り込めません。` +
+                `${KIND_LABELS.ENGINEER_SHEET}の取込から取り込み直してください`,
+            },
+          })
+          .catch(() => {});
+        return;
+      }
+      await runPipeline({
+        tenantCompanyId: params.tenantCompanyId,
+        actorUserId: params.actorUserId,
+        docId: params.docId,
+        jobId: params.jobId,
+        text,
+        expectedKind: params.expectedKind,
+      });
+      return;
+    }
     await processSegments(params, segments);
     return;
   }
@@ -144,6 +197,7 @@ async function processDocument(params: {
     docId: params.docId,
     jobId: params.jobId,
     text,
+    expectedKind: params.expectedKind,
   });
 }
 
@@ -157,6 +211,7 @@ async function processSegments(
     docId: string;
     jobId: string;
     filename: string;
+    expectedKind?: ExpectedKind;
   },
   segments: string[]
 ) {
@@ -193,7 +248,11 @@ async function processSegments(
         },
       });
       const job = await prisma.ingestionJob.create({
-        data: { tenantCompanyId: params.tenantCompanyId, sourceDocumentId: doc.id },
+        data: {
+          tenantCompanyId: params.tenantCompanyId,
+          sourceDocumentId: doc.id,
+          expectedKind: params.expectedKind ?? null,
+        },
       });
       await audit({
         tenantCompanyId: params.tenantCompanyId,
@@ -212,6 +271,7 @@ async function processSegments(
       docId,
       jobId,
       text: segments[i],
+      expectedKind: params.expectedKind,
     });
   }
 }
@@ -224,8 +284,9 @@ async function runPipeline(params: {
   docId: string;
   jobId: string;
   text: string;
+  expectedKind?: ExpectedKind;
 }) {
-  const { tenantCompanyId, actorUserId, docId, jobId, text } = params;
+  const { tenantCompanyId, actorUserId, docId, jobId, text, expectedKind } = params;
   try {
     // PII検出・匿名化
     await prisma.ingestionJob.update({ where: { id: jobId }, data: { status: "MASKING", error: null } });
@@ -261,6 +322,15 @@ async function runPipeline(params: {
     await prisma.ingestionJob.update({ where: { id: jobId }, data: { status: "EXTRACTING" } });
     const kind = await llmGateway.classify(masked);
     if (kind === "UNKNOWN") throw new Error("文書種別を判定できませんでした");
+    // 期待種別との突き合わせ（案件取込は案件のみ・人材取込は人材のみ）。
+    // 不一致は誤った側への登録を防ぐため失敗にし、正しい取込パネルへの再取込を促す
+    if (expectedKind && kind !== expectedKind) {
+      throw new Error(
+        `KIND_MISMATCH: この書類は${KIND_LABELS[kind]}と判定されました。` +
+          `${KIND_LABELS[expectedKind]}の取込パネルからは取り込めません。` +
+          `${KIND_LABELS[kind]}の取込から取り込み直してください`
+      );
+    }
     await prisma.sourceDocument.update({ where: { id: docId }, data: { kind } });
     let extracted = await llmGateway.extract(masked, kind);
     // 案件: 「取得技術」等の習得予定と明記された技術はLLMが必須に入れても尚可へ移す（決定的な補正）
@@ -334,6 +404,8 @@ export async function retryIngestion(params: {
     jobId: job.id,
     filename: job.sourceDocument.filename,
     content,
+    // 再実行でも取込時の期待種別チェックを維持する（UNKNOWN は旧データ用の未指定扱い）
+    expectedKind: job.expectedKind === "UNKNOWN" ? undefined : (job.expectedKind ?? undefined),
   });
   return prisma.ingestionJob.findUniqueOrThrow({
     where: { id: job.id },

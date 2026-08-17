@@ -974,18 +974,30 @@ app.post("/ingestions", requirePermission("ingestion.create"), async (c) => {
   let filename: string;
   let mimeType: string;
   let content: Buffer;
+  // 取込元パネルの期待種別（案件取込=PROJECT_DESCRIPTION / 人材取込=ENGINEER_SHEET）。
+  // 未指定（API直叩き等）は従来どおり自動判定のみ
+  const expectedKindSchema = z.enum(["ENGINEER_SHEET", "PROJECT_DESCRIPTION"]).optional();
+  let expectedKind: "ENGINEER_SHEET" | "PROJECT_DESCRIPTION" | undefined;
 
   if (contentType.includes("application/json")) {
     // 貼り付け取込: メール本文・案件票テキスト等
     const parsed = z
-      .object({ text: z.string().min(1).max(100_000), title: z.string().max(200).optional() })
+      .object({
+        text: z.string().min(1).max(100_000),
+        title: z.string().max(200).optional(),
+        expectedKind: expectedKindSchema,
+      })
       .safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json(err("VALIDATION_ERROR", "text が必要です"), 400);
     filename = `${(parsed.data.title?.trim() || "貼り付け取込").replace(/[/\\]/g, "_")}.txt`;
     mimeType = "text/plain";
     content = Buffer.from(parsed.data.text, "utf-8");
+    expectedKind = parsed.data.expectedKind;
   } else {
     const form = await c.req.formData().catch(() => null);
+    const parsedKind = expectedKindSchema.safeParse(form?.get("expectedKind") ?? undefined);
+    if (!parsedKind.success) return c.json(err("VALIDATION_ERROR", "expectedKind が不正です"), 400);
+    expectedKind = parsedKind.data;
     const files = (form?.getAll("file") ?? []).filter((f): f is File => f instanceof File);
     if (files.length === 0) return c.json(err("VALIDATION_ERROR", "file が必要です"), 400);
     // サイズ上限（DoS対策）: メモリ全量展開・同期解析の前に拒否する
@@ -1024,6 +1036,7 @@ app.post("/ingestions", requirePermission("ingestion.create"), async (c) => {
     filename,
     mimeType,
     content,
+    expectedKind,
   });
   return c.json(job, 201);
 });

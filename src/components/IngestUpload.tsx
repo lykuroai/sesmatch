@@ -8,7 +8,11 @@ import { useRouter } from "next/navigation";
 
 const MAX_IMAGES = 10; // サーバー側 MAX_MERGE_IMAGES と揃える
 
-export function IngestUpload() {
+export function IngestUpload({
+  expectedKind,
+}: {
+  expectedKind: "ENGINEER_SHEET" | "PROJECT_DESCRIPTION"; // 取込元パネルの期待種別（サーバーで判定結果と突き合わせ）
+}) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -34,6 +38,7 @@ export function IngestUpload() {
     setInfo(null);
     const form = new FormData();
     for (const f of files) form.append("file", f);
+    form.append("expectedKind", expectedKind);
     const res = await fetch("/api/v1/ingestions", { method: "POST", body: form });
     setLoading(false);
     if (res.ok) {

@@ -400,6 +400,9 @@ model IngestionJob {
   tenantCompanyId  String
   sourceDocumentId String
   status           IngestionStatus @default(RECEIVED)
+  // 取込元パネルで指定された期待種別（案件取込=PROJECT_DESCRIPTION / 人材取込=ENGINEER_SHEET）。
+  // LLM分類の結果と不一致の場合はジョブを失敗させ、誤った種別での登録を防ぐ
+  expectedKind     DocumentKind?
   error            String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt

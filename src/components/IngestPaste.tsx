@@ -4,7 +4,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function IngestPaste() {
+export function IngestPaste({
+  expectedKind,
+}: {
+  expectedKind: "ENGINEER_SHEET" | "PROJECT_DESCRIPTION"; // 取込元パネルの期待種別（サーバーで判定結果と突き合わせ）
+}) {
   const router = useRouter();
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
@@ -21,7 +25,7 @@ export function IngestPaste() {
     const res = await fetch("/api/v1/ingestions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, title: title || undefined }),
+      body: JSON.stringify({ text, title: title || undefined, expectedKind }),
     });
     setLoading(false);
     if (res.ok) {
