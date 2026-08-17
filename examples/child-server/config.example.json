@@ -1,0 +1,8 @@
+{
+  "baseUrl": "https://ses.lykuro.ai",
+  "email": "ingest@example.co.jp",
+  "password": "（環境変数 SES_PASSWORD の利用を推奨。ファイルに書く場合は権限を600にすること）",
+  "watchDir": "./ingest",
+  "scanIntervalMs": 5000,
+  "statusTimeoutMs": 300000
+}
