@@ -1,0 +1,16 @@
+{
+  "name": "lykuro-local-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SESマッチングプラットフォーム ローカルサーバ参考実装（ローカル保存＋自前LLM解析、商談開始時に親サーバへ送信）",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node local-server.mjs"
+  },
+  "dependencies": {
+    "mammoth": "^1.12.0",
+    "pdf-parse": "^2.4.5",
+    "xlsx": "^0.18.5"
+  }
+}

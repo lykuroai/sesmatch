@@ -14,6 +14,7 @@ export async function truncateAll() {
   }
   // 追記型監査を含め全テーブルを初期化（テストDB専用）
   const tables = [
+    "api_tokens",
     "audit_events",
     "reports",
     "prospect_contacts",

@@ -15,6 +15,13 @@ import {
   type AuthContext,
 } from "@/server/auth/session";
 import { hasPermission, type Permission } from "@/server/auth/rbac";
+import {
+  issueApiToken,
+  listApiTokens,
+  resolveApiToken,
+  revokeApiToken,
+  TOKEN_SCOPES,
+} from "@/server/auth/api-token";
 import { audit } from "@/server/audit";
 import {
   addConsent,
@@ -118,7 +125,7 @@ import { remoteLevelFromOnsiteDays, remoteLevelToOnsiteDays } from "@/lib/consta
 import { registerNewTermAliases } from "@/server/services/skill-aliases";
 import { engineerDraftSchema, projectDraftSchema } from "@/server/pipeline/llm";
 
-type Env = { Variables: { auth: AuthContext } };
+type Env = { Variables: { auth: AuthContext; tokenPermissions?: Permission[] } };
 
 export const app = new Hono<Env>().basePath("/api/v1");
 
@@ -574,6 +581,16 @@ app.post("/auth/logout", async (c) => {
 // ---- 認証ミドルウェア: 企業IDは認証情報から確定する（§31）----
 
 app.use("*", async (c, next) => {
+  // APIトークン（PAT）認証: Authorization: Bearer ses_pat_...（ローカルサーバ等の機械連携）。
+  // 実効権限はスコープとメンバー本人の権限の積集合（requirePermission で判定）
+  const authorization = c.req.header("Authorization");
+  if (authorization?.startsWith("Bearer ")) {
+    const resolved = await resolveApiToken(authorization.slice("Bearer ".length));
+    if (!resolved) return c.json(err("UNAUTHENTICATED", "APIトークンが無効です"), 401);
+    c.set("auth", resolved.auth);
+    c.set("tokenPermissions", resolved.tokenPermissions);
+    return next();
+  }
   const auth = await resolveSession(getCookie(c, SESSION_COOKIE));
   if (!auth) return c.json(err("UNAUTHENTICATED"), 401);
   c.set("auth", auth);
@@ -582,12 +599,60 @@ app.use("*", async (c, next) => {
 
 const requirePermission =
   (permission: Permission) =>
-  async (c: { get: (k: "auth") => AuthContext; json: (o: object, s: 403) => Response }, next: () => Promise<void>) => {
+  async (
+    c: {
+      get(k: "auth"): AuthContext;
+      get(k: "tokenPermissions"): Permission[] | undefined;
+      json: (o: object, s: 403) => Response;
+    },
+    next: () => Promise<void>
+  ) => {
     if (!hasPermission(c.get("auth").roles, permission)) {
       return c.json(err("FORBIDDEN", `権限がありません: ${permission}`), 403);
     }
+    // PAT認証はスコープ外の操作を拒否する（漏えい時の被害を取込・登録に限定 §4.1）
+    const tokenPermissions = c.get("tokenPermissions");
+    if (tokenPermissions && !tokenPermissions.includes(permission)) {
+      return c.json(err("FORBIDDEN", `APIトークンのスコープ外の操作です: ${permission}`), 403);
+    }
     await next();
   };
+
+// ---- APIトークン（PAT §4.1: ローカルサーバ等の機械連携）----
+// トークンの発行・管理はセッション認証のみ（PATでPATを管理させない）
+
+const requireSessionAuth = async (
+  c: { get(k: "tokenPermissions"): Permission[] | undefined; json: (o: object, s: 403) => Response },
+  next: () => Promise<void>
+) => {
+  if (c.get("tokenPermissions"))
+    return c.json(err("FORBIDDEN", "APIトークンではトークン管理はできません"), 403);
+  await next();
+};
+
+app.post("/api-tokens", requireSessionAuth, async (c) => {
+  const parsed = z
+    .object({
+      name: z.string().min(1).max(100),
+      scope: z.enum(Object.keys(TOKEN_SCOPES) as [string, ...string[]]),
+      expiresInDays: z.union([z.literal(90), z.literal(365), z.null()]).default(365),
+    })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR", "name / scope が必要です"), 400);
+  const result = await issueApiToken(c.get("auth"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result, 201);
+});
+
+app.get("/api-tokens", requireSessionAuth, async (c) => c.json(await listApiTokens(c.get("auth"))));
+
+app.delete("/api-tokens/:id", requireSessionAuth, async (c) => {
+  const result = await revokeApiToken(c.get("auth"), c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
 
 // ---- ダッシュボード ----
 

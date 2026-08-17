@@ -1,0 +1,243 @@
+#!/usr/bin/env node
+// SESマッチングプラットフォーム ローカルサーバ参考実装（local_server_spec_v0_1.md）
+//
+// 自社環境内で案件・人材書類を収集・構造化・保管し、商談開始のタイミングで
+// 必要な1件だけを親サーバ（ses.lykuro.ai）へ送信する。
+//
+//   使い方:  node local-server.mjs [設定ファイルパス]（省略時: ./config.json）
+//
+// フォルダ構成（dataDir の下に自動作成）:
+//   受入/案件/・受入/人材/   ここに置いたファイルを自前LLMで解析してローカル在庫へ
+//   在庫/案件/・在庫/人材/   解析済みの在庫（original.*, extracted.json, meta.json）
+//   エラー/                  解析に失敗したファイル（.エラー.txt に理由）
+//
+// 管理画面: http://127.0.0.1:8787 （既定。外部には公開しないこと）
+
+import { createServer } from "http";
+import { readFile, writeFile, readdir, stat, rename, mkdir } from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
+import { maskPii, verifyMasked } from "./lib/pii.mjs";
+import { extractText, SUPPORTED_EXTENSIONS } from "./lib/extract.mjs";
+import { LlmClient } from "./lib/llm.mjs";
+import { Store, KIND_DIRS } from "./lib/store.mjs";
+import { ParentClient } from "./lib/parent.mjs";
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const log = (message) => console.log(`[${new Date().toISOString()}] ${message}`);
+
+// ---- 設定 ----------------------------------------------------------------
+
+async function loadConfig() {
+  const configPath = process.argv[2] ?? path.join(scriptDir, "config.json");
+  let file = {};
+  try {
+    file = JSON.parse(await readFile(configPath, "utf-8"));
+  } catch {
+    console.error(`設定ファイルが読めません: ${configPath}（config.example.json を config.json にコピーして編集してください）`);
+    process.exit(1);
+  }
+  const config = {
+    dataDir: file.dataDir ?? "./data",
+    host: file.host ?? "127.0.0.1", // 社内LANに公開する場合のみ変更（インターネット公開は禁止）
+    port: file.port ?? 8787,
+    scanIntervalMs: file.scanIntervalMs ?? 5000,
+    parent: {
+      baseUrl: file.parent?.baseUrl ?? "https://ses.lykuro.ai",
+      token: process.env.SES_PARENT_TOKEN ?? file.parent?.token ?? "",
+      email: process.env.SES_PARENT_EMAIL ?? file.parent?.email ?? "",
+      password: process.env.SES_PARENT_PASSWORD ?? file.parent?.password ?? "",
+    },
+    llm: {
+      baseUrl: file.llm?.baseUrl ?? "",
+      apiKey: process.env.LLM_API_KEY ?? file.llm?.apiKey ?? "",
+      model: file.llm?.model ?? "",
+    },
+  };
+  if (!config.llm.baseUrl || !config.llm.model) {
+    console.error("設定エラー: llm.baseUrl / llm.model を設定してください（OpenAI互換APIのURLとモデル名）");
+    process.exit(1);
+  }
+  return config;
+}
+
+// ---- 受入フォルダの監視・解析 ----------------------------------------------
+
+const seenFiles = new Map(); // path -> {size, mtimeMs} 前回スキャン値（書き込み完了待ち用）
+const processing = new Set();
+
+async function moveToError(store, filePath, reason) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const dest = path.join(store.errorDir(), `${stamp}_${path.basename(filePath)}`);
+  await rename(filePath, dest).catch(() => {});
+  await writeFile(`${dest}.エラー.txt`, `${reason}\n`, "utf-8").catch(() => {});
+}
+
+async function processInboxFile(store, llm, kind, filePath) {
+  const name = path.basename(filePath);
+  const kindLabel = KIND_DIRS[kind];
+  try {
+    log(`解析開始: [${kindLabel}] ${name}`);
+    const buffer = await readFile(filePath);
+    const text = await extractText(name, buffer);
+    const { masked } = maskPii(text);
+    // 匿名化検査: 残存PIIがあれば外部LLMに送らない（本体 §25.3 と同じ作法）
+    const check = verifyMasked(masked);
+    if (!check.ok) throw new Error(`匿名化検査で残存PIIを検出したため中止 (${check.findings.join(", ")})`);
+    const extracted = await llm.extract(masked, kind);
+    const meta = await store.saveItem({ kind, sourcePath: filePath, filename: name, extracted, maskedText: masked });
+    log(`在庫に保存: [${kindLabel}] ${name} (id: ${meta.id})`);
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    log(`解析失敗: [${kindLabel}] ${name} → エラー/（${reason}）`);
+    await moveToError(store, filePath, reason);
+  }
+}
+
+async function scanOnce(store, llm) {
+  for (const kind of Object.keys(KIND_DIRS)) {
+    const dir = store.inboxDir(kind);
+    const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries) {
+      if (!entry.isFile() || entry.name.startsWith(".")) continue;
+      const filePath = path.join(dir, entry.name);
+      if (processing.has(filePath)) continue;
+      if (!SUPPORTED_EXTENSIONS.includes(path.extname(entry.name).toLowerCase())) {
+        await moveToError(store, filePath, `未対応のファイル形式です（対応: ${SUPPORTED_EXTENSIONS.join(" ")}。画像・スキャン書類は親サーバの取込パネルから直接取り込んでください）`);
+        continue;
+      }
+      const s = await stat(filePath).catch(() => null);
+      if (!s) continue;
+      const prev = seenFiles.get(filePath);
+      seenFiles.set(filePath, { size: s.size, mtimeMs: s.mtimeMs });
+      if (!prev || prev.size !== s.size || prev.mtimeMs !== s.mtimeMs) continue; // コピー完了待ち
+
+      processing.add(filePath);
+      try {
+        await processInboxFile(store, llm, kind, filePath);
+      } finally {
+        processing.delete(filePath);
+        seenFiles.delete(filePath);
+      }
+    }
+  }
+}
+
+// ---- 管理画面（Web UI + JSON API）------------------------------------------
+
+function json(res, status, body) {
+  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(body));
+}
+
+async function handleApi(req, res, { store, parent, config }) {
+  const url = new URL(req.url, "http://localhost");
+  const parts = url.pathname.split("/").filter(Boolean); // ["api", ...]
+
+  if (req.method === "GET" && url.pathname === "/api/info") {
+    return json(res, 200, {
+      parentBaseUrl: config.parent.baseUrl,
+      parentConfigured: parent.configured,
+      parentAuth: config.parent.token ? "APIトークン" : config.parent.email ? "メール＋パスワード（暫定）" : "未設定",
+      llmModel: config.llm.model,
+      dataDir: path.resolve(config.dataDir),
+    });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/items") {
+    const [projects, engineers] = await Promise.all([
+      store.listItems("PROJECT_DESCRIPTION"),
+      store.listItems("ENGINEER_SHEET"),
+    ]);
+    const slim = (items) =>
+      items.map(({ meta, extracted }) => ({ meta, summary: extracted.summary ?? "", name: extracted.name ?? null }));
+    return json(res, 200, { projects: slim(projects), engineers: slim(engineers) });
+  }
+
+  // /api/items/:kind/:id/(send|status) と /api/items/:kind/:id
+  if (parts[0] === "api" && parts[1] === "items" && parts.length >= 4) {
+    const kind = parts[2] === "projects" ? "PROJECT_DESCRIPTION" : parts[2] === "engineers" ? "ENGINEER_SHEET" : null;
+    if (!kind) return json(res, 404, { error: "not found" });
+    const id = parts[3];
+    const item = await store.getItem(kind, id).catch(() => null);
+    if (!item) return json(res, 404, { error: "見つかりません" });
+
+    if (req.method === "POST" && parts[4] === "send") {
+      // 商談開始: 原本を親サーバの取込APIへ送信（親側でPII匿名化→LLM解析→人手確認）
+      if (!parent.configured) return json(res, 400, { error: "親サーバの認証情報が設定されていません（config.json の parent）" });
+      if (item.meta.status === "SENT") return json(res, 409, { error: "既に送信済みです" });
+      if (!item.originalPath) return json(res, 500, { error: "原本ファイルが見つかりません" });
+      try {
+        const job = await parent.sendDocument(item.originalPath, item.meta.filename, kind);
+        const meta = await store.updateMeta(kind, id, {
+          status: "SENT",
+          sentAt: new Date().toISOString(),
+          parentJobId: job.id,
+        });
+        log(`親サーバへ送信: [${KIND_DIRS[kind]}] ${meta.filename} (取込ジョブ: ${job.id})`);
+        return json(res, 200, { meta });
+      } catch (e) {
+        return json(res, 502, { error: e instanceof Error ? e.message : String(e) });
+      }
+    }
+
+    if (req.method === "GET" && parts[4] === "status") {
+      if (!item.meta.parentJobId) return json(res, 400, { error: "未送信です" });
+      try {
+        const job = await parent.getIngestion(item.meta.parentJobId);
+        return json(res, 200, { status: job.status, error: job.error ?? null });
+      } catch (e) {
+        return json(res, 502, { error: e instanceof Error ? e.message : String(e) });
+      }
+    }
+
+    if (req.method === "GET" && parts.length === 4) return json(res, 200, item);
+
+    if (req.method === "DELETE" && parts.length === 4) {
+      await store.deleteItem(kind, id);
+      return json(res, 200, { ok: true });
+    }
+  }
+
+  return json(res, 404, { error: "not found" });
+}
+
+// ---- 起動 -----------------------------------------------------------------
+
+async function main() {
+  const config = await loadConfig();
+  const store = new Store(config.dataDir);
+  await store.init();
+  const llm = new LlmClient(config.llm);
+  const parent = new ParentClient(config.parent);
+  const uiHtml = await readFile(path.join(scriptDir, "ui.html"), "utf-8");
+
+  const server = createServer(async (req, res) => {
+    try {
+      if (req.url === "/" || req.url === "/index.html") {
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        return res.end(uiHtml);
+      }
+      if (req.url?.startsWith("/api/")) return await handleApi(req, res, { store, parent, config });
+      res.writeHead(404).end();
+    } catch (e) {
+      log(`APIエラー: ${e instanceof Error ? e.message : e}`);
+      if (!res.headersSent) json(res, 500, { error: "内部エラー" });
+    }
+  });
+  server.listen(config.port, config.host, () => {
+    log(`ローカルサーバ起動: http://${config.host}:${config.port}`);
+    log(`受入フォルダ: ${path.resolve(config.dataDir)}/受入/案件, 受入/人材`);
+    log(`親サーバ: ${config.parent.baseUrl}（認証: ${config.parent.token ? "APIトークン" : config.parent.email ? "メール＋パスワード" : "未設定"}） / LLM: ${config.llm.model}`);
+  });
+
+  for (;;) {
+    await scanOnce(store, llm).catch((e) => log(`スキャンエラー: ${e.message}`));
+    await new Promise((r) => setTimeout(r, config.scanIntervalMs));
+  }
+}
+
+main().catch((e) => {
+  console.error(`起動失敗: ${e instanceof Error ? e.message : e}`);
+  process.exit(1);
+});

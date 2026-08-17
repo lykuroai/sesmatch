@@ -74,6 +74,7 @@ model CompanyMember {
   company     Company             @relation(fields: [companyId], references: [id])
   userAccount UserAccount         @relation(fields: [userAccountId], references: [id])
   roles       CompanyMemberRole[]
+  apiTokens   ApiToken[]
 
   @@unique([companyId, userAccountId])
   @@map("company_members")
@@ -125,6 +126,25 @@ model Session {
   userAccount UserAccount @relation(fields: [userAccountId], references: [id])
 
   @@map("sessions")
+}
+
+// APIトークン（PAT）。ローカルサーバ等の機械連携向け（local_server_spec_v0_1.md §4.1）。
+// メンバー単位で発行し、平文は発行時に一度だけ表示、DBにはSHA-256ハッシュのみ保存する。
+// メンバー無効化・企業停止で認証時検証により自動失効する
+model ApiToken {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique // SHA-256(平文トークン)
+  name       String // 用途名（例: 本社ローカルサーバ）
+  memberId   String
+  scope      String // "ingest" | "ingest-register"（権限はメンバー本人との積集合）
+  expiresAt  DateTime? // null は無期限
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  member CompanyMember @relation(fields: [memberId], references: [id])
+
+  @@map("api_tokens")
 }
 
 // ---- 人材 (§12, §16) ----

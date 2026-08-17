@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ローカルサーバ — 自社在庫</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif; background: #f8fafc; color: #0f172a; }
+  header { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 12px 20px; display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; }
+  header .info { font-size: 12px; color: #64748b; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  h2 { font-size: 15px; margin: 24px 0 8px; }
+  .hint { font-size: 12px; color: #64748b; margin: 0 0 12px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 12px; border-top: 1px solid #f1f5f9; vertical-align: top; }
+  thead th { background: #f8fafc; color: #64748b; font-size: 11px; border-top: none; }
+  .summary { color: #475569; max-width: 420px; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; white-space: nowrap; }
+  .stored { background: #f1f5f9; color: #475569; }
+  .sent { background: #ecfdf5; color: #047857; }
+  button { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; }
+  button.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  button.danger { color: #dc2626; border-color: #fca5a5; }
+  button:disabled { opacity: .5; cursor: default; }
+  .empty { color: #94a3b8; text-align: center; padding: 20px; }
+  #message { position: fixed; right: 16px; bottom: 16px; background: #0f172a; color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 13px; display: none; max-width: 420px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ローカルサーバ — 自社在庫</h1>
+  <span class="info" id="info">読み込み中…</span>
+</header>
+<main>
+  <p class="hint">
+    書類は <code>受入/案件</code>・<code>受入/人材</code> フォルダに置くと自動で解析され、ここに表示されます。
+    「親サーバへ送信」を押すと商談用にプラットフォームへ取込送信されます（確定は親サーバの取込履歴で行います）。
+  </p>
+  <h2>案件（<span id="count-projects">0</span>）</h2>
+  <table>
+    <thead><tr><th>案件名 / ファイル</th><th>要約</th><th>取込日</th><th>状態</th><th></th></tr></thead>
+    <tbody id="projects"></tbody>
+  </table>
+  <h2>人材（<span id="count-engineers">0</span>）</h2>
+  <table>
+    <thead><tr><th>ファイル</th><th>要約</th><th>取込日</th><th>状態</th><th></th></tr></thead>
+    <tbody id="engineers"></tbody>
+  </table>
+</main>
+<div id="message"></div>
+<script>
+const messageEl = document.getElementById("message");
+let messageTimer = null;
+function showMessage(text) {
+  messageEl.textContent = text;
+  messageEl.style.display = "block";
+  clearTimeout(messageTimer);
+  messageTimer = setTimeout(() => (messageEl.style.display = "none"), 6000);
+}
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtDate = (iso) => iso ? new Date(iso).toLocaleString("ja-JP", { dateStyle: "short", timeStyle: "short" }) : "";
+
+let parentBaseUrl = "";
+
+async function loadInfo() {
+  const info = await fetch("/api/info").then((r) => r.json());
+  parentBaseUrl = info.parentBaseUrl;
+  document.getElementById("info").textContent =
+    `親サーバ: ${info.parentBaseUrl}（認証: ${info.parentAuth}） ／ LLM: ${info.llmModel} ／ データ: ${info.dataDir}`;
+}
+
+function row(kindPath, item) {
+  const m = item.meta;
+  const title = item.name ? `${esc(item.name)}<br><span style="color:#94a3b8;font-size:11px">${esc(m.filename)}</span>` : esc(m.filename);
+  const status = m.status === "SENT"
+    ? `<span class="badge sent">送信済み ${fmtDate(m.sentAt)}</span>`
+    : `<span class="badge stored">ローカル保存</span>`;
+  const actions = m.status === "SENT"
+    ? `<button onclick="checkStatus('${kindPath}','${m.id}')">親の状況</button>
+       <a href="${esc(parentBaseUrl)}/ingestions" target="_blank"><button>取込履歴を開く</button></a>`
+    : `<button class="primary" onclick="sendItem('${kindPath}','${m.id}')">親サーバへ送信</button>
+       <button class="danger" onclick="deleteItem('${kindPath}','${m.id}','${esc(m.filename)}')">削除</button>`;
+  return `<tr><td>${title}</td><td class="summary">${esc(item.summary)}</td><td>${fmtDate(m.createdAt)}</td><td>${status}</td><td style="white-space:nowrap">${actions}</td></tr>`;
+}
+
+async function refresh() {
+  const data = await fetch("/api/items").then((r) => r.json());
+  for (const [kindPath, key] of [["projects", "projects"], ["engineers", "engineers"]]) {
+    const items = data[key];
+    document.getElementById(`count-${key}`).textContent = items.length;
+    document.getElementById(key).innerHTML = items.length
+      ? items.map((i) => row(kindPath, i)).join("")
+      : `<tr><td colspan="5" class="empty">在庫はありません（受入フォルダにファイルを置いてください）</td></tr>`;
+  }
+}
+
+async function sendItem(kindPath, id) {
+  if (!confirm("この1件を親サーバへ送信します。よろしいですか？\n（送信後の確認・確定は親サーバの取込履歴で行います）")) return;
+  const res = await fetch(`/api/items/${kindPath}/${id}/send`, { method: "POST" });
+  const body = await res.json();
+  showMessage(res.ok ? "送信しました。親サーバの取込履歴で確認・確定してください" : `送信失敗: ${body.error}`);
+  refresh();
+}
+
+async function checkStatus(kindPath, id) {
+  const res = await fetch(`/api/items/${kindPath}/${id}/status`);
+  const body = await res.json();
+  if (!res.ok) return showMessage(`確認失敗: ${body.error}`);
+  const labels = { RECEIVED: "受付済み", MASKING: "匿名化中", EXTRACTING: "AI解析中", REVIEW_REQUIRED: "人手確認待ち（取込履歴で確定してください）", CONFIRMED: "確定済み", FAILED: `失敗: ${body.error ?? ""}` };
+  showMessage(`親サーバでの状態: ${labels[body.status] ?? body.status}`);
+}
+
+async function deleteItem(kindPath, id, name) {
+  if (!confirm(`「${name}」をローカル在庫から削除します（原本・抽出データとも削除）。よろしいですか？`)) return;
+  await fetch(`/api/items/${kindPath}/${id}`, { method: "DELETE" });
+  refresh();
+}
+
+loadInfo().then(refresh);
+setInterval(refresh, 10000);
+</script>
+</body>
+</html>

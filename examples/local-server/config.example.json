@@ -1,0 +1,17 @@
+{
+  "dataDir": "./data",
+  "host": "127.0.0.1",
+  "port": 8787,
+  "scanIntervalMs": 5000,
+  "parent": {
+    "baseUrl": "https://ses.lykuro.ai",
+    "token": "（推奨: コンソールの 会社マイページ → APIトークン で発行した ses_pat_... を設定。環境変数 SES_PARENT_TOKEN も可）",
+    "email": "（トークン未対応環境向けの暫定: ログインメールアドレス）",
+    "password": "（暫定: パスワード。環境変数 SES_PARENT_PASSWORD を推奨し、ファイルに書く場合は権限600にすること）"
+  },
+  "llm": {
+    "baseUrl": "https://api.openai.com/v1",
+    "apiKey": "（自社契約のLLM APIキー。環境変数 LLM_API_KEY も可）",
+    "model": "gpt-4o-mini"
+  }
+}
