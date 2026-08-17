@@ -2,6 +2,7 @@
   "name": "lykuro-local-server",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "SESマッチングプラットフォーム ローカルサーバ参考実装（ローカル保存＋自前LLM解析、商談開始時に親サーバへ送信）",
   "engines": { "node": ">=20" },
