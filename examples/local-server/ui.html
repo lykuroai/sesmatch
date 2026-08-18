@@ -228,6 +228,11 @@ function showMessage(text) {
   messageTimer = setTimeout(() => (messageEl.style.display = "none"), 8000);
 }
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// 一覧の要約は2行相当（80文字）で切り詰める。全文は「明細」で表示
+const clip = (s, max = 80) => {
+  const t = String(s ?? "").replace(/\s+/g, " ").trim();
+  return t.length > max ? `${t.slice(0, max)}…` : t;
+};
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleString("ja-JP", { dateStyle: "short", timeStyle: "short" }) : "";
 const fmtDay = (iso) => iso ? new Date(iso).toLocaleDateString("ja-JP") : "";
 const fmtMan = (yen) => yen ? `${Math.round(yen / 10000)}万円` : "";
@@ -263,7 +268,7 @@ function row(kindPath, item) {
        <button onclick="openPublish('${kindPath}','${m.id}','edit')">編集</button>
        <button class="danger" onclick="deleteItem('${kindPath}','${m.id}','${esc(m.filename)}')">削除</button>`;
   }
-  return `<tr><td>${title}</td><td class="summary">${esc(item.summary)}</td><td>${fmtDate(m.createdAt)}</td><td>${status}</td><td style="white-space:nowrap">${actions}</td></tr>`;
+  return `<tr><td>${title}</td><td class="summary">${esc(clip(item.summary))}</td><td>${fmtDate(m.createdAt)}</td><td>${status}</td><td style="white-space:nowrap">${actions}</td></tr>`;
 }
 
 async function refresh() {
@@ -644,7 +649,7 @@ async function searchParent(kindPath) {
       <td>${sourceBadge(p.own)}</td>
       <td style="white-space:nowrap">${matchCell(p)}</td>
       <td>${esc(p.name)}</td>
-      <td class="summary">${esc(p.anonymousSummary ?? "")}</td>
+      <td class="summary">${esc(clip(p.anonymousSummary))}</td>
       <td>${fmtMan(p.rateMaxYen)}</td>
       <td>${esc(p.locationCity ?? "")}</td>
       <td>${fmtDay(p.startDate)}</td>
@@ -660,7 +665,7 @@ async function searchParent(kindPath) {
       <td style="white-space:nowrap">${esc(e.rateBand ?? "")}</td>
       <td>${fmtDay(e.availableFrom)}</td>
       <td>${esc(topSkills(e.skills))}</td>
-      <td class="summary">${esc(e.summary ?? "")}</td>
+      <td class="summary">${esc(clip(e.summary))}</td>
       <td style="white-space:nowrap"><button onclick="openSearchDetail('engineers','${e.id}')">明細</button>
         ${e.own ? "" : `<button class="primary" onclick="openEntry('SCOUT','${e.id}')">案件紹介</button>`}</td>
     </tr>`).join("");
