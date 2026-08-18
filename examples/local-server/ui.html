@@ -541,11 +541,16 @@ async function searchParent(kindPath) {
   }
 }
 
-function openEntry(type, targetId) {
-  const ownKey = type === "PROPOSAL" ? "engineers" : "projects";
-  const own = itemsCache[ownKey].filter((i) => i.meta.status === "PUBLISHED" && i.meta.parentId);
+async function openEntry(type, targetId) {
+  const ownKind = type === "PROPOSAL" ? "engineers" : "projects";
+  const label = type === "PROPOSAL" ? "人材" : "案件";
+  // 候補は親サーバ上の公開済み自社データから取得（ローカルからの公開送信・親コンソールでの登録の両方が対象）
+  const res = await fetch(`/api/parent/own?kind=${ownKind}`).catch(() => null);
+  const body = await res?.json().catch(() => null);
+  if (!res?.ok) return showMessage(`自社${label}の取得に失敗: ${body?.error ?? "通信エラー"}`);
+  const own = body.items ?? [];
   if (!own.length) {
-    showMessage(`公開送信済みの自社${type === "PROPOSAL" ? "人材" : "案件"}がありません。先に公開送信してください`);
+    showMessage(`親サーバに公開済みの自社${label}がありません。公開送信するか、親サーバの画面で公開してください`);
     return;
   }
   entryContext = { type, targetId };
@@ -555,9 +560,9 @@ function openEntry(type, targetId) {
   document.getElementById("entry-note-text").textContent =
     "商談を申し込みます。以後の承認・面談・成約は親サーバの商談管理で進めてください。";
   document.getElementById("entry-select-label").textContent =
-    type === "PROPOSAL" ? "提案する自社人材（公開送信済み）" : "紹介する自社案件（公開送信済み）";
+    type === "PROPOSAL" ? "提案する自社人材（親サーバで公開済み）" : "紹介する自社案件（親サーバで公開済み）";
   document.getElementById("entry-select").innerHTML = own
-    .map((i) => `<option value="${esc(i.meta.parentId)}">${esc(i.meta.parentName || i.name || i.meta.filename)}</option>`)
+    .map((i) => `<option value="${esc(i.id)}">${esc(i.label)}</option>`)
     .join("");
   document.getElementById("entry-note").value = "";
   document.getElementById("entry-overlay").classList.add("open");

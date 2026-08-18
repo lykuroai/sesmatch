@@ -395,6 +395,35 @@ async function handleApi(req, res, { store, parent, config, llm }) {
     }
   }
 
+  // 提案・紹介の候補: 親サーバ上の公開済み自社案件・人材（登録元がローカルか親コンソールかを問わない）
+  if (req.method === "GET" && parts[1] === "parent" && parts[2] === "own" && parts.length === 3) {
+    if (!parent.configured) return json(res, 400, { error: "親サーバの認証情報が設定されていません（config.json の parent）" });
+    const kindPath = url.searchParams.get("kind");
+    if (kindPath !== "projects" && kindPath !== "engineers") return json(res, 400, { error: "kind が不正です" });
+    try {
+      const own = await parent.search(kindPath, "own", "");
+      const items = (own.items ?? [])
+        .filter((i) => i.status === "PUBLISHED")
+        .filter((i) =>
+          kindPath === "projects"
+            ? i.workflowStatus !== "ENDED"
+            : !["CONTRACTED", "WORKING"].includes(i.workStatus)
+        )
+        .map((i) => ({
+          id: i.id,
+          label: (kindPath === "projects"
+            ? `${i.code ?? ""} ${i.name ?? ""}`
+            : `${i.code ?? ""} ${i.name ?? ""} ${i.ageBand ?? ""} ${i.rateBand ?? ""}`
+          )
+            .replace(/\s+/g, " ")
+            .trim(),
+        }));
+      return json(res, 200, { items });
+    } catch (e) {
+      return json(res, 502, { error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
   // 人材提案・案件紹介の作成（§9.4）: POST /api/parent/entries
   if (req.method === "POST" && parts[1] === "parent" && parts[2] === "entries" && parts.length === 3) {
     if (!parent.configured) return json(res, 400, { error: "親サーバの認証情報が設定されていません（config.json の parent）" });
