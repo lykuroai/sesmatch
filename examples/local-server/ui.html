@@ -12,7 +12,15 @@
   header h1 { font-size: 16px; margin: 0; }
   header .info { font-size: 12px; color: #64748b; }
   main { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  nav.tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+  nav.tabs .group { font-size: 11px; color: #94a3b8; }
+  nav.tabs .group.sep { margin-left: 14px; }
+  nav.tabs button.tab { font-size: 13px; padding: 5px 14px; border-radius: 999px; }
+  nav.tabs button.tab.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+  main > section { display: none; }
+  main > section.active { display: block; }
   h2 { font-size: 15px; margin: 24px 0 8px; }
+  main > section > h2:first-of-type { margin-top: 0; }
   h2 button { margin-left: 8px; vertical-align: 1px; }
   .hint { font-size: 12px; color: #64748b; margin: 0 0 12px; }
   table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; font-size: 13px; }
@@ -61,8 +69,18 @@
   <span class="info" id="info">読み込み中…</span>
 </header>
 <main>
+  <nav class="tabs">
+    <span class="group">ローカル:</span>
+    <button class="tab" id="tab-local-projects" onclick="showView('local-projects')">案件</button>
+    <button class="tab" id="tab-local-engineers" onclick="showView('local-engineers')">人材</button>
+    <span class="group sep">公開:</span>
+    <button class="tab" id="tab-public-projects" onclick="showView('public-projects')">案件</button>
+    <button class="tab" id="tab-public-engineers" onclick="showView('public-engineers')">人材</button>
+  </nav>
+
+  <section id="view-local-projects">
   <p class="hint">
-    書類は「ファイルを取込」からのアップロード、「テキスト貼り付け」、または <code>受入/案件</code>・<code>受入/人材</code> フォルダへの投入で自動で解析され、ここに表示されます。
+    書類は「ファイルを取込」からのアップロード、「テキスト貼り付け」、または <code>受入/案件</code> フォルダへの投入で自動で解析され、ここに表示されます。
     「公開送信」を押すと、内容を確認・修正のうえ親サーバへ登録・公開されます（以後の商談は親サーバで進めます）。
   </p>
   <h2>案件（<span id="count-projects">0</span>）
@@ -82,6 +100,13 @@
     <thead><tr><th>案件名 / ファイル</th><th>要約</th><th>取込日</th><th>状態</th><th></th></tr></thead>
     <tbody id="projects"></tbody>
   </table>
+  </section>
+
+  <section id="view-local-engineers">
+  <p class="hint">
+    書類は「ファイルを取込」からのアップロード、「テキスト貼り付け」、または <code>受入/人材</code> フォルダへの投入で自動で解析され、ここに表示されます。
+    「公開送信」を押すと、内容を確認・修正のうえ親サーバへ登録・公開されます（以後の商談は親サーバで進めます）。
+  </p>
   <h2>人材（<span id="count-engineers">0</span>）
     <button class="primary" onclick="document.getElementById('file-engineers').click()">ファイルを取込</button>
     <input type="file" id="file-engineers" multiple accept=".txt,.csv,.md,.docx,.xlsx,.xls,.pdf" style="display:none" onchange="uploadFiles('engineers', this)">
@@ -99,7 +124,9 @@
     <thead><tr><th>ファイル</th><th>要約</th><th>取込日</th><th>状態</th><th></th></tr></thead>
     <tbody id="engineers"></tbody>
   </table>
+  </section>
 
+  <section id="view-public-projects">
   <h2>親サーバ検索 — 公開案件 <span style="font-weight:normal;font-size:11px;color:#94a3b8">募集中のみ表示</span></h2>
   <div class="search-box">
     <div class="bar">
@@ -117,7 +144,9 @@
       <tbody id="search-projects"><tr><td colspan="7" class="empty">キーワードを入れて検索してください</td></tr></tbody>
     </table>
   </div>
+  </section>
 
+  <section id="view-public-engineers">
   <h2>親サーバ検索 — 公開人材 <span style="font-weight:normal;font-size:11px;color:#94a3b8">紹介中のみ表示</span></h2>
   <div class="search-box">
     <div class="bar">
@@ -135,6 +164,7 @@
       <tbody id="search-engineers"><tr><td colspan="8" class="empty">キーワードを入れて検索してください</td></tr></tbody>
     </table>
   </div>
+  </section>
 </main>
 
 <div class="modal-overlay" id="publish-overlay">
@@ -538,6 +568,16 @@ async function deleteItem(kindPath, id, name) {
   await fetch(`/api/items/${kindPath}/${id}`, { method: "DELETE" });
   refresh();
 }
+
+const VIEWS = ["local-projects", "local-engineers", "public-projects", "public-engineers"];
+function showView(key) {
+  for (const k of VIEWS) {
+    document.getElementById(`view-${k}`).classList.toggle("active", k === key);
+    document.getElementById(`tab-${k}`).classList.toggle("active", k === key);
+  }
+  if (location.hash !== `#${key}`) history.replaceState(null, "", `#${key}`);
+}
+showView(VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "local-projects");
 
 loadInfo().then(refresh);
 setInterval(refresh, 10000);
