@@ -10,6 +10,9 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             SES DirectMatch
           </Link>
           <nav className="flex gap-4 text-xs text-slate-500">
+            <Link href="/about" className="hover:underline">
+              サービス紹介
+            </Link>
             <Link href="/terms" className="hover:underline">
               利用規約
             </Link>

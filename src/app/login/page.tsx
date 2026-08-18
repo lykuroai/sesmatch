@@ -128,6 +128,7 @@ export default function LoginPage() {
 
           <p className="mt-6 text-xs text-slate-500">
             ご利用には企業（法人・個人事業者）としての登録と運営審査が必要です。
+            <Link href="/about" className="underline hover:text-slate-300">サービス紹介</Link>・
             <Link href="/terms" className="underline hover:text-slate-300">利用規約</Link>・
             <Link href="/agreement" className="underline hover:text-slate-300">基本契約</Link>・
             <Link href="/privacy-policy" className="underline hover:text-slate-300">プライバシーポリシー</Link>
