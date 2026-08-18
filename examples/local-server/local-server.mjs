@@ -154,6 +154,48 @@ const csv = (v) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
+const strOrNull = (v) => {
+  const s = String(v ?? "").trim();
+  return s || null;
+};
+
+// 在庫編集用: UIの修正内容をローカル抽出データ（extracted.json）の形式に組み立てる
+// （既存の未対応キーは温存する）
+function buildProjectExtracted(prev, body) {
+  return {
+    ...prev,
+    name: strOrNull(body.name),
+    startDate: strOrNull(body.startDate),
+    rateMaxYen: toInt(body.rateMaxYen) ?? null,
+    onsiteDaysPerWeek: toInt(body.onsiteDaysPerWeek) ?? null,
+    locationCity: strOrNull(body.locationCity),
+    noForeignNational:
+      body.noForeignNational === true || body.noForeignNational === false ? body.noForeignNational : null,
+    requiredSkills: csv(body.requiredSkills),
+    preferredSkills: csv(body.preferredSkills),
+    summary: String(body.summary ?? "").trim(),
+  };
+}
+
+function buildEngineerExtracted(prev, body) {
+  return {
+    ...prev,
+    ageBand: toInt(body.ageBand) ?? null,
+    nationality: strOrNull(body.nationality),
+    residenceCity: strOrNull(body.residenceCity),
+    availableFrom: strOrNull(body.availableFrom),
+    desiredRateYen: toInt(body.desiredRateYen) ?? null,
+    maxOnsiteDaysPerWeek: toInt(body.maxOnsiteDaysPerWeek) ?? null,
+    skills: (Array.isArray(body.skills) ? body.skills : [])
+      .filter((s) => s && String(s.name ?? "").trim())
+      .map((s) => ({ category: s.category, name: String(s.name).trim(), months: toInt(s.months) ?? null })),
+    processes: csv(body.processes),
+    roles: csv(body.roles),
+    industries: csv(body.industries),
+    summary: String(body.summary ?? "").trim(),
+  };
+}
+
 // 公開送信用: UIで確認・修正した値を親サーバの登録APIの形式に組み立てる
 function buildProjectPayload(body) {
   return {
@@ -418,6 +460,25 @@ async function handleApi(req, res, { store, parent, config, llm }) {
     }
 
     if (req.method === "GET" && parts.length === 4) return json(res, 200, item);
+
+    // ローカル在庫の修正: 抽出データを編集保存する（親サーバへは送らない）
+    if (req.method === "PUT" && parts.length === 4) {
+      if (item.meta.status === "PUBLISHED")
+        return json(res, 409, { error: "公開送信済みのため修正できません（親サーバ側で修正してください）" });
+      let body;
+      try {
+        body = await readJsonBody(req);
+      } catch {
+        return json(res, 400, { error: "リクエスト形式が不正です" });
+      }
+      const extracted =
+        kind === "PROJECT_DESCRIPTION"
+          ? buildProjectExtracted(item.extracted, body)
+          : buildEngineerExtracted(item.extracted, body);
+      await store.updateExtracted(kind, id, extracted);
+      log(`在庫を修正: [${KIND_DIRS[kind]}] ${item.meta.filename}`);
+      return json(res, 200, { ok: true, extracted });
+    }
 
     if (req.method === "DELETE" && parts.length === 4) {
       await store.deleteItem(kind, id);

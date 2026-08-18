@@ -75,6 +75,13 @@ export class Store {
     return { meta, extracted, originalPath: originalFile ? path.join(dir, originalFile) : null };
   }
 
+  // ローカル在庫の抽出データ（extracted.json）を差し替える（編集保存用）
+  async updateExtracted(kind, id, extracted) {
+    const dir = this.itemDir(kind, id);
+    await writeFile(path.join(dir, "extracted.json"), JSON.stringify(extracted, null, 2), "utf-8");
+    return extracted;
+  }
+
   async updateMeta(kind, id, patch) {
     const dir = this.itemDir(kind, id);
     const meta = JSON.parse(await readFile(path.join(dir, "meta.json"), "utf-8"));

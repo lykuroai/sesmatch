@@ -129,7 +129,7 @@
 <div class="modal-overlay" id="publish-overlay">
   <div class="modal">
     <h3 id="publish-title">公開送信</h3>
-    <p class="note">内容を確認・修正して送信してください。親サーバに登録され、他社へ公開されます（本人同意は登録時に自動記録されます。事前に本人の同意を得てください）。</p>
+    <p class="note" id="publish-note"></p>
     <div id="publish-fields"></div>
     <div class="modal-actions">
       <button class="primary" id="publish-submit" onclick="submitPublish()">公開送信する</button>
@@ -196,6 +196,7 @@ function row(kindPath, item) {
   } else {
     status = `<span class="badge stored">ローカル保存</span>`;
     actions = `<button class="primary" onclick="openPublish('${kindPath}','${m.id}')">公開送信</button>
+       <button onclick="openPublish('${kindPath}','${m.id}','edit')">編集</button>
        <button class="danger" onclick="deleteItem('${kindPath}','${m.id}','${esc(m.filename)}')">削除</button>`;
   }
   return `<tr><td>${title}</td><td class="summary">${esc(item.summary)}</td><td>${fmtDate(m.createdAt)}</td><td>${status}</td><td style="white-space:nowrap">${actions}</td></tr>`;
@@ -294,21 +295,27 @@ function skillRowHtml(s = {}) {
   </div>`;
 }
 
-async function openPublish(kindPath, id) {
+async function openPublish(kindPath, id, mode = "publish") {
   const item = await fetch(`/api/items/${kindPath}/${id}`).then((r) => r.json()).catch(() => null);
   if (!item?.meta) return showMessage("在庫の読み込みに失敗しました");
-  publishTarget = { kindPath, id };
+  publishTarget = { kindPath, id, mode };
+  const pub = mode === "publish";
   const x = item.extracted ?? {};
   const fieldsEl = document.getElementById("publish-fields");
+  const verb = pub ? "公開送信" : "在庫の修正";
+  document.getElementById("publish-note").textContent = pub
+    ? "内容を確認・修正して送信してください。親サーバに登録され、他社へ公開されます（本人同意は登録時に自動記録されます。事前に本人の同意を得てください）。"
+    : "ローカル在庫の抽出データを修正します（親サーバへは送信されません）。";
+  document.getElementById("publish-submit").textContent = pub ? "公開送信する" : "保存する";
   if (kindPath === "projects") {
-    document.getElementById("publish-title").textContent = `公開送信 — 案件「${x.name ?? item.meta.filename}」`;
+    document.getElementById("publish-title").textContent = `${verb} — 案件「${x.name ?? item.meta.filename}」`;
     fieldsEl.innerHTML = `
-      ${field("案件名", true, textInput("pf-name", x.name))}
-      ${field("匿名概要（エンド企業名・PIIを含めない）", true, `<textarea id="pf-summary" rows="3">${esc(x.summary ?? "")}</textarea>`)}
+      ${field("案件名", pub, textInput("pf-name", x.name))}
+      ${field(pub ? "匿名概要（エンド企業名・PIIを含めない）" : "概要（要約）", pub, `<textarea id="pf-summary" rows="3">${esc(x.summary ?? "")}</textarea>`)}
       <div class="grid2">
-        ${field("開始日", true, `<input id="pf-startDate" type="date" value="${esc((x.startDate ?? "").slice(0, 10))}">`)}
-        ${field("契約形態", true, selectInput("pf-contractType", { 準委任: "準委任", 請負: "請負", 労働者派遣: "労働者派遣" }, "準委任"))}
-        ${field("上限単価（円/月）", true, `<input id="pf-rateMaxYen" type="number" min="1" value="${x.rateMaxYen ?? ""}">`)}
+        ${field("開始日", pub, `<input id="pf-startDate" type="date" value="${esc((x.startDate ?? "").slice(0, 10))}">`)}
+        ${pub ? field("契約形態", true, selectInput("pf-contractType", { 準委任: "準委任", 請負: "請負", 労働者派遣: "労働者派遣" }, "準委任")) : ""}
+        ${field("上限単価（円/月）", pub, `<input id="pf-rateMaxYen" type="number" min="1" value="${x.rateMaxYen ?? ""}">`)}
         ${field("週出社日数（0-5）", false, `<input id="pf-onsiteDays" type="number" min="0" max="5" value="${x.onsiteDaysPerWeek ?? ""}">`)}
         ${field("勤務地", false, textInput("pf-locationCity", x.locationCity))}
         ${field("外国籍", false, selectInput("pf-noForeign", { "": "記載なし", "true": "不可", "false": "可" }, x.noForeignNational === true ? "true" : x.noForeignNational === false ? "false" : ""))}
@@ -317,13 +324,13 @@ async function openPublish(kindPath, id) {
       ${field("尚可スキル（カンマ区切り）", false, textInput("pf-preferredSkills", (x.preferredSkills ?? []).join(", ")))}
     `;
   } else {
-    document.getElementById("publish-title").textContent = `公開送信 — 人材（${item.meta.filename}）`;
+    document.getElementById("publish-title").textContent = `${verb} — 人材（${item.meta.filename}）`;
     fieldsEl.innerHTML = `
       <div class="grid2">
-        ${field("氏名（親サーバでは双方承認まで相手に開示されません）", true, textInput("pf-name", "", "例: 山田 太郎"))}
-        ${field("所属", true, selectInput("pf-affiliation", AFFILIATIONS, "EMPLOYEE"))}
-        ${field("年代（5歳刻み下限: 20-70）", true, `<input id="pf-ageBand" type="number" min="20" max="70" step="5" value="${x.ageBand ?? ""}">`)}
-        ${field("希望単価（円/月）", true, `<input id="pf-desiredRate" type="number" min="1" value="${x.desiredRateYen ?? ""}">`)}
+        ${pub ? field("氏名（親サーバでは双方承認まで相手に開示されません）", true, textInput("pf-name", "", "例: 山田 太郎")) : ""}
+        ${pub ? field("所属", true, selectInput("pf-affiliation", AFFILIATIONS, "EMPLOYEE")) : ""}
+        ${field("年代（5歳刻み下限: 20-70）", pub, `<input id="pf-ageBand" type="number" min="20" max="70" step="5" value="${x.ageBand ?? ""}">`)}
+        ${field("希望単価（円/月）", pub, `<input id="pf-desiredRate" type="number" min="1" value="${x.desiredRateYen ?? ""}">`)}
         ${field("居住エリア", false, textInput("pf-residenceCity", x.residenceCity))}
         ${field("国籍（未指定は日本国籍とみなされます）", false, textInput("pf-nationality", x.nationality))}
         ${field("稼働可能日", false, `<input id="pf-availableFrom" type="date" value="${esc((x.availableFrom ?? "").slice(0, 10))}">`)}
@@ -342,6 +349,7 @@ async function openPublish(kindPath, id) {
 
 async function submitPublish() {
   if (!publishTarget) return;
+  const pub = publishTarget.mode === "publish";
   const v = (id) => document.getElementById(id)?.value ?? "";
   let body;
   if (publishTarget.kindPath === "projects") {
@@ -357,7 +365,8 @@ async function submitPublish() {
       requiredSkills: v("pf-requiredSkills"),
       preferredSkills: v("pf-preferredSkills"),
     };
-    if (!body.name || !body.anonymousSummary || !body.startDate || !body.rateMaxYen)
+    body.summary = body.anonymousSummary; // 在庫編集時は要約として保存
+    if (pub && (!body.name || !body.anonymousSummary || !body.startDate || !body.rateMaxYen))
       return showMessage("必須項目（案件名・匿名概要・開始日・上限単価）を入力してください");
   } else {
     body = {
@@ -379,13 +388,16 @@ async function submitPublish() {
         months: r.querySelector(".sk-months").value,
       })),
     };
-    if (!body.name || !body.ageBand || !body.desiredRateYen)
+    if (pub && (!body.name || !body.ageBand || !body.desiredRateYen))
       return showMessage("必須項目（氏名・年代・希望単価）を入力してください");
   }
   const button = document.getElementById("publish-submit");
   button.disabled = true;
-  const res = await fetch(`/api/items/${publishTarget.kindPath}/${publishTarget.id}/publish`, {
-    method: "POST",
+  const url = pub
+    ? `/api/items/${publishTarget.kindPath}/${publishTarget.id}/publish`
+    : `/api/items/${publishTarget.kindPath}/${publishTarget.id}`;
+  const res = await fetch(url, {
+    method: pub ? "POST" : "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   }).catch(() => null);
@@ -393,10 +405,10 @@ async function submitPublish() {
   const resBody = await res?.json().catch(() => null);
   if (res?.ok) {
     closeModal("publish-overlay");
-    showMessage("公開送信しました。親サーバに登録・公開済みです");
+    showMessage(pub ? "公開送信しました。親サーバに登録・公開済みです" : "在庫を修正しました");
     refresh();
   } else {
-    showMessage(`公開送信に失敗: ${resBody?.error ?? "通信エラー"}`);
+    showMessage(`${pub ? "公開送信" : "修正"}に失敗: ${resBody?.error ?? "通信エラー"}`);
   }
 }
 
