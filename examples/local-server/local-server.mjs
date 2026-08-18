@@ -22,6 +22,7 @@ import { extractText, SUPPORTED_EXTENSIONS } from "./lib/extract.mjs";
 import { LlmClient } from "./lib/llm.mjs";
 import { Store, KIND_DIRS } from "./lib/store.mjs";
 import { ParentClient } from "./lib/parent.mjs";
+import { matchEngineerToProject, matchProjectToEngineer } from "./lib/match.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const log = (message) => console.log(`[${new Date().toISOString()}] ${message}`);
@@ -363,16 +364,31 @@ async function handleApi(req, res, { store, parent, config, llm }) {
         );
       const fetchPublicActive = async () =>
         ((await parent.search(parts[2], "public", q, page)).items ?? []).filter(isActive);
-      if (source === "own") {
-        const items = await fetchOwnActive();
-        return json(res, 200, { items, total: items.length });
+      let items;
+      if (source === "own") items = await fetchOwnActive();
+      else if (source === "other") items = await fetchPublicActive();
+      else {
+        const [pubActive, ownActive] = await Promise.all([fetchPublicActive(), fetchOwnActive()]);
+        items = [...ownActive, ...pubActive];
       }
-      if (source === "other") {
-        const items = await fetchPublicActive();
-        return json(res, 200, { items, total: items.length });
+
+      // マッチ対象（ローカル在庫）が指定されていれば §19 簡易版で判定し、適合のみスコア順で返す
+      const targetId = url.searchParams.get("targetId");
+      if (targetId) {
+        const targetKind = parts[2] === "projects" ? "ENGINEER_SHEET" : "PROJECT_DESCRIPTION";
+        const target = await store.getItem(targetKind, targetId).catch(() => null);
+        if (!target) return json(res, 404, { error: "マッチ対象の在庫が見つかりません" });
+        items = items
+          .map((i) => ({
+            ...i,
+            match:
+              parts[2] === "projects"
+                ? matchEngineerToProject(target.extracted, i)
+                : matchProjectToEngineer(target.extracted, i),
+          }))
+          .filter((i) => i.match.passed)
+          .sort((a, b) => b.match.score - a.match.score);
       }
-      const [pubActive, ownActive] = await Promise.all([fetchPublicActive(), fetchOwnActive()]);
-      const items = [...ownActive, ...pubActive];
       return json(res, 200, { items, total: items.length });
     } catch (e) {
       return json(res, 502, { error: e instanceof Error ? e.message : String(e) });

@@ -136,12 +136,15 @@
         <option value="own">掲載元: 自社</option>
         <option value="other">掲載元: 他社</option>
       </select>
+      <select id="match-target-projects" onchange="searchParent('projects')" title="ローカル人材とのマッチ">
+        <option value="">マッチ対象人材: 指定なし</option>
+      </select>
       <button class="primary" onclick="searchParent('projects')">検索</button>
       <span class="count" id="search-total-projects" style="font-size:11px;color:#94a3b8;align-self:center"></span>
     </div>
     <table>
-      <thead><tr><th>掲載元</th><th>案件名</th><th>概要</th><th>単価上限</th><th>勤務地</th><th>開始日</th><th></th></tr></thead>
-      <tbody id="search-projects"><tr><td colspan="7" class="empty">キーワードを入れて検索してください</td></tr></tbody>
+      <thead><tr><th>掲載元</th><th>マッチ度</th><th>案件名</th><th>概要</th><th>単価上限</th><th>勤務地</th><th>開始日</th><th></th></tr></thead>
+      <tbody id="search-projects"><tr><td colspan="8" class="empty">キーワードを入れて検索してください</td></tr></tbody>
     </table>
   </div>
   </section>
@@ -156,12 +159,15 @@
         <option value="own">掲載元: 自社</option>
         <option value="other">掲載元: 他社</option>
       </select>
+      <select id="match-target-engineers" onchange="searchParent('engineers')" title="ローカル案件とのマッチ">
+        <option value="">マッチ対象案件: 指定なし</option>
+      </select>
       <button class="primary" onclick="searchParent('engineers')">検索</button>
       <span class="count" id="search-total-engineers" style="font-size:11px;color:#94a3b8;align-self:center"></span>
     </div>
     <table>
-      <thead><tr><th>掲載元</th><th>年代</th><th>エリア</th><th>単価帯</th><th>稼働可能日</th><th>主なスキル</th><th>要約</th><th></th></tr></thead>
-      <tbody id="search-engineers"><tr><td colspan="8" class="empty">キーワードを入れて検索してください</td></tr></tbody>
+      <thead><tr><th>掲載元</th><th>マッチ度</th><th>年代</th><th>エリア</th><th>単価帯</th><th>稼働可能日</th><th>主なスキル</th><th>要約</th><th></th></tr></thead>
+      <tbody id="search-engineers"><tr><td colspan="9" class="empty">キーワードを入れて検索してください</td></tr></tbody>
     </table>
   </div>
   </section>
@@ -252,6 +258,22 @@ async function refresh() {
     document.getElementById(key).innerHTML = items.length
       ? items.map((i) => row(kindPath, i)).join("")
       : `<tr><td colspan="5" class="empty">在庫はありません（取込ボタンまたは受入フォルダから追加してください）</td></tr>`;
+  }
+  updateMatchTargets();
+}
+
+// マッチ対象セレクトの選択肢をローカル在庫から更新（選択は維持）
+function updateMatchTargets() {
+  for (const [viewKind, ownKey, label] of [["projects", "engineers", "マッチ対象人材"], ["engineers", "projects", "マッチ対象案件"]]) {
+    const sel = document.getElementById(`match-target-${viewKind}`);
+    if (!sel) continue;
+    const current = sel.value;
+    const options = itemsCache[ownKey].map((i) => {
+      const name = i.meta.parentName || i.name || i.meta.filename;
+      return `<option value="${esc(i.meta.id)}">${esc(name)}</option>`;
+    });
+    sel.innerHTML = `<option value="">${label}: 指定なし</option>` + options.join("");
+    if ([...sel.options].some((o) => o.value === current)) sel.value = current;
   }
 }
 
@@ -465,27 +487,38 @@ function topSkills(skills) {
 const sourceBadge = (own) =>
   own ? `<span class="badge published">自社</span>` : `<span class="badge stored">他社</span>`;
 
+function matchCell(item) {
+  if (!item.match) return "—";
+  const notes = [...item.match.missing, ...item.match.warnings];
+  return `<span title="${esc(notes.join("\n"))}" style="font-weight:600;color:${item.match.score >= 80 ? "#047857" : item.match.score >= 60 ? "#b45309" : "#64748b"}">${item.match.score}点</span>`;
+}
+
 async function searchParent(kindPath) {
   const q = document.getElementById(`search-q-${kindPath}`).value.trim();
   const source = document.getElementById(`search-source-${kindPath}`)?.value ?? "all";
+  const targetId = document.getElementById(`match-target-${kindPath}`)?.value ?? "";
   const tbody = document.getElementById(`search-${kindPath}`);
-  const cols = kindPath === "projects" ? 7 : 8;
+  const cols = kindPath === "projects" ? 8 : 9;
   tbody.innerHTML = `<tr><td colspan="${cols}" class="empty">検索中…</td></tr>`;
-  const res = await fetch(`/api/parent/${kindPath}?q=${encodeURIComponent(q)}&source=${source}&page=1`).catch(() => null);
+  const res = await fetch(
+    `/api/parent/${kindPath}?q=${encodeURIComponent(q)}&source=${source}&targetId=${encodeURIComponent(targetId)}&page=1`
+  ).catch(() => null);
   const body = await res?.json().catch(() => null);
   if (!res?.ok) {
     tbody.innerHTML = `<tr><td colspan="${cols}" class="empty">検索に失敗しました: ${esc(body?.error ?? "通信エラー")}</td></tr>`;
     return;
   }
   searchCache[kindPath] = body.items ?? [];
-  document.getElementById(`search-total-${kindPath}`).textContent = `全${body.total ?? 0}件${(body.total ?? 0) > (body.items?.length ?? 0) ? `（先頭${body.items.length}件を表示）` : ""}`;
+  document.getElementById(`search-total-${kindPath}`).textContent =
+    `全${body.total ?? 0}件${targetId ? "（マッチ条件に適合する分のみ・スコア順）" : ""}`;
   if (!body.items?.length) {
-    tbody.innerHTML = `<tr><td colspan="${cols}" class="empty">該当する公開${kindPath === "projects" ? "案件" : "人材"}はありません</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${cols}" class="empty">${targetId ? "マッチ条件に適合する" : "該当する"}公開${kindPath === "projects" ? "案件" : "人材"}はありません</td></tr>`;
     return;
   }
   if (kindPath === "projects") {
     tbody.innerHTML = body.items.map((p) => `<tr>
       <td>${sourceBadge(p.own)}</td>
+      <td style="white-space:nowrap">${matchCell(p)}</td>
       <td>${esc(p.name)}</td>
       <td class="summary">${esc(p.anonymousSummary ?? "")}</td>
       <td>${fmtMan(p.rateMaxYen)}</td>
@@ -496,6 +529,7 @@ async function searchParent(kindPath) {
   } else {
     tbody.innerHTML = body.items.map((e) => `<tr>
       <td>${sourceBadge(e.own)}</td>
+      <td style="white-space:nowrap">${matchCell(e)}</td>
       <td style="white-space:nowrap">${esc(e.ageBand ?? "")}</td>
       <td>${esc(e.residenceCity ?? "")}</td>
       <td style="white-space:nowrap">${esc(e.rateBand ?? "")}</td>
