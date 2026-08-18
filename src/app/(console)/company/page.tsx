@@ -43,6 +43,78 @@ export default async function CompanyMyPage() {
           </Link>
         ))}
       </div>
+
+      {/* SES-Connector（ローカルサーバ）の紹介（local_server_spec_v0_1.md §9） */}
+      <div className="mt-8 rounded-xl border border-blue-200 bg-blue-50 p-6">
+        <h2 className="text-lg font-bold text-blue-900">
+          SES-Connector（ローカルサーバ）— 案件・人材を自社に置いたまま商談へ
+        </h2>
+        <p className="mt-2 text-sm text-blue-900">
+          案件票・スキルシートを<span className="font-bold">自社のPC・サーバに保管したまま</span>
+          管理できる無料のオープンソースツールです。プラットフォームに預けるのは商談に出す分だけ。
+          データ主権を自社に残しながら、商談のチャンスは逃しません。
+        </p>
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-blue-900">
+          <li>
+            <span className="font-bold">データは自社に残る</span> —
+            書類の取込・AI解析・在庫管理はすべて自社環境内。解析は自社契約のLLM（社内LLMも可）で行い、外部送信前に匿名化します
+          </li>
+          <li>
+            <span className="font-bold">商談に出す分だけ公開送信</span> —
+            在庫から選んだ1件を、内容確認のうえプラットフォームへ登録・公開できます
+          </li>
+          <li>
+            <span className="font-bold">ローカル画面から相手探しまで</span> —
+            公開案件・公開人材の検索、自社在庫とのマッチ度表示、人材提案・案件紹介（商談の申込み）まで行えます
+          </li>
+        </ul>
+        <div className="mt-4 rounded-lg border border-blue-200 bg-white p-4 text-sm">
+          <p className="font-bold">導入方法（約5分）</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-slate-700">
+            <li>
+              Node.js 20以上（
+              <a href="https://nodejs.org/ja" target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                nodejs.org
+              </a>
+              のLTS版）をインストール
+            </li>
+            <li>
+              Windows:{" "}
+              <a
+                href="https://raw.githubusercontent.com/lykuroai/lykuro-connector/main/install.bat"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-700 underline"
+              >
+                install.bat
+              </a>
+              {" "}を「名前を付けて保存」でダウンロードして実行 ／ Mac・Linux:{" "}
+              <code className="rounded bg-slate-100 px-1">
+                curl -fsSL https://raw.githubusercontent.com/lykuroai/lykuro-connector/main/install.sh | bash
+              </code>
+            </li>
+            <li>
+              <Link href="/settings/api-tokens" className="text-blue-700 underline">
+                APIトークン
+              </Link>
+              をスコープ「ローカルサーバ連携」で発行し、設定ファイル（config.json）に貼り付け（自社LLMのAPI設定も同じファイルに記入）
+            </li>
+            <li>start.bat（Mac・Linux は npm start）で起動し、ブラウザで http://127.0.0.1:8787 を開く</li>
+          </ol>
+          <p className="mt-3 text-xs text-slate-500">
+            ソースコード・詳細:{" "}
+            <a
+              href="https://github.com/lykuroai/lykuro-connector"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-700 underline"
+            >
+              github.com/lykuroai/lykuro-connector
+            </a>
+            （MITライセンス）。更新はインストーラの再実行、起動し直しで反映されます。
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
