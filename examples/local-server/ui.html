@@ -26,7 +26,10 @@
   table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; font-size: 13px; }
   th, td { text-align: left; padding: 8px 12px; border-top: 1px solid #f1f5f9; vertical-align: top; }
   thead th { background: #f8fafc; color: #64748b; font-size: 11px; border-top: none; }
-  .summary { color: #475569; max-width: 420px; }
+  .summary { color: #475569; max-width: 420px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .detail-dl { display: grid; grid-template-columns: 9em 1fr; gap: 4px 12px; font-size: 13px; margin: 0; }
+  .detail-dl dt { color: #64748b; font-size: 12px; padding-top: 1px; }
+  .detail-dl dd { margin: 0; white-space: pre-wrap; }
   .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; white-space: nowrap; }
   .stored { background: #f1f5f9; color: #475569; }
   .sent { background: #ecfdf5; color: #047857; }
@@ -185,6 +188,16 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="detail-overlay">
+  <div class="modal">
+    <h3 id="detail-title"></h3>
+    <div id="detail-body"></div>
+    <div class="modal-actions">
+      <button onclick="closeModal('detail-overlay')">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="entry-overlay">
   <div class="modal">
     <h3 id="entry-title"></h3>
@@ -233,16 +246,20 @@ async function loadInfo() {
 function row(kindPath, item) {
   const m = item.meta;
   const title = item.name ? `${esc(item.name)}<br><span style="color:#94a3b8;font-size:11px">${esc(m.filename)}</span>` : esc(m.filename);
+  const detailButton = `<button onclick="openLocalDetail('${kindPath}','${m.id}')">明細</button>`;
   let status, actions;
   if (m.status === "PUBLISHED") {
     status = `<span class="badge published">公開済み ${fmtDate(m.publishedAt)}</span>`;
-    actions = `<a href="${esc(parentBaseUrl)}/${kindPath}/${esc(m.parentId)}" target="_blank"><button>親サーバで開く</button></a>`;
+    actions = `${detailButton}
+       <a href="${esc(parentBaseUrl)}/${kindPath}/${esc(m.parentId)}" target="_blank"><button>親サーバで開く</button></a>`;
   } else if (m.status === "SENT") {
     status = `<span class="badge sent">送信済み ${fmtDate(m.sentAt)}</span>`;
-    actions = `<button onclick="checkStatus('${kindPath}','${m.id}')">親の状況</button>`;
+    actions = `${detailButton}
+       <button onclick="checkStatus('${kindPath}','${m.id}')">親の状況</button>`;
   } else {
     status = `<span class="badge stored">ローカル保存</span>`;
     actions = `<button class="primary" onclick="openPublish('${kindPath}','${m.id}')">公開送信</button>
+       ${detailButton}
        <button onclick="openPublish('${kindPath}','${m.id}','edit')">編集</button>
        <button class="danger" onclick="deleteItem('${kindPath}','${m.id}','${esc(m.filename)}')">削除</button>`;
   }
@@ -487,6 +504,113 @@ function topSkills(skills) {
 const sourceBadge = (own) =>
   own ? `<span class="badge published">自社</span>` : `<span class="badge stored">他社</span>`;
 
+// ---- 明細表示 ----
+
+const STATUS_LABELS = { STORED: "ローカル保存", SENT: "送信済み", PUBLISHED: "公開済み" };
+const fmtYen = (v) => (v ? `${Number(v).toLocaleString()}円` : "");
+const skillList = (skills) => (skills ?? []).map((s) => (s.months ? `${s.name}（${s.months}ヶ月）` : s.name)).join("、");
+const foreignLabel = (v) => (v === true ? "不可" : v === false ? "可" : "");
+
+function showDetail(title, pairs) {
+  document.getElementById("detail-title").textContent = title;
+  document.getElementById("detail-body").innerHTML =
+    `<dl class="detail-dl">` +
+    pairs
+      .filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== "")
+      .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`)
+      .join("") +
+    `</dl>`;
+  document.getElementById("detail-overlay").classList.add("open");
+}
+
+async function openLocalDetail(kindPath, id) {
+  const item = await fetch(`/api/items/${kindPath}/${id}`).then((r) => r.json()).catch(() => null);
+  if (!item?.meta) return showMessage("在庫の読み込みに失敗しました");
+  const x = item.extracted ?? {};
+  const m = item.meta;
+  const metaPairs = [
+    ["ファイル", m.filename],
+    ["取込日", fmtDate(m.createdAt)],
+    ["状態", m.status === "PUBLISHED" ? `公開済み（${fmtDate(m.publishedAt)}）` : (STATUS_LABELS[m.status] ?? m.status)],
+  ];
+  if (kindPath === "projects") {
+    showDetail(`案件明細 — ${x.name ?? m.filename}`, [
+      ["案件名", x.name],
+      ["概要", x.summary],
+      ["開始日", fmtDay(x.startDate)],
+      ["上限単価", fmtYen(x.rateMaxYen)],
+      ["週出社日数", x.onsiteDaysPerWeek != null ? `週${x.onsiteDaysPerWeek}日` : ""],
+      ["勤務地", x.locationCity],
+      ["外国籍", foreignLabel(x.noForeignNational)],
+      ["必須スキル", (x.requiredSkills ?? []).join("、")],
+      ["尚可スキル", (x.preferredSkills ?? []).join("、")],
+      ...metaPairs,
+    ]);
+  } else {
+    showDetail(`人材明細 — ${m.filename}`, [
+      ["年代", x.ageBand ? `${x.ageBand}歳〜` : ""],
+      ["居住エリア", x.residenceCity],
+      ["国籍", x.nationality],
+      ["稼働可能日", fmtDay(x.availableFrom)],
+      ["希望単価", fmtYen(x.desiredRateYen)],
+      ["週最大出社", x.maxOnsiteDaysPerWeek != null ? `週${x.maxOnsiteDaysPerWeek}日` : ""],
+      ["スキル", skillList(x.skills)],
+      ["経験工程", (x.processes ?? []).join("、")],
+      ["役割", (x.roles ?? []).join("、")],
+      ["業種経験", (x.industries ?? []).join("、")],
+      ["要約", x.summary],
+      ...metaPairs,
+    ]);
+  }
+}
+
+function openSearchDetail(kindPath, id) {
+  const i = searchCache[kindPath].find((r) => r.id === id);
+  if (!i) return;
+  const matchPairs = i.match
+    ? [
+        ["マッチ度", `${i.match.score}点`],
+        ["不足条件", i.match.missing.join("\n")],
+        ["警告", i.match.warnings.join("\n")],
+      ]
+    : [];
+  if (kindPath === "projects") {
+    showDetail(`案件明細 — ${i.name ?? ""}`, [
+      ["掲載元", i.own ? "自社" : "他社"],
+      ["案件ID", i.code],
+      ["案件名", i.name],
+      ["概要", i.anonymousSummary],
+      ["開始日", fmtDay(i.startDate)],
+      ["単価", i.rateMinYen ? `${fmtMan(i.rateMinYen)}〜${fmtMan(i.rateMaxYen)}` : `〜${fmtMan(i.rateMaxYen)}`],
+      ["契約形態", i.contractType],
+      ["勤務地", i.locationCity],
+      ["週出社日数", i.onsiteDaysPerWeek != null ? `週${i.onsiteDaysPerWeek}日` : ""],
+      ["外国籍", foreignLabel(i.noForeignNational)],
+      ["必須スキル", (i.requiredSkills ?? []).map((s) => (s.minMonths ? `${s.name}（${s.minMonths}ヶ月〜）` : s.name)).join("、")],
+      ["尚可スキル", (i.preferredSkills ?? []).map((s) => s.name).join("、")],
+      ["工程", (i.processes ?? []).join("、")],
+      ["業種", i.industry],
+      ...matchPairs,
+    ]);
+  } else {
+    showDetail(`人材明細 — ${i.code ?? ""}`, [
+      ["掲載元", i.own ? "自社" : "他社"],
+      ["人材ID", i.code],
+      ["年代", i.ageBand],
+      ["エリア", i.residenceCity],
+      ["単価帯", i.rateBand],
+      ["稼働可能日", fmtDay(i.availableFrom)],
+      ["週最大出社", i.maxOnsiteDaysPerWeek != null ? `週${i.maxOnsiteDaysPerWeek}日` : ""],
+      ["スキル", skillList(i.skills)],
+      ["経験工程", (i.processes ?? []).join("、")],
+      ["役割", (i.roles ?? []).join("、")],
+      ["業種経験", (i.industries ?? []).join("、")],
+      ["要約", i.summary],
+      ...matchPairs,
+    ]);
+  }
+}
+
 function matchCell(item) {
   if (!item.match) return "—";
   const notes = [...item.match.missing, ...item.match.warnings];
@@ -524,7 +648,8 @@ async function searchParent(kindPath) {
       <td>${fmtMan(p.rateMaxYen)}</td>
       <td>${esc(p.locationCity ?? "")}</td>
       <td>${fmtDay(p.startDate)}</td>
-      <td style="white-space:nowrap">${p.own ? "" : `<button class="primary" onclick="openEntry('PROPOSAL','${p.id}')">人材提案</button>`}</td>
+      <td style="white-space:nowrap"><button onclick="openSearchDetail('projects','${p.id}')">明細</button>
+        ${p.own ? "" : `<button class="primary" onclick="openEntry('PROPOSAL','${p.id}')">人材提案</button>`}</td>
     </tr>`).join("");
   } else {
     tbody.innerHTML = body.items.map((e) => `<tr>
@@ -536,7 +661,8 @@ async function searchParent(kindPath) {
       <td>${fmtDay(e.availableFrom)}</td>
       <td>${esc(topSkills(e.skills))}</td>
       <td class="summary">${esc(e.summary ?? "")}</td>
-      <td style="white-space:nowrap">${e.own ? "" : `<button class="primary" onclick="openEntry('SCOUT','${e.id}')">案件紹介</button>`}</td>
+      <td style="white-space:nowrap"><button onclick="openSearchDetail('engineers','${e.id}')">明細</button>
+        ${e.own ? "" : `<button class="primary" onclick="openEntry('SCOUT','${e.id}')">案件紹介</button>`}</td>
     </tr>`).join("");
   }
 }
