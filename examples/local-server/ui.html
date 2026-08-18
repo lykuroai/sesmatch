@@ -38,6 +38,7 @@
   .search-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; margin: 0 0 12px; }
   .search-box .bar { display: flex; gap: 8px; margin-bottom: 10px; }
   .search-box input { flex: 1; max-width: 420px; font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
+  .search-box select { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, .5); z-index: 20; overflow-y: auto; padding: 24px 12px; }
   .modal-overlay.open { display: block; }
   .modal { background: #fff; border-radius: 12px; max-width: 640px; margin: 0 auto; padding: 20px; }
@@ -99,10 +100,15 @@
     <tbody id="engineers"></tbody>
   </table>
 
-  <h2>親サーバ検索 — 公開案件</h2>
+  <h2>親サーバ検索 — 公開案件 <span style="font-weight:normal;font-size:11px;color:#94a3b8">募集中のみ表示</span></h2>
   <div class="search-box">
     <div class="bar">
       <input id="search-q-projects" placeholder="キーワード（案件名・スキル・勤務地など）" onkeydown="if(event.key==='Enter')searchParent('projects')">
+      <select id="search-source-projects" onchange="searchParent('projects')" title="掲載元">
+        <option value="all">掲載元: すべて</option>
+        <option value="own">掲載元: 自社</option>
+        <option value="other">掲載元: 他社</option>
+      </select>
       <button class="primary" onclick="searchParent('projects')">検索</button>
       <span class="count" id="search-total-projects" style="font-size:11px;color:#94a3b8;align-self:center"></span>
     </div>
@@ -112,10 +118,15 @@
     </table>
   </div>
 
-  <h2>親サーバ検索 — 公開人材</h2>
+  <h2>親サーバ検索 — 公開人材 <span style="font-weight:normal;font-size:11px;color:#94a3b8">紹介中のみ表示</span></h2>
   <div class="search-box">
     <div class="bar">
       <input id="search-q-engineers" placeholder="キーワード（スキル・エリアなど）" onkeydown="if(event.key==='Enter')searchParent('engineers')">
+      <select id="search-source-engineers" onchange="searchParent('engineers')" title="掲載元">
+        <option value="all">掲載元: すべて</option>
+        <option value="own">掲載元: 自社</option>
+        <option value="other">掲載元: 他社</option>
+      </select>
       <button class="primary" onclick="searchParent('engineers')">検索</button>
       <span class="count" id="search-total-engineers" style="font-size:11px;color:#94a3b8;align-self:center"></span>
     </div>
@@ -426,10 +437,11 @@ const sourceBadge = (own) =>
 
 async function searchParent(kindPath) {
   const q = document.getElementById(`search-q-${kindPath}`).value.trim();
+  const source = document.getElementById(`search-source-${kindPath}`)?.value ?? "all";
   const tbody = document.getElementById(`search-${kindPath}`);
   const cols = kindPath === "projects" ? 7 : 8;
   tbody.innerHTML = `<tr><td colspan="${cols}" class="empty">検索中…</td></tr>`;
-  const res = await fetch(`/api/parent/${kindPath}?q=${encodeURIComponent(q)}&page=1`).catch(() => null);
+  const res = await fetch(`/api/parent/${kindPath}?q=${encodeURIComponent(q)}&source=${source}&page=1`).catch(() => null);
   const body = await res?.json().catch(() => null);
   if (!res?.ok) {
     tbody.innerHTML = `<tr><td colspan="${cols}" class="empty">検索に失敗しました: ${esc(body?.error ?? "通信エラー")}</td></tr>`;

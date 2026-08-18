@@ -351,17 +351,29 @@ async function handleApi(req, res, { store, parent, config, llm }) {
     try {
       const q = url.searchParams.get("q") ?? "";
       const page = url.searchParams.get("page") ?? "1";
+      const source = url.searchParams.get("source") ?? "all"; // 掲載元: all | own | other
+      // 進行中のものだけを対象にする（案件=募集中 / 人材=紹介中）
+      const isActive = (i) =>
+        parts[2] === "projects" ? i.workflowStatus === "RECRUITING" : i.workStatus === "PROPOSING";
       // 親コンソールの検索と同様に、他社の公開分と自社分を併取得して統合する
       // （自社は公開済みのみ。own フラグで区別し、UI側で「自社」表示・提案対象外とする）
-      const [pub, own] = await Promise.all([
-        parent.search(parts[2], "public", q, page),
-        parent.search(parts[2], "own", q),
-      ]);
-      const ownPublished = (own.items ?? []).filter((i) => i.status === "PUBLISHED");
-      return json(res, 200, {
-        items: [...ownPublished, ...(pub.items ?? [])],
-        total: (pub.total ?? 0) + ownPublished.length,
-      });
+      const fetchOwnActive = async () =>
+        ((await parent.search(parts[2], "own", q)).items ?? []).filter(
+          (i) => i.status === "PUBLISHED" && isActive(i)
+        );
+      const fetchPublicActive = async () =>
+        ((await parent.search(parts[2], "public", q, page)).items ?? []).filter(isActive);
+      if (source === "own") {
+        const items = await fetchOwnActive();
+        return json(res, 200, { items, total: items.length });
+      }
+      if (source === "other") {
+        const items = await fetchPublicActive();
+        return json(res, 200, { items, total: items.length });
+      }
+      const [pubActive, ownActive] = await Promise.all([fetchPublicActive(), fetchOwnActive()]);
+      const items = [...ownActive, ...pubActive];
+      return json(res, 200, { items, total: items.length });
     } catch (e) {
       return json(res, 502, { error: e instanceof Error ? e.message : String(e) });
     }
