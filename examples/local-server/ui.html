@@ -22,12 +22,36 @@
   .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; white-space: nowrap; }
   .stored { background: #f1f5f9; color: #475569; }
   .sent { background: #ecfdf5; color: #047857; }
+  .published { background: #eff6ff; color: #1d4ed8; }
   button { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; }
   button.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
   button.danger { color: #dc2626; border-color: #fca5a5; }
   button:disabled { opacity: .5; cursor: default; }
   .empty { color: #94a3b8; text-align: center; padding: 20px; }
-  #message { position: fixed; right: 16px; bottom: 16px; background: #0f172a; color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 13px; display: none; max-width: 420px; }
+  #message { position: fixed; right: 16px; bottom: 16px; background: #0f172a; color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 13px; display: none; max-width: 420px; z-index: 30; }
+  .paste-form { display: none; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; margin: 0 0 12px; }
+  .paste-form.open { display: block; }
+  .paste-form input[type="text"] { width: 100%; max-width: 480px; font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 8px; }
+  .paste-form textarea { width: 100%; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; resize: vertical; }
+  .paste-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+  .paste-actions .count { font-size: 11px; color: #94a3b8; }
+  .search-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; margin: 0 0 12px; }
+  .search-box .bar { display: flex; gap: 8px; margin-bottom: 10px; }
+  .search-box input { flex: 1; max-width: 420px; font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, .5); z-index: 20; overflow-y: auto; padding: 24px 12px; }
+  .modal-overlay.open { display: block; }
+  .modal { background: #fff; border-radius: 12px; max-width: 640px; margin: 0 auto; padding: 20px; }
+  .modal h3 { margin: 0 0 4px; font-size: 15px; }
+  .modal .note { font-size: 12px; color: #64748b; margin: 0 0 12px; }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 11px; color: #64748b; margin-bottom: 3px; }
+  .field input, .field select, .field textarea { width: 100%; font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
+  .field textarea { resize: vertical; }
+  .field .req { color: #dc2626; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  .skill-row { display: grid; grid-template-columns: 130px 1fr 90px 28px; gap: 6px; margin-bottom: 6px; }
+  .skill-row input, .skill-row select { font-size: 12px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 6px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -37,13 +61,22 @@
 </header>
 <main>
   <p class="hint">
-    書類は「ファイルを取込」ボタンからアップロードするか、<code>受入/案件</code>・<code>受入/人材</code> フォルダに置くと自動で解析され、ここに表示されます。
-    「親サーバへ送信」を押すと商談用にプラットフォームへ取込送信されます（確定は親サーバの取込履歴で行います）。
+    書類は「ファイルを取込」からのアップロード、「テキスト貼り付け」、または <code>受入/案件</code>・<code>受入/人材</code> フォルダへの投入で自動で解析され、ここに表示されます。
+    「公開送信」を押すと、内容を確認・修正のうえ親サーバへ登録・公開されます（以後の商談は親サーバで進めます）。
   </p>
   <h2>案件（<span id="count-projects">0</span>）
     <button class="primary" onclick="document.getElementById('file-projects').click()">ファイルを取込</button>
     <input type="file" id="file-projects" multiple accept=".txt,.csv,.md,.docx,.xlsx,.xls,.pdf" style="display:none" onchange="uploadFiles('projects', this)">
+    <button onclick="togglePaste('projects')">テキスト貼り付け</button>
   </h2>
+  <div class="paste-form" id="paste-projects">
+    <input type="text" id="paste-title-projects" placeholder="タイトル（任意・一覧での表示名。例: ○○案件のご紹介メール）">
+    <textarea id="paste-text-projects" rows="8" placeholder="メール本文や案件票のテキストをここに貼り付けてください" oninput="updatePasteCount('projects')"></textarea>
+    <div class="paste-actions">
+      <button class="primary" id="paste-submit-projects" onclick="submitPaste('projects')">貼り付けて取込</button>
+      <span class="count" id="paste-count-projects">0 / 100,000 文字</span>
+    </div>
+  </div>
   <table>
     <thead><tr><th>案件名 / ファイル</th><th>要約</th><th>取込日</th><th>状態</th><th></th></tr></thead>
     <tbody id="projects"></tbody>
@@ -51,12 +84,79 @@
   <h2>人材（<span id="count-engineers">0</span>）
     <button class="primary" onclick="document.getElementById('file-engineers').click()">ファイルを取込</button>
     <input type="file" id="file-engineers" multiple accept=".txt,.csv,.md,.docx,.xlsx,.xls,.pdf" style="display:none" onchange="uploadFiles('engineers', this)">
+    <button onclick="togglePaste('engineers')">テキスト貼り付け</button>
   </h2>
+  <div class="paste-form" id="paste-engineers">
+    <input type="text" id="paste-title-engineers" placeholder="タイトル（任意・一覧での表示名。例: △△さんスキルシート）">
+    <textarea id="paste-text-engineers" rows="8" placeholder="メール本文やスキルシートのテキストをここに貼り付けてください" oninput="updatePasteCount('engineers')"></textarea>
+    <div class="paste-actions">
+      <button class="primary" id="paste-submit-engineers" onclick="submitPaste('engineers')">貼り付けて取込</button>
+      <span class="count" id="paste-count-engineers">0 / 100,000 文字</span>
+    </div>
+  </div>
   <table>
     <thead><tr><th>ファイル</th><th>要約</th><th>取込日</th><th>状態</th><th></th></tr></thead>
     <tbody id="engineers"></tbody>
   </table>
+
+  <h2>親サーバ検索 — 公開案件</h2>
+  <div class="search-box">
+    <div class="bar">
+      <input id="search-q-projects" placeholder="キーワード（案件名・スキル・勤務地など）" onkeydown="if(event.key==='Enter')searchParent('projects')">
+      <button class="primary" onclick="searchParent('projects')">検索</button>
+      <span class="count" id="search-total-projects" style="font-size:11px;color:#94a3b8;align-self:center"></span>
+    </div>
+    <table>
+      <thead><tr><th>案件名</th><th>概要</th><th>単価上限</th><th>勤務地</th><th>開始日</th><th></th></tr></thead>
+      <tbody id="search-projects"><tr><td colspan="6" class="empty">キーワードを入れて検索してください</td></tr></tbody>
+    </table>
+  </div>
+
+  <h2>親サーバ検索 — 公開人材</h2>
+  <div class="search-box">
+    <div class="bar">
+      <input id="search-q-engineers" placeholder="キーワード（スキル・エリアなど）" onkeydown="if(event.key==='Enter')searchParent('engineers')">
+      <button class="primary" onclick="searchParent('engineers')">検索</button>
+      <span class="count" id="search-total-engineers" style="font-size:11px;color:#94a3b8;align-self:center"></span>
+    </div>
+    <table>
+      <thead><tr><th>年代</th><th>エリア</th><th>単価帯</th><th>稼働可能日</th><th>主なスキル</th><th>要約</th><th></th></tr></thead>
+      <tbody id="search-engineers"><tr><td colspan="7" class="empty">キーワードを入れて検索してください</td></tr></tbody>
+    </table>
+  </div>
 </main>
+
+<div class="modal-overlay" id="publish-overlay">
+  <div class="modal">
+    <h3 id="publish-title">公開送信</h3>
+    <p class="note">内容を確認・修正して送信してください。親サーバに登録され、他社へ公開されます（本人同意は登録時に自動記録されます。事前に本人の同意を得てください）。</p>
+    <div id="publish-fields"></div>
+    <div class="modal-actions">
+      <button class="primary" id="publish-submit" onclick="submitPublish()">公開送信する</button>
+      <button onclick="closeModal('publish-overlay')">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="entry-overlay">
+  <div class="modal">
+    <h3 id="entry-title"></h3>
+    <p class="note" id="entry-note-text"></p>
+    <div class="field">
+      <label id="entry-select-label"></label>
+      <select id="entry-select"></select>
+    </div>
+    <div class="field">
+      <label>補足メモ（任意。連絡先の記載は親サーバで拒否されます）</label>
+      <textarea id="entry-note" rows="3"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="primary" id="entry-submit" onclick="submitEntry()">商談を申し込む</button>
+      <button onclick="closeModal('entry-overlay')">キャンセル</button>
+    </div>
+  </div>
+</div>
+
 <div id="message"></div>
 <script>
 const messageEl = document.getElementById("message");
@@ -65,12 +165,16 @@ function showMessage(text) {
   messageEl.textContent = text;
   messageEl.style.display = "block";
   clearTimeout(messageTimer);
-  messageTimer = setTimeout(() => (messageEl.style.display = "none"), 6000);
+  messageTimer = setTimeout(() => (messageEl.style.display = "none"), 8000);
 }
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleString("ja-JP", { dateStyle: "short", timeStyle: "short" }) : "";
+const fmtDay = (iso) => iso ? new Date(iso).toLocaleDateString("ja-JP") : "";
+const fmtMan = (yen) => yen ? `${Math.round(yen / 10000)}万円` : "";
+const closeModal = (id) => document.getElementById(id).classList.remove("open");
 
 let parentBaseUrl = "";
+let itemsCache = { projects: [], engineers: [] };
 
 async function loadInfo() {
   const info = await fetch("/api/info").then((r) => r.json());
@@ -82,43 +186,34 @@ async function loadInfo() {
 function row(kindPath, item) {
   const m = item.meta;
   const title = item.name ? `${esc(item.name)}<br><span style="color:#94a3b8;font-size:11px">${esc(m.filename)}</span>` : esc(m.filename);
-  const status = m.status === "SENT"
-    ? `<span class="badge sent">送信済み ${fmtDate(m.sentAt)}</span>`
-    : `<span class="badge stored">ローカル保存</span>`;
-  const actions = m.status === "SENT"
-    ? `<button onclick="checkStatus('${kindPath}','${m.id}')">親の状況</button>
-       <a href="${esc(parentBaseUrl)}/ingestions" target="_blank"><button>取込履歴を開く</button></a>`
-    : `<button class="primary" onclick="sendItem('${kindPath}','${m.id}')">親サーバへ送信</button>
+  let status, actions;
+  if (m.status === "PUBLISHED") {
+    status = `<span class="badge published">公開済み ${fmtDate(m.publishedAt)}</span>`;
+    actions = `<a href="${esc(parentBaseUrl)}/${kindPath}/${esc(m.parentId)}" target="_blank"><button>親サーバで開く</button></a>`;
+  } else if (m.status === "SENT") {
+    status = `<span class="badge sent">送信済み ${fmtDate(m.sentAt)}</span>`;
+    actions = `<button onclick="checkStatus('${kindPath}','${m.id}')">親の状況</button>`;
+  } else {
+    status = `<span class="badge stored">ローカル保存</span>`;
+    actions = `<button class="primary" onclick="openPublish('${kindPath}','${m.id}')">公開送信</button>
        <button class="danger" onclick="deleteItem('${kindPath}','${m.id}','${esc(m.filename)}')">削除</button>`;
+  }
   return `<tr><td>${title}</td><td class="summary">${esc(item.summary)}</td><td>${fmtDate(m.createdAt)}</td><td>${status}</td><td style="white-space:nowrap">${actions}</td></tr>`;
 }
 
 async function refresh() {
   const data = await fetch("/api/items").then((r) => r.json());
+  itemsCache = data;
   for (const [kindPath, key] of [["projects", "projects"], ["engineers", "engineers"]]) {
     const items = data[key];
     document.getElementById(`count-${key}`).textContent = items.length;
     document.getElementById(key).innerHTML = items.length
       ? items.map((i) => row(kindPath, i)).join("")
-      : `<tr><td colspan="5" class="empty">在庫はありません（受入フォルダにファイルを置いてください）</td></tr>`;
+      : `<tr><td colspan="5" class="empty">在庫はありません（取込ボタンまたは受入フォルダから追加してください）</td></tr>`;
   }
 }
 
-async function sendItem(kindPath, id) {
-  if (!confirm("この1件を親サーバへ送信します。よろしいですか？\n（送信後の確認・確定は親サーバの取込履歴で行います）")) return;
-  const res = await fetch(`/api/items/${kindPath}/${id}/send`, { method: "POST" });
-  const body = await res.json();
-  showMessage(res.ok ? "送信しました。親サーバの取込履歴で確認・確定してください" : `送信失敗: ${body.error}`);
-  refresh();
-}
-
-async function checkStatus(kindPath, id) {
-  const res = await fetch(`/api/items/${kindPath}/${id}/status`);
-  const body = await res.json();
-  if (!res.ok) return showMessage(`確認失敗: ${body.error}`);
-  const labels = { RECEIVED: "受付済み", MASKING: "匿名化中", EXTRACTING: "AI解析中", REVIEW_REQUIRED: "人手確認待ち（取込履歴で確定してください）", CONFIRMED: "確定済み", FAILED: `失敗: ${body.error ?? ""}` };
-  showMessage(`親サーバでの状態: ${labels[body.status] ?? body.status}`);
-}
+// ---- 取込（ファイル / 貼り付け）----
 
 async function uploadFiles(kindPath, input) {
   const files = Array.from(input.files);
@@ -140,6 +235,273 @@ async function uploadFiles(kindPath, input) {
   }
   if (ok) showMessage(`${ok}件を受け付けました。解析が終わると一覧に表示されます（1件あたり数十秒）`);
   setTimeout(refresh, 3000);
+}
+
+function togglePaste(kindPath) {
+  document.getElementById(`paste-${kindPath}`).classList.toggle("open");
+}
+
+function updatePasteCount(kindPath) {
+  const len = document.getElementById(`paste-text-${kindPath}`).value.length;
+  document.getElementById(`paste-count-${kindPath}`).textContent = `${len.toLocaleString()} / 100,000 文字`;
+}
+
+async function submitPaste(kindPath) {
+  const textEl = document.getElementById(`paste-text-${kindPath}`);
+  const titleEl = document.getElementById(`paste-title-${kindPath}`);
+  const button = document.getElementById(`paste-submit-${kindPath}`);
+  const text = textEl.value.trim();
+  if (!text) return showMessage("テキストを貼り付けてください");
+  button.disabled = true;
+  const res = await fetch(`/api/paste/${kindPath}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, title: titleEl.value.trim() || undefined }),
+  }).catch(() => null);
+  button.disabled = false;
+  const body = await res?.json().catch(() => null);
+  if (res?.ok) {
+    textEl.value = "";
+    titleEl.value = "";
+    updatePasteCount(kindPath);
+    document.getElementById(`paste-${kindPath}`).classList.remove("open");
+    showMessage("受け付けました。解析が終わると一覧に表示されます（数十秒）");
+    setTimeout(refresh, 3000);
+  } else {
+    showMessage(`取込に失敗: ${body?.error ?? "通信エラー"}`);
+  }
+}
+
+// ---- 公開送信（§9.2）----
+
+const SKILL_CATEGORIES = { LANGUAGE: "言語", FRAMEWORK: "フレームワーク", DATABASE: "DB", CLOUD: "クラウド", OS: "OS", TOOL: "ツール", CERTIFICATION: "資格" };
+const AFFILIATIONS = { EMPLOYEE: "正社員", AFFILIATED: "提携（協力会社）", FREELANCER: "フリーランス", SUBTIER1: "一社下" };
+let publishTarget = null; // { kindPath, id }
+
+const field = (label, required, inner) =>
+  `<div class="field"><label>${label}${required ? ' <span class="req">*</span>' : ""}</label>${inner}</div>`;
+const textInput = (id, value, placeholder = "") =>
+  `<input id="${id}" value="${esc(value ?? "")}" placeholder="${esc(placeholder)}">`;
+const selectInput = (id, options, selected) =>
+  `<select id="${id}">${Object.entries(options).map(([v, l]) => `<option value="${v}"${v === selected ? " selected" : ""}>${l}</option>`).join("")}</select>`;
+
+function skillRowHtml(s = {}) {
+  return `<div class="skill-row">
+    ${`<select class="sk-cat">${Object.entries(SKILL_CATEGORIES).map(([v, l]) => `<option value="${v}"${v === (s.category ?? "LANGUAGE") ? " selected" : ""}>${l}</option>`).join("")}</select>`}
+    <input class="sk-name" value="${esc(s.name ?? "")}" placeholder="スキル名">
+    <input class="sk-months" type="number" min="0" value="${s.months ?? ""}" placeholder="経験月数">
+    <button onclick="this.parentElement.remove()" title="削除">×</button>
+  </div>`;
+}
+
+async function openPublish(kindPath, id) {
+  const item = await fetch(`/api/items/${kindPath}/${id}`).then((r) => r.json()).catch(() => null);
+  if (!item?.meta) return showMessage("在庫の読み込みに失敗しました");
+  publishTarget = { kindPath, id };
+  const x = item.extracted ?? {};
+  const fieldsEl = document.getElementById("publish-fields");
+  if (kindPath === "projects") {
+    document.getElementById("publish-title").textContent = `公開送信 — 案件「${x.name ?? item.meta.filename}」`;
+    fieldsEl.innerHTML = `
+      ${field("案件名", true, textInput("pf-name", x.name))}
+      ${field("匿名概要（エンド企業名・PIIを含めない）", true, `<textarea id="pf-summary" rows="3">${esc(x.summary ?? "")}</textarea>`)}
+      <div class="grid2">
+        ${field("開始日", true, `<input id="pf-startDate" type="date" value="${esc((x.startDate ?? "").slice(0, 10))}">`)}
+        ${field("契約形態", true, selectInput("pf-contractType", { 準委任: "準委任", 請負: "請負", 労働者派遣: "労働者派遣" }, "準委任"))}
+        ${field("上限単価（円/月）", true, `<input id="pf-rateMaxYen" type="number" min="1" value="${x.rateMaxYen ?? ""}">`)}
+        ${field("週出社日数（0-5）", false, `<input id="pf-onsiteDays" type="number" min="0" max="5" value="${x.onsiteDaysPerWeek ?? ""}">`)}
+        ${field("勤務地", false, textInput("pf-locationCity", x.locationCity))}
+        ${field("外国籍", false, selectInput("pf-noForeign", { "": "記載なし", "true": "不可", "false": "可" }, x.noForeignNational === true ? "true" : x.noForeignNational === false ? "false" : ""))}
+      </div>
+      ${field("必須スキル（カンマ区切り）", false, textInput("pf-requiredSkills", (x.requiredSkills ?? []).join(", ")))}
+      ${field("尚可スキル（カンマ区切り）", false, textInput("pf-preferredSkills", (x.preferredSkills ?? []).join(", ")))}
+    `;
+  } else {
+    document.getElementById("publish-title").textContent = `公開送信 — 人材（${item.meta.filename}）`;
+    fieldsEl.innerHTML = `
+      <div class="grid2">
+        ${field("氏名（親サーバでは双方承認まで相手に開示されません）", true, textInput("pf-name", "", "例: 山田 太郎"))}
+        ${field("所属", true, selectInput("pf-affiliation", AFFILIATIONS, "EMPLOYEE"))}
+        ${field("年代（5歳刻み下限: 20-70）", true, `<input id="pf-ageBand" type="number" min="20" max="70" step="5" value="${x.ageBand ?? ""}">`)}
+        ${field("希望単価（円/月）", true, `<input id="pf-desiredRate" type="number" min="1" value="${x.desiredRateYen ?? ""}">`)}
+        ${field("居住エリア", false, textInput("pf-residenceCity", x.residenceCity))}
+        ${field("国籍（未指定は日本国籍とみなされます）", false, textInput("pf-nationality", x.nationality))}
+        ${field("稼働可能日", false, `<input id="pf-availableFrom" type="date" value="${esc((x.availableFrom ?? "").slice(0, 10))}">`)}
+        ${field("週最大出社日数（0-5）", false, `<input id="pf-maxOnsite" type="number" min="0" max="5" value="${x.maxOnsiteDaysPerWeek ?? ""}">`)}
+      </div>
+      ${field("匿名要約（氏名・企業名を含めない）", false, `<textarea id="pf-summary" rows="3">${esc(x.summary ?? "")}</textarea>`)}
+      ${field("経験工程（カンマ区切り）", false, textInput("pf-processes", (x.processes ?? []).join(", ")))}
+      ${field("役割（カンマ区切り）", false, textInput("pf-roles", (x.roles ?? []).join(", ")))}
+      ${field("業種経験（カンマ区切り）", false, textInput("pf-industries", (x.industries ?? []).join(", ")))}
+      ${field("スキル", false, `<div id="pf-skills">${(x.skills ?? []).map(skillRowHtml).join("")}</div>
+        <button onclick="document.getElementById('pf-skills').insertAdjacentHTML('beforeend', skillRowHtml())">＋ スキルを追加</button>`)}
+    `;
+  }
+  document.getElementById("publish-overlay").classList.add("open");
+}
+
+async function submitPublish() {
+  if (!publishTarget) return;
+  const v = (id) => document.getElementById(id)?.value ?? "";
+  let body;
+  if (publishTarget.kindPath === "projects") {
+    body = {
+      name: v("pf-name"),
+      anonymousSummary: v("pf-summary"),
+      startDate: v("pf-startDate"),
+      contractType: v("pf-contractType"),
+      rateMaxYen: v("pf-rateMaxYen"),
+      onsiteDaysPerWeek: v("pf-onsiteDays"),
+      locationCity: v("pf-locationCity"),
+      noForeignNational: v("pf-noForeign") === "" ? null : v("pf-noForeign") === "true",
+      requiredSkills: v("pf-requiredSkills"),
+      preferredSkills: v("pf-preferredSkills"),
+    };
+    if (!body.name || !body.anonymousSummary || !body.startDate || !body.rateMaxYen)
+      return showMessage("必須項目（案件名・匿名概要・開始日・上限単価）を入力してください");
+  } else {
+    body = {
+      name: v("pf-name"),
+      affiliationType: v("pf-affiliation"),
+      ageBand: v("pf-ageBand"),
+      desiredRateYen: v("pf-desiredRate"),
+      residenceCity: v("pf-residenceCity"),
+      nationality: v("pf-nationality"),
+      availableFrom: v("pf-availableFrom"),
+      maxOnsiteDaysPerWeek: v("pf-maxOnsite"),
+      summary: v("pf-summary"),
+      processes: v("pf-processes"),
+      roles: v("pf-roles"),
+      industries: v("pf-industries"),
+      skills: Array.from(document.querySelectorAll("#pf-skills .skill-row")).map((r) => ({
+        category: r.querySelector(".sk-cat").value,
+        name: r.querySelector(".sk-name").value,
+        months: r.querySelector(".sk-months").value,
+      })),
+    };
+    if (!body.name || !body.ageBand || !body.desiredRateYen)
+      return showMessage("必須項目（氏名・年代・希望単価）を入力してください");
+  }
+  const button = document.getElementById("publish-submit");
+  button.disabled = true;
+  const res = await fetch(`/api/items/${publishTarget.kindPath}/${publishTarget.id}/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).catch(() => null);
+  button.disabled = false;
+  const resBody = await res?.json().catch(() => null);
+  if (res?.ok) {
+    closeModal("publish-overlay");
+    showMessage("公開送信しました。親サーバに登録・公開済みです");
+    refresh();
+  } else {
+    showMessage(`公開送信に失敗: ${resBody?.error ?? "通信エラー"}`);
+  }
+}
+
+// ---- 親サーバ検索（§9.3）と人材提案・案件紹介（§9.4）----
+
+let searchCache = { projects: [], engineers: [] };
+let entryContext = null; // { type, targetId }
+
+function topSkills(skills) {
+  return (skills ?? []).slice(0, 4).map((s) => s.name).join(", ");
+}
+
+async function searchParent(kindPath) {
+  const q = document.getElementById(`search-q-${kindPath}`).value.trim();
+  const tbody = document.getElementById(`search-${kindPath}`);
+  const cols = kindPath === "projects" ? 6 : 7;
+  tbody.innerHTML = `<tr><td colspan="${cols}" class="empty">検索中…</td></tr>`;
+  const res = await fetch(`/api/parent/${kindPath}?q=${encodeURIComponent(q)}&page=1`).catch(() => null);
+  const body = await res?.json().catch(() => null);
+  if (!res?.ok) {
+    tbody.innerHTML = `<tr><td colspan="${cols}" class="empty">検索に失敗しました: ${esc(body?.error ?? "通信エラー")}</td></tr>`;
+    return;
+  }
+  searchCache[kindPath] = body.items ?? [];
+  document.getElementById(`search-total-${kindPath}`).textContent = `全${body.total ?? 0}件${(body.total ?? 0) > (body.items?.length ?? 0) ? `（先頭${body.items.length}件を表示）` : ""}`;
+  if (!body.items?.length) {
+    tbody.innerHTML = `<tr><td colspan="${cols}" class="empty">該当する公開${kindPath === "projects" ? "案件" : "人材"}はありません</td></tr>`;
+    return;
+  }
+  if (kindPath === "projects") {
+    tbody.innerHTML = body.items.map((p) => `<tr>
+      <td>${esc(p.name)}</td>
+      <td class="summary">${esc(p.anonymousSummary ?? "")}</td>
+      <td>${fmtMan(p.rateMaxYen)}</td>
+      <td>${esc(p.locationCity ?? "")}</td>
+      <td>${fmtDay(p.startDate)}</td>
+      <td style="white-space:nowrap"><button class="primary" onclick="openEntry('PROPOSAL','${p.id}')">人材提案</button></td>
+    </tr>`).join("");
+  } else {
+    tbody.innerHTML = body.items.map((e) => `<tr>
+      <td style="white-space:nowrap">${esc(e.ageBand ?? "")}</td>
+      <td>${esc(e.residenceCity ?? "")}</td>
+      <td style="white-space:nowrap">${esc(e.rateBand ?? "")}</td>
+      <td>${fmtDay(e.availableFrom)}</td>
+      <td>${esc(topSkills(e.skills))}</td>
+      <td class="summary">${esc(e.summary ?? "")}</td>
+      <td style="white-space:nowrap"><button class="primary" onclick="openEntry('SCOUT','${e.id}')">案件紹介</button></td>
+    </tr>`).join("");
+  }
+}
+
+function openEntry(type, targetId) {
+  const ownKey = type === "PROPOSAL" ? "engineers" : "projects";
+  const own = itemsCache[ownKey].filter((i) => i.meta.status === "PUBLISHED" && i.meta.parentId);
+  if (!own.length) {
+    showMessage(`公開送信済みの自社${type === "PROPOSAL" ? "人材" : "案件"}がありません。先に公開送信してください`);
+    return;
+  }
+  entryContext = { type, targetId };
+  const target = searchCache[type === "PROPOSAL" ? "projects" : "engineers"].find((i) => i.id === targetId);
+  document.getElementById("entry-title").textContent =
+    type === "PROPOSAL" ? `人材提案 — 案件「${target?.name ?? ""}」へ` : "案件紹介 — この人材へ自社案件を紹介";
+  document.getElementById("entry-note-text").textContent =
+    "商談を申し込みます。以後の承認・面談・成約は親サーバの商談管理で進めてください。";
+  document.getElementById("entry-select-label").textContent =
+    type === "PROPOSAL" ? "提案する自社人材（公開送信済み）" : "紹介する自社案件（公開送信済み）";
+  document.getElementById("entry-select").innerHTML = own
+    .map((i) => `<option value="${esc(i.meta.parentId)}">${esc(i.meta.parentName || i.name || i.meta.filename)}</option>`)
+    .join("");
+  document.getElementById("entry-note").value = "";
+  document.getElementById("entry-overlay").classList.add("open");
+}
+
+async function submitEntry() {
+  if (!entryContext) return;
+  const ownParentId = document.getElementById("entry-select").value;
+  const payload = {
+    type: entryContext.type,
+    projectId: entryContext.type === "PROPOSAL" ? entryContext.targetId : ownParentId,
+    engineerId: entryContext.type === "PROPOSAL" ? ownParentId : entryContext.targetId,
+    note: document.getElementById("entry-note").value,
+  };
+  const button = document.getElementById("entry-submit");
+  button.disabled = true;
+  const res = await fetch("/api/parent/entries", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  }).catch(() => null);
+  button.disabled = false;
+  const body = await res?.json().catch(() => null);
+  if (res?.ok) {
+    closeModal("entry-overlay");
+    showMessage("商談を申し込みました。以後は親サーバの商談管理で進めてください");
+  } else {
+    showMessage(`申込みに失敗: ${body?.error ?? "通信エラー"}`);
+  }
+}
+
+async function checkStatus(kindPath, id) {
+  const res = await fetch(`/api/items/${kindPath}/${id}/status`);
+  const body = await res.json();
+  if (!res.ok) return showMessage(`確認失敗: ${body.error}`);
+  const labels = { RECEIVED: "受付済み", MASKING: "匿名化中", EXTRACTING: "AI解析中", REVIEW_REQUIRED: "人手確認待ち（取込履歴で確定してください）", CONFIRMED: "確定済み", FAILED: `失敗: ${body.error ?? ""}` };
+  showMessage(`親サーバでの状態: ${labels[body.status] ?? body.status}`);
 }
 
 async function deleteItem(kindPath, id, name) {

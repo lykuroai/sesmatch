@@ -224,7 +224,7 @@ async function main() {
   await prisma.project.create({
     data: {
       tenantCompanyId: companyB.id,
-      code: "P000001",
+      code: "P000003",
       name: "製造業向け 生産管理システム保守開発",
       anonymousSummary: "大手製造業の生産管理システムの保守開発。Python 中心。",
       industry: "製造",
@@ -248,7 +248,7 @@ async function main() {
   await prisma.engineer.create({
     data: {
       tenantCompanyId: companyA.id,
-      code: "E000001",
+      code: "E000004",
       name: "安藤 大輔",
       ageBand: 25,
       affiliationType: "EMPLOYEE",

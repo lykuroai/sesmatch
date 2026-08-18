@@ -11,11 +11,23 @@ import type { AuthContext } from "./session";
 
 export const TOKEN_PREFIX = "ses_pat_";
 
-// スコープ → 許可される権限。エントリー承認・契約・請求・メンバー管理は含めない
-// （トークン漏えい時の被害を取込・登録に限定する）
+// スコープ → 許可される権限。商談申込みの承認・契約・請求・メンバー管理は含めない
+// （トークン漏えい時の被害を取込・登録・提案までに限定する）
 export const TOKEN_SCOPES: Record<string, Permission[]> = {
   ingest: ["ingestion.create"],
   "ingest-register": ["ingestion.create", "engineer.create", "project.create"],
+  // ローカルサーバ v0.2（仕様書 §9: 公開送信・検索・人材提案／案件紹介）向け
+  connector: [
+    "ingestion.create",
+    "engineer.create",
+    "project.create",
+    "engineer.read.masked",
+    "project.read",
+    "engineer.publish",
+    "project.publish",
+    "entry.submit",
+    "entry.read",
+  ],
 };
 
 export type TokenScopeName = keyof typeof TOKEN_SCOPES;

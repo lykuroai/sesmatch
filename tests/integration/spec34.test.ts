@@ -2,7 +2,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/server/db";
 import {
-  addConsent,
   createEngineer,
   getEngineer,
   listEngineers,
@@ -41,11 +40,11 @@ async function makeEngineer(auth: AuthContext, opts: { consent?: boolean; publis
     availableFrom: iso(futureDate(10)),
     skills: [{ category: "LANGUAGE", name: "Java", months: 60 }],
   });
-  if (opts.consent !== false) {
-    await addConsent(auth, e.id, {
-      method: "メール",
-      documentVersion: "v1",
-      purposes: ["マッチング"],
+  if (opts.consent === false) {
+    // 登録時に自動同意が作成されるため（2026-08-18 仕様変更）、同意なし状態は失効で再現する
+    await prisma.personConsent.updateMany({
+      where: { engineerId: e.id },
+      data: { revokedAt: new Date() },
     });
   }
   if (opts.publish !== false) {
@@ -138,13 +137,30 @@ describe("ロール別PII閲覧制御（§7.3, §10）", () => {
 // ---- 同意・公開制御 ----
 
 describe("本人同意（§11.3, §34）", () => {
-  it("有効な同意がない人材は公開できない", async () => {
+  it("登録時に本人同意が自動記録される（2026-08-18 仕様変更: 同意日=登録日）", async () => {
+    const a = await makeCompany("A社");
+    const e = await createEngineer(a, {
+      name: "自動同意",
+      ageBand: 30,
+      affiliationType: "EMPLOYEE",
+      desiredRateYen: 600_000,
+    });
+    const consents = await prisma.personConsent.findMany({ where: { engineerId: e.id } });
+    expect(consents).toHaveLength(1);
+    expect(consents[0].revokedAt).toBeNull();
+  });
+
+  it("有効な同意がない人材（同意失効後）は公開できない", async () => {
     const a = await makeCompany("A社");
     const e = await createEngineer(a, {
       name: "同意なし",
       ageBand: 30,
       affiliationType: "EMPLOYEE",
       desiredRateYen: 600_000,
+    });
+    await prisma.personConsent.updateMany({
+      where: { engineerId: e.id },
+      data: { revokedAt: new Date() },
     });
     const result = await publishEngineer(a, e.id);
     expect(result).toEqual({ error: "CONSENT_REQUIRED" });

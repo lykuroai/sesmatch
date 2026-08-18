@@ -54,6 +54,48 @@ export class ParentClient {
     return res;
   }
 
+  // JSON APIの共通処理（エラー時は親サーバのメッセージを添えて throw）
+  async #jsonRequest(pathname, options = {}) {
+    const res = await this.request(pathname, options);
+    const body = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(body?.error?.message ?? `親サーバAPIエラー (HTTP ${res.status})`);
+    return body;
+  }
+
+  #post(pathname, payload) {
+    return this.#jsonRequest(pathname, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload ?? {}),
+    });
+  }
+
+  // 公開送信（仕様書 §9.2）: 構造化データを直接登録し、続けて公開まで行う
+  async publishProject(payload) {
+    const project = await this.#post("/api/v1/projects", payload);
+    await this.#post(`/api/v1/projects/${project.id}/publish`);
+    return project;
+  }
+
+  async publishEngineer(payload) {
+    const engineer = await this.#post("/api/v1/engineers", payload);
+    await this.#post(`/api/v1/engineers/${engineer.id}/publish`);
+    return engineer;
+  }
+
+  // 企業間公開の検索（仕様書 §9.3。Level 1 匿名情報のみ返る）
+  searchPublic(kindPath, q, page) {
+    const params = new URLSearchParams({ scope: "public" });
+    if (q) params.set("q", q);
+    if (page) params.set("page", String(page));
+    return this.#jsonRequest(`/api/v1/${kindPath}?${params}`);
+  }
+
+  // 人材提案（PROPOSAL）・案件紹介（SCOUT）の作成（仕様書 §9.4）
+  createEntry(payload) {
+    return this.#post("/api/v1/entries", payload);
+  }
+
   // 原本ファイルを親サーバの取込APIへ送信する（親側でPII匿名化→LLM解析→人手確認）
   async sendDocument(filePath, displayName, expectedKind) {
     const content = await readFile(filePath);

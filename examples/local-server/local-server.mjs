@@ -26,6 +26,9 @@ import { ParentClient } from "./lib/parent.mjs";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const log = (message) => console.log(`[${new Date().toISOString()}] ${message}`);
 
+// 親サーバへの送信機能は送信仕様の変更に伴い一時停止中（再開時に true へ戻す）
+const SEND_TO_PARENT_ENABLED = false;
+
 // ---- 設定 ----------------------------------------------------------------
 
 async function loadConfig() {
@@ -130,6 +133,69 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+async function readJsonBody(req, maxBytes = 1024 * 1024) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > maxBytes) throw new Error("リクエストが大きすぎます");
+    chunks.push(chunk);
+  }
+  return JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+}
+
+const toInt = (v) => {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : undefined;
+};
+const csv = (v) =>
+  String(v ?? "")
+    .split(/[,、，]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+// 公開送信用: UIで確認・修正した値を親サーバの登録APIの形式に組み立てる
+function buildProjectPayload(body) {
+  return {
+    name: String(body.name ?? "").trim(),
+    anonymousSummary: String(body.anonymousSummary ?? "").trim(),
+    startDate: String(body.startDate ?? "").trim(),
+    rateMaxYen: toInt(body.rateMaxYen),
+    contractType: body.contractType,
+    ...(String(body.locationCity ?? "").trim() ? { locationCity: String(body.locationCity).trim() } : {}),
+    ...(toInt(body.onsiteDaysPerWeek) != null ? { onsiteDaysPerWeek: toInt(body.onsiteDaysPerWeek) } : {}),
+    ...(body.noForeignNational === true || body.noForeignNational === false
+      ? { noForeignNational: body.noForeignNational }
+      : {}),
+    requiredSkills: csv(body.requiredSkills).map((name) => ({ name })),
+    preferredSkills: csv(body.preferredSkills).map((name) => ({ name })),
+  };
+}
+
+function buildEngineerPayload(body) {
+  return {
+    name: String(body.name ?? "").trim(),
+    ageBand: toInt(body.ageBand),
+    affiliationType: body.affiliationType,
+    desiredRateYen: toInt(body.desiredRateYen),
+    ...(String(body.residenceCity ?? "").trim() ? { residenceCity: String(body.residenceCity).trim() } : {}),
+    ...(String(body.nationality ?? "").trim() ? { nationality: String(body.nationality).trim() } : {}),
+    ...(String(body.availableFrom ?? "").trim() ? { availableFrom: String(body.availableFrom).trim() } : {}),
+    ...(toInt(body.maxOnsiteDaysPerWeek) != null ? { maxOnsiteDaysPerWeek: toInt(body.maxOnsiteDaysPerWeek) } : {}),
+    summary: String(body.summary ?? "").trim(),
+    processes: csv(body.processes),
+    roles: csv(body.roles),
+    industries: csv(body.industries),
+    skills: (Array.isArray(body.skills) ? body.skills : [])
+      .filter((s) => s && String(s.name ?? "").trim())
+      .map((s) => ({
+        category: s.category,
+        name: String(s.name).trim(),
+        months: toInt(s.months) ?? 0,
+      })),
+  };
+}
+
 async function handleApi(req, res, { store, parent, config, llm }) {
   const url = new URL(req.url, "http://localhost");
   const parts = url.pathname.split("/").filter(Boolean); // ["api", ...]
@@ -174,10 +240,48 @@ async function handleApi(req, res, { store, parent, config, llm }) {
     return json(res, 200, { ok: true, filename: path.basename(dest) });
   }
 
+  // 画面からのテキスト貼り付け: .txt として受入フォルダに保存して即時解析（親画面の貼り付け取込と同等）
+  if (req.method === "POST" && parts[1] === "paste" && parts.length === 3) {
+    const kind = parts[2] === "projects" ? "PROJECT_DESCRIPTION" : parts[2] === "engineers" ? "ENGINEER_SHEET" : null;
+    if (!kind) return json(res, 404, { error: "not found" });
+    const chunks = [];
+    let size = 0;
+    for await (const chunk of req) {
+      size += chunk.length;
+      if (size > 1024 * 1024) return json(res, 413, { error: "テキストが大きすぎます（上限10万文字）" });
+      chunks.push(chunk);
+    }
+    let body;
+    try {
+      body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+    } catch {
+      return json(res, 400, { error: "リクエスト形式が不正です" });
+    }
+    const text = typeof body.text === "string" ? body.text.trim() : "";
+    if (!text) return json(res, 400, { error: "テキストが空です" });
+    if (text.length > 100_000) return json(res, 413, { error: "テキストが大きすぎます（上限10万文字）" });
+    const title = typeof body.title === "string" ? path.basename(body.title.trim()).replace(/^\.+/, "").slice(0, 80) : "";
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
+    const filename = `${title || `貼り付け_${stamp}`}.txt`;
+
+    const dir = store.inboxDir(kind);
+    let dest = path.join(dir, filename);
+    const exists = await stat(dest).catch(() => null);
+    if (exists || processing.has(dest)) dest = path.join(dir, `${Date.now()}_${filename}`);
+    const tmp = path.join(dir, `.paste_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+    await writeFile(tmp, text, "utf-8");
+    processing.add(dest); // フォルダ監視との二重処理を防止
+    await rename(tmp, dest);
+    log(`画面から貼り付け受入: [${KIND_DIRS[kind]}] ${path.basename(dest)}`);
+    processInboxFile(store, llm, kind, dest).finally(() => processing.delete(dest));
+    return json(res, 200, { ok: true, filename: path.basename(dest) });
+  }
+
   if (req.method === "GET" && url.pathname === "/api/info") {
     return json(res, 200, {
       parentBaseUrl: config.parent.baseUrl,
       parentConfigured: parent.configured,
+      sendEnabled: SEND_TO_PARENT_ENABLED,
       parentAuth: config.parent.token ? "APIトークン" : config.parent.email ? "メール＋パスワード（暫定）" : "未設定",
       llmModel: config.llm.model,
       dataDir: path.resolve(config.dataDir),
@@ -194,7 +298,52 @@ async function handleApi(req, res, { store, parent, config, llm }) {
     return json(res, 200, { projects: slim(projects), engineers: slim(engineers) });
   }
 
-  // /api/items/:kind/:id/(send|status) と /api/items/:kind/:id
+  // 親サーバの企業間公開検索（§9.3）: GET /api/parent/projects|engineers?q=&page=
+  if (
+    req.method === "GET" &&
+    parts[1] === "parent" &&
+    (parts[2] === "projects" || parts[2] === "engineers") &&
+    parts.length === 3
+  ) {
+    if (!parent.configured) return json(res, 400, { error: "親サーバの認証情報が設定されていません（config.json の parent）" });
+    try {
+      const data = await parent.searchPublic(
+        parts[2],
+        url.searchParams.get("q") ?? "",
+        url.searchParams.get("page") ?? "1"
+      );
+      return json(res, 200, data);
+    } catch (e) {
+      return json(res, 502, { error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  // 人材提案・案件紹介の作成（§9.4）: POST /api/parent/entries
+  if (req.method === "POST" && parts[1] === "parent" && parts[2] === "entries" && parts.length === 3) {
+    if (!parent.configured) return json(res, 400, { error: "親サーバの認証情報が設定されていません（config.json の parent）" });
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch {
+      return json(res, 400, { error: "リクエスト形式が不正です" });
+    }
+    if (body.type !== "PROPOSAL" && body.type !== "SCOUT") return json(res, 400, { error: "type が不正です" });
+    if (!body.projectId || !body.engineerId) return json(res, 400, { error: "projectId / engineerId は必須です" });
+    try {
+      const entry = await parent.createEntry({
+        type: body.type,
+        projectId: String(body.projectId),
+        engineerId: String(body.engineerId),
+        ...(String(body.note ?? "").trim() ? { note: String(body.note).trim() } : {}),
+      });
+      log(`${body.type === "PROPOSAL" ? "人材提案" : "案件紹介"}を作成: 商談 ${entry.id}`);
+      return json(res, 200, { entry });
+    } catch (e) {
+      return json(res, 502, { error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  // /api/items/:kind/:id/(send|status|publish) と /api/items/:kind/:id
   if (parts[0] === "api" && parts[1] === "items" && parts.length >= 4) {
     const kind = parts[2] === "projects" ? "PROJECT_DESCRIPTION" : parts[2] === "engineers" ? "ENGINEER_SHEET" : null;
     if (!kind) return json(res, 404, { error: "not found" });
@@ -202,8 +351,38 @@ async function handleApi(req, res, { store, parent, config, llm }) {
     const item = await store.getItem(kind, id).catch(() => null);
     if (!item) return json(res, 404, { error: "見つかりません" });
 
+    // 公開送信（§9.2）: 確認・修正済みの構造化データを親サーバへ直接登録し、公開まで行う
+    if (req.method === "POST" && parts[4] === "publish") {
+      if (!parent.configured) return json(res, 400, { error: "親サーバの認証情報が設定されていません（config.json の parent）" });
+      if (item.meta.status === "PUBLISHED") return json(res, 409, { error: "既に公開送信済みです" });
+      let body;
+      try {
+        body = await readJsonBody(req);
+      } catch {
+        return json(res, 400, { error: "リクエスト形式が不正です" });
+      }
+      try {
+        const isProject = kind === "PROJECT_DESCRIPTION";
+        const payload = isProject ? buildProjectPayload(body) : buildEngineerPayload(body);
+        const created = isProject
+          ? await parent.publishProject(payload)
+          : await parent.publishEngineer(payload);
+        const meta = await store.updateMeta(kind, id, {
+          status: "PUBLISHED",
+          publishedAt: new Date().toISOString(),
+          parentId: created.id,
+          parentName: payload.name,
+        });
+        log(`公開送信: [${KIND_DIRS[kind]}] ${meta.filename} → 親サーバ ${created.id}`);
+        return json(res, 200, { meta, parentId: created.id });
+      } catch (e) {
+        return json(res, 502, { error: e instanceof Error ? e.message : String(e) });
+      }
+    }
+
     if (req.method === "POST" && parts[4] === "send") {
       // 商談開始: 原本を親サーバの取込APIへ送信（親側でPII匿名化→LLM解析→人手確認）
+      if (!SEND_TO_PARENT_ENABLED) return json(res, 503, { error: "親サーバへの送信は仕様変更のため一時停止中です" });
       if (!parent.configured) return json(res, 400, { error: "親サーバの認証情報が設定されていません（config.json の parent）" });
       if (item.meta.status === "SENT") return json(res, 409, { error: "既に送信済みです" });
       if (!item.originalPath) return json(res, 500, { error: "原本ファイルが見つかりません" });

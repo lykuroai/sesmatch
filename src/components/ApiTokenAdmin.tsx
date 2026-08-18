@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 const SCOPE_LABELS: Record<string, string> = {
   ingest: "取込のみ",
   "ingest-register": "取込＋案件・人材の登録",
+  connector: "ローカルサーバ連携（取込・公開送信・検索・提案）",
 };
 
 export function IssueTokenForm() {

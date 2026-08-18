@@ -441,6 +441,16 @@ export async function createEngineer(auth: AuthContext, input: EngineerInput) {
           lastUsedAt: s.lastUsedAt ? new Date(s.lastUsedAt) : null,
         })),
       },
+      // 本人同意は登録時に自動記録する（2026-08-18 仕様変更: 手動入力→自動同意、同意日=登録日。
+      // 登録企業が事前に本人同意を得ていることが前提。ローカルサーバ仕様書 §9.2）
+      consents: {
+        create: {
+          consentedAt: new Date(),
+          method: "自動同意（登録時）",
+          documentVersion: "v1.0",
+          purposes: ["マッチング", "段階開示", "LLM匿名化処理"],
+        },
+      },
     },
     include: { skills: true, consents: true },
   });
@@ -450,6 +460,14 @@ export async function createEngineer(auth: AuthContext, input: EngineerInput) {
     action: "EngineerCreated",
     targetType: "Engineer",
     targetId: engineer.id,
+  });
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "ConsentRegistered",
+    targetType: "Engineer",
+    targetId: engineer.id,
+    metadata: { auto: true, consentId: engineer.consents[0]?.id },
   });
   // 用語辞書の自動増補（Phase 2 名寄せ）: 手入力・取込確定を問わず新語の正規形を辞書へ登録
   // （取込確定も本関数経由のためここで一括して行う。失敗しても登録は成立）
