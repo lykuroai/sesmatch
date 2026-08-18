@@ -83,9 +83,10 @@ export class ParentClient {
     return engineer;
   }
 
-  // 企業間公開の検索（仕様書 §9.3。Level 1 匿名情報のみ返る）
-  searchPublic(kindPath, q, page) {
-    const params = new URLSearchParams({ scope: "public" });
+  // 検索（仕様書 §9.3）。scope=public は他社の公開分（Level 1 匿名情報のみ）、
+  // scope=own は自社分（親コンソールと同様に併取得して統合表示する）
+  search(kindPath, scope, q, page) {
+    const params = new URLSearchParams({ scope });
     if (q) params.set("q", q);
     if (page) params.set("page", String(page));
     return this.#jsonRequest(`/api/v1/${kindPath}?${params}`);

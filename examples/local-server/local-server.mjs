@@ -307,12 +307,19 @@ async function handleApi(req, res, { store, parent, config, llm }) {
   ) {
     if (!parent.configured) return json(res, 400, { error: "親サーバの認証情報が設定されていません（config.json の parent）" });
     try {
-      const data = await parent.searchPublic(
-        parts[2],
-        url.searchParams.get("q") ?? "",
-        url.searchParams.get("page") ?? "1"
-      );
-      return json(res, 200, data);
+      const q = url.searchParams.get("q") ?? "";
+      const page = url.searchParams.get("page") ?? "1";
+      // 親コンソールの検索と同様に、他社の公開分と自社分を併取得して統合する
+      // （自社は公開済みのみ。own フラグで区別し、UI側で「自社」表示・提案対象外とする）
+      const [pub, own] = await Promise.all([
+        parent.search(parts[2], "public", q, page),
+        parent.search(parts[2], "own", q),
+      ]);
+      const ownPublished = (own.items ?? []).filter((i) => i.status === "PUBLISHED");
+      return json(res, 200, {
+        items: [...ownPublished, ...(pub.items ?? [])],
+        total: (pub.total ?? 0) + ownPublished.length,
+      });
     } catch (e) {
       return json(res, 502, { error: e instanceof Error ? e.message : String(e) });
     }
