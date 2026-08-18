@@ -13,6 +13,7 @@
   header .info { font-size: 12px; color: #64748b; }
   main { max-width: 1100px; margin: 0 auto; padding: 20px; }
   h2 { font-size: 15px; margin: 24px 0 8px; }
+  h2 button { margin-left: 8px; vertical-align: 1px; }
   .hint { font-size: 12px; color: #64748b; margin: 0 0 12px; }
   table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; font-size: 13px; }
   th, td { text-align: left; padding: 8px 12px; border-top: 1px solid #f1f5f9; vertical-align: top; }
@@ -36,15 +37,21 @@
 </header>
 <main>
   <p class="hint">
-    書類は <code>受入/案件</code>・<code>受入/人材</code> フォルダに置くと自動で解析され、ここに表示されます。
+    書類は「ファイルを取込」ボタンからアップロードするか、<code>受入/案件</code>・<code>受入/人材</code> フォルダに置くと自動で解析され、ここに表示されます。
     「親サーバへ送信」を押すと商談用にプラットフォームへ取込送信されます（確定は親サーバの取込履歴で行います）。
   </p>
-  <h2>案件（<span id="count-projects">0</span>）</h2>
+  <h2>案件（<span id="count-projects">0</span>）
+    <button class="primary" onclick="document.getElementById('file-projects').click()">ファイルを取込</button>
+    <input type="file" id="file-projects" multiple accept=".txt,.csv,.md,.docx,.xlsx,.xls,.pdf" style="display:none" onchange="uploadFiles('projects', this)">
+  </h2>
   <table>
     <thead><tr><th>案件名 / ファイル</th><th>要約</th><th>取込日</th><th>状態</th><th></th></tr></thead>
     <tbody id="projects"></tbody>
   </table>
-  <h2>人材（<span id="count-engineers">0</span>）</h2>
+  <h2>人材（<span id="count-engineers">0</span>）
+    <button class="primary" onclick="document.getElementById('file-engineers').click()">ファイルを取込</button>
+    <input type="file" id="file-engineers" multiple accept=".txt,.csv,.md,.docx,.xlsx,.xls,.pdf" style="display:none" onchange="uploadFiles('engineers', this)">
+  </h2>
   <table>
     <thead><tr><th>ファイル</th><th>要約</th><th>取込日</th><th>状態</th><th></th></tr></thead>
     <tbody id="engineers"></tbody>
@@ -111,6 +118,28 @@ async function checkStatus(kindPath, id) {
   if (!res.ok) return showMessage(`確認失敗: ${body.error}`);
   const labels = { RECEIVED: "受付済み", MASKING: "匿名化中", EXTRACTING: "AI解析中", REVIEW_REQUIRED: "人手確認待ち（取込履歴で確定してください）", CONFIRMED: "確定済み", FAILED: `失敗: ${body.error ?? ""}` };
   showMessage(`親サーバでの状態: ${labels[body.status] ?? body.status}`);
+}
+
+async function uploadFiles(kindPath, input) {
+  const files = Array.from(input.files);
+  input.value = "";
+  if (!files.length) return;
+  let ok = 0;
+  for (const file of files) {
+    const res = await fetch(`/api/upload/${kindPath}`, {
+      method: "POST",
+      headers: { "X-Filename": encodeURIComponent(file.name), "Content-Type": "application/octet-stream" },
+      body: file,
+    }).catch(() => null);
+    if (res?.ok) {
+      ok++;
+    } else {
+      const body = await res?.json().catch(() => null);
+      showMessage(`「${file.name}」の取込に失敗: ${body?.error ?? "通信エラー"}`);
+    }
+  }
+  if (ok) showMessage(`${ok}件を受け付けました。解析が終わると一覧に表示されます（1件あたり数十秒）`);
+  setTimeout(refresh, 3000);
 }
 
 async function deleteItem(kindPath, id, name) {

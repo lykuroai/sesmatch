@@ -130,9 +130,49 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-async function handleApi(req, res, { store, parent, config }) {
+async function handleApi(req, res, { store, parent, config, llm }) {
   const url = new URL(req.url, "http://localhost");
   const parts = url.pathname.split("/").filter(Boolean); // ["api", ...]
+
+  // 画面からのアップロード: 受入フォルダに保存して即時解析（フォルダ投入と同じパイプライン）
+  if (req.method === "POST" && parts[1] === "upload" && parts.length === 3) {
+    const kind = parts[2] === "projects" ? "PROJECT_DESCRIPTION" : parts[2] === "engineers" ? "ENGINEER_SHEET" : null;
+    if (!kind) return json(res, 404, { error: "not found" });
+    let rawName = "";
+    try {
+      rawName = decodeURIComponent(req.headers["x-filename"] ?? "");
+    } catch {
+      return json(res, 400, { error: "ファイル名が不正です" });
+    }
+    const filename = path.basename(rawName).replace(/^\.+/, "");
+    if (!filename) return json(res, 400, { error: "ファイル名が不正です" });
+    const ext = path.extname(filename).toLowerCase();
+    if (!SUPPORTED_EXTENSIONS.includes(ext)) {
+      return json(res, 400, { error: `未対応のファイル形式です（対応: ${SUPPORTED_EXTENSIONS.join(" ")}。画像・スキャン書類は親サーバの取込パネルから直接取り込んでください）` });
+    }
+    const chunks = [];
+    let size = 0;
+    for await (const chunk of req) {
+      size += chunk.length;
+      if (size > 30 * 1024 * 1024) return json(res, 413, { error: "ファイルが大きすぎます（上限30MB）" });
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+    if (!buffer.length) return json(res, 400, { error: "空のファイルです" });
+
+    const dir = store.inboxDir(kind);
+    let dest = path.join(dir, filename);
+    const exists = await stat(dest).catch(() => null);
+    if (exists || processing.has(dest)) dest = path.join(dir, `${Date.now()}_${filename}`);
+    const tmp = path.join(dir, `.upload_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+    await writeFile(tmp, buffer);
+    processing.add(dest); // フォルダ監視との二重処理を防止
+    await rename(tmp, dest);
+    log(`画面から受入: [${KIND_DIRS[kind]}] ${path.basename(dest)}`);
+    // 解析はバックグラウンドで実行（完了は一覧の自動更新で反映される）
+    processInboxFile(store, llm, kind, dest).finally(() => processing.delete(dest));
+    return json(res, 200, { ok: true, filename: path.basename(dest) });
+  }
 
   if (req.method === "GET" && url.pathname === "/api/info") {
     return json(res, 200, {
@@ -218,7 +258,7 @@ async function main() {
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
         return res.end(uiHtml);
       }
-      if (req.url?.startsWith("/api/")) return await handleApi(req, res, { store, parent, config });
+      if (req.url?.startsWith("/api/")) return await handleApi(req, res, { store, parent, config, llm });
       res.writeHead(404).end();
     } catch (e) {
       log(`APIエラー: ${e instanceof Error ? e.message : e}`);
