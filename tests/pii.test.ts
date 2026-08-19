@@ -125,6 +125,16 @@ describe("氏名候補の抽出（取込確認フォームの初期値）", () =
     const { tokens } = maskPii("スキル: Java 5年\n連絡先: taro@example.com");
     expect(suggestPersonName(tokens)).toBeNull();
   });
+
+  it("文字間空白のラベル（氏　名）とラテン文字混じりの氏名を抽出する（履歴書のCSV変換書式）", () => {
+    const { tokens } = maskPii("フリガナ,コ,性別,国籍\n氏　名,顧　YF,男,中国");
+    expect(suggestPersonName(tokens)).toBe("顧　YF");
+  });
+
+  it("「〇〇氏 名古屋…」のような偶然の並びは氏名として誤検出しない", () => {
+    const { tokens } = maskPii("担当は佐藤氏 名古屋オフィス勤務です");
+    expect(tokens.filter((t) => t.kind === "NAME")).toHaveLength(0);
+  });
 });
 
 describe("開示レベル表示（§10 Level 1）", () => {
