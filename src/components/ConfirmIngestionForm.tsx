@@ -47,10 +47,12 @@ export function ConfirmIngestionForm({
   jobId,
   kind,
   extracted,
+  suggestedName,
 }: {
   jobId: string;
   kind: "ENGINEER_SHEET" | "PROJECT_DESCRIPTION";
   extracted: EngineerDraft | ProjectDraft;
+  suggestedName?: string | null; // 取込書類から検出した氏名候補（PII置換表由来。人材のみ）
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -139,8 +141,10 @@ export function ConfirmIngestionForm({
         {error && <p className="rounded bg-red-50 p-2 text-xs text-red-700">{error}</p>}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
           <div>
-            <label className={label}>氏名（原本を参照して入力）</label>
-            <input name="name" required className={input} />
+            <label className={label}>
+              氏名{suggestedName ? "（書類から自動抽出・要確認）" : "（原本を参照して入力）"}
+            </label>
+            <input name="name" required defaultValue={suggestedName ?? ""} className={input} />
           </div>
           <div>
             <label className={label}>所属区分</label>

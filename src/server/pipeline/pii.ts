@@ -60,6 +60,25 @@ export function maskPii(text: string): MaskResult {
   return { masked, tokens };
 }
 
+// 取込書類から検出した氏名候補を返す（人材の確認フォームの初期値用）。
+// PII置換表の NAME トークンから、検出順（トークン番号順）で漢字を含む値を優先して選ぶ
+// （フリガナ欄のカナのみの値や宛名より、氏名欄の記載を優先するため）。宛名の「様」は除去する。
+export function suggestPersonName(
+  tokens: { kind: string; token: string; originalValue: string }[]
+): string | null {
+  const names = tokens
+    .filter((t) => t.kind === "NAME")
+    .sort(
+      (a, b) =>
+        (parseInt(a.token.match(/_(\d+)\]$/)?.[1] ?? "0") || 0) -
+        (parseInt(b.token.match(/_(\d+)\]$/)?.[1] ?? "0") || 0)
+    )
+    .map((t) => t.originalValue.replace(/[ 　]*様$/, "").trim())
+    .filter(Boolean);
+  if (names.length === 0) return null;
+  return names.find((n) => /[一-龥]/.test(n)) ?? names[0];
+}
+
 // 連絡先検出（§21）: 相互承認前のメッセージから連絡先・回避表現を検出する。
 // 全角文字・空白挿入による回避（例: ｔａｒｏ＠ex．com、0 9 0 - 1234）を正規化してから照合する。
 export function detectContactInfo(text: string): string[] {

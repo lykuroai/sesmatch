@@ -1,6 +1,6 @@
 // PII匿名化のテスト（§11, §25, §34: PII匿名化前のLLM呼出し停止）
 import { describe, expect, it } from "vitest";
-import { maskPii, verifyMasked } from "@/server/pipeline/pii";
+import { maskPii, suggestPersonName, verifyMasked } from "@/server/pipeline/pii";
 import { truncateFilenameBytes } from "@/server/pipeline/ingest";
 import { rateBand, ageBandLabel } from "@/lib/constants";
 
@@ -102,6 +102,28 @@ describe("保存ファイル名のサニタイズ（パストラバーサル対�
 
   it("通常のファイル名はそのまま保持する", () => {
     expect(truncateFilenameBytes("経歴書.xlsx", 180)).toBe("経歴書.xlsx");
+  });
+});
+
+describe("氏名候補の抽出（取込確認フォームの初期値）", () => {
+  it("氏名ラベルの記載から氏名を抽出する", () => {
+    const { tokens } = maskPii("氏名: 山田 太郎\nスキル: Java");
+    expect(suggestPersonName(tokens)).toBe("山田 太郎");
+  });
+
+  it("フリガナ（カナのみ）より漢字の氏名を優先する", () => {
+    const { tokens } = maskPii("フリガナ: ヤマダ タロウ\n氏名: 山田 太郎");
+    expect(suggestPersonName(tokens)).toBe("山田 太郎");
+  });
+
+  it("宛名（様）は敬称を除去して候補にする", () => {
+    const { tokens } = maskPii("佐藤様\nお世話になっております。");
+    expect(suggestPersonName(tokens)).toBe("佐藤");
+  });
+
+  it("氏名の記載がなければ null", () => {
+    const { tokens } = maskPii("スキル: Java 5年\n連絡先: taro@example.com");
+    expect(suggestPersonName(tokens)).toBeNull();
   });
 });
 
