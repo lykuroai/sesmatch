@@ -63,7 +63,7 @@ npm install
 |---|---|
 | `parent.token` | **推奨**。親サーバのコンソール「会社マイページ → APIトークン」で発行（スコープ: 取込のみ） |
 | `parent.email` / `password` | トークンを使わない場合の暫定認証。環境変数 `SES_PARENT_PASSWORD` の利用を推奨 |
-| `llm.baseUrl` / `apiKey` / `model` | 自社契約のOpenAI互換API（OpenAI、社内のOllama等）。キーと費用は自社負担 |
+| `llm.baseUrl` / `apiKey` / `model` | 自社契約のOpenAI互換API。キーと費用は自社負担。例: AI Gateway（`https://api.lykuro.ai/v1` + `deepseek/deepseek-v4-flash`）、OpenAI（`https://api.openai.com/v1` + `gpt-4o-mini`）、社内のOllama等 |
 
 `config.json` には秘密情報が入ります。ファイル権限を制限してください（Linux: `chmod 600 config.json`）。
 

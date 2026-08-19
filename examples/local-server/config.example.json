@@ -10,8 +10,8 @@
     "password": "（暫定: パスワード。環境変数 SES_PARENT_PASSWORD を推奨し、ファイルに書く場合は権限600にすること）"
   },
   "llm": {
-    "baseUrl": "https://api.openai.com/v1",
-    "apiKey": "（自社契約のLLM APIキー。環境変数 LLM_API_KEY も可）",
-    "model": "gpt-4o-mini"
+    "baseUrl": "https://api.lykuro.ai/v1",
+    "apiKey": "（LLM APIキー。この例は AI Gateway（api.lykuro.ai）。環境変数 LLM_API_KEY も可）",
+    "model": "deepseek/deepseek-v4-flash"
   }
 }
