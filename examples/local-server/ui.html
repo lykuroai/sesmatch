@@ -252,20 +252,16 @@ async function loadInfo() {
 function row(kindPath, item) {
   const m = item.meta;
   const title = item.name ? `${esc(item.name)}<br><span style="color:#94a3b8;font-size:11px">${esc(m.filename)}</span>` : esc(m.filename);
-  const detailButton = `<button onclick="openLocalDetail('${kindPath}','${m.id}')">明細</button>`;
   let status, actions;
   if (m.status === "PUBLISHED") {
     status = `<span class="badge published">公開済み ${fmtDate(m.publishedAt)}</span>`;
-    actions = `${detailButton}
-       <a href="${esc(parentBaseUrl)}/${kindPath}/${esc(m.parentId)}" target="_blank"><button>親サーバで開く</button></a>`;
+    actions = `<a href="${esc(parentBaseUrl)}/${kindPath}/${esc(m.parentId)}" target="_blank"><button>親サーバで開く</button></a>`;
   } else if (m.status === "SENT") {
     status = `<span class="badge sent">送信済み ${fmtDate(m.sentAt)}</span>`;
-    actions = `${detailButton}
-       <button onclick="checkStatus('${kindPath}','${m.id}')">親の状況</button>`;
+    actions = `<button onclick="checkStatus('${kindPath}','${m.id}')">親の状況</button>`;
   } else {
     status = `<span class="badge stored">ローカル保存</span>`;
     actions = `<button class="primary" onclick="openPublish('${kindPath}','${m.id}')">公開送信</button>
-       ${detailButton}
        <button onclick="openPublish('${kindPath}','${m.id}','edit')">編集</button>
        <button class="danger" onclick="deleteItem('${kindPath}','${m.id}','${esc(m.filename)}')">削除</button>`;
   }
@@ -512,63 +508,9 @@ const sourceBadge = (own) =>
 
 // ---- 明細表示 ----
 
-const STATUS_LABELS = { STORED: "ローカル保存", SENT: "送信済み", PUBLISHED: "公開済み" };
 const fmtYen = (v) => (v ? `${Number(v).toLocaleString()}円` : "");
 const skillList = (skills) => (skills ?? []).map((s) => (s.months ? `${s.name}（${s.months}ヶ月）` : s.name)).join("、");
 const foreignLabel = (v) => (v === true ? "不可" : v === false ? "可" : "");
-
-function showDetail(title, pairs) {
-  document.getElementById("detail-title").textContent = title;
-  document.getElementById("detail-body").innerHTML =
-    `<dl class="detail-dl">` +
-    pairs
-      .filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== "")
-      .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`)
-      .join("") +
-    `</dl>`;
-  document.getElementById("detail-overlay").classList.add("open");
-}
-
-async function openLocalDetail(kindPath, id) {
-  const item = await fetch(`/api/items/${kindPath}/${id}`).then((r) => r.json()).catch(() => null);
-  if (!item?.meta) return showMessage("在庫の読み込みに失敗しました");
-  const x = item.extracted ?? {};
-  const m = item.meta;
-  const metaPairs = [
-    ["ファイル", m.filename],
-    ["取込日", fmtDate(m.createdAt)],
-    ["状態", m.status === "PUBLISHED" ? `公開済み（${fmtDate(m.publishedAt)}）` : (STATUS_LABELS[m.status] ?? m.status)],
-  ];
-  if (kindPath === "projects") {
-    showDetail(`案件明細 — ${x.name ?? m.filename}`, [
-      ["案件名", x.name],
-      ["概要", x.summary],
-      ["開始日", fmtDay(x.startDate)],
-      ["上限単価", fmtYen(x.rateMaxYen)],
-      ["週出社日数", x.onsiteDaysPerWeek != null ? `週${x.onsiteDaysPerWeek}日` : ""],
-      ["勤務地", x.locationCity],
-      ["外国籍", foreignLabel(x.noForeignNational)],
-      ["必須スキル", (x.requiredSkills ?? []).join("、")],
-      ["尚可スキル", (x.preferredSkills ?? []).join("、")],
-      ...metaPairs,
-    ]);
-  } else {
-    showDetail(`人材明細 — ${m.filename}`, [
-      ["年代", x.ageBand ? `${x.ageBand}歳〜` : ""],
-      ["居住エリア", x.residenceCity],
-      ["国籍", x.nationality],
-      ["稼働可能日", fmtDay(x.availableFrom)],
-      ["希望単価", fmtYen(x.desiredRateYen)],
-      ["週最大出社", x.maxOnsiteDaysPerWeek != null ? `週${x.maxOnsiteDaysPerWeek}日` : ""],
-      ["スキル", skillList(x.skills)],
-      ["経験工程", (x.processes ?? []).join("、")],
-      ["役割", (x.roles ?? []).join("、")],
-      ["業種経験", (x.industries ?? []).join("、")],
-      ["要約", x.summary],
-      ...metaPairs,
-    ]);
-  }
-}
 
 function openSearchDetail(kindPath, id) {
   const i = searchCache[kindPath].find((r) => r.id === id);
