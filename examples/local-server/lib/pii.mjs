@@ -22,6 +22,23 @@ const PATTERNS = [
 const NAME_LABEL_RE =
   /(氏名|名前|フリガナ|ふりがな)\s*[:：,，\t 　]+\s*([一-龥ぁ-んァ-ヶーA-Za-z]{1,12}(?:[ 　][一-龥ぁ-んァ-ヶーA-Za-z]{1,12})?)/g;
 
+// 取込書類から検出した氏名候補を返す（本体 pii.ts の suggestPersonName と同等）。
+// NAME トークンから検出順（トークン番号順）で漢字を含む値を優先して選ぶ
+// （フリガナ欄のカナのみの値や宛名より、氏名欄の記載を優先）。宛名の「様」は除去する。
+export function suggestPersonName(tokens) {
+  const names = tokens
+    .filter((t) => t.kind === "NAME")
+    .sort(
+      (a, b) =>
+        (parseInt(a.token.match(/_(\d+)\]$/)?.[1] ?? "0") || 0) -
+        (parseInt(b.token.match(/_(\d+)\]$/)?.[1] ?? "0") || 0)
+    )
+    .map((t) => t.originalValue.replace(/[ 　]*様$/, "").trim())
+    .filter(Boolean);
+  if (names.length === 0) return null;
+  return names.find((n) => /[一-龥]/.test(n)) ?? names[0];
+}
+
 export function maskPii(text) {
   const tokens = [];
   const counters = {};
