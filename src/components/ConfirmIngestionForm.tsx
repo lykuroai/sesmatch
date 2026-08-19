@@ -16,6 +16,7 @@ const label = "mb-1 block text-xs text-slate-500";
 
 type EngineerDraft = {
   kind: "ENGINEER_SHEET";
+  name?: string | null; // 氏名（LLM抽出。2026-08-19の送信禁止撤廃後の抽出結果のみ持つ）
   affiliationType: string | null;
   ageBand: number | null;
   nationality?: string | null; // 国籍（国名。未指定は日本国籍とみなす）
@@ -47,12 +48,10 @@ export function ConfirmIngestionForm({
   jobId,
   kind,
   extracted,
-  suggestedName,
 }: {
   jobId: string;
   kind: "ENGINEER_SHEET" | "PROJECT_DESCRIPTION";
   extracted: EngineerDraft | ProjectDraft;
-  suggestedName?: string | null; // 取込書類から検出した氏名候補（PII置換表由来。人材のみ）
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -142,9 +141,9 @@ export function ConfirmIngestionForm({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
           <div>
             <label className={label}>
-              氏名{suggestedName ? "（書類から自動抽出・要確認）" : "（原本を参照して入力）"}
+              氏名{d.name ? "（書類から自動抽出・要確認）" : "（原本を参照して入力）"}
             </label>
-            <input name="name" required defaultValue={suggestedName ?? ""} className={input} />
+            <input name="name" required defaultValue={d.name ?? ""} className={input} />
           </div>
           <div>
             <label className={label}>所属区分</label>

@@ -25,8 +25,8 @@ export function summarizeZodError(e: ZodError): string {
 }
 
 const SYSTEM_PROMPT = `あなたはSES（システムエンジニアリングサービス）業界の文書を正規化する抽出エンジンです。
-入力は PII 匿名化済みのテキストで、[PII_EMAIL_1] のようなトークンを含むことがあります。
-出力に PII トークンや個人を特定しうる情報（氏名・連絡先・企業実名）を含めてはいけません。
+入力は取込書類の原文です（氏名等の個人情報を含むことがあります）。
+氏名は name 項目にのみ出力し、summary 等の自由記述には個人を特定しうる情報（氏名・連絡先・企業実名）を含めてはいけません（他社に公開される匿名要約のため）。
 - 指定された JSON スキーマに厳密に従った JSON オブジェクトのみを出力する（説明文・コードフェンス禁止）
 - 日付は ISO 8601（YYYY-MM-DD）の文字列で出力する
 - 単価は月額の円整数で出力する（例: 70万円 → 700000）
@@ -40,6 +40,7 @@ const CLASSIFY_SCHEMA = `{"kind": "ENGINEER_SHEET" | "PROJECT_DESCRIPTION" | "UN
 
 const ENGINEER_SCHEMA = `{
   "kind": "ENGINEER_SHEET",
+  "name": string | null,               // エンジニア本人の氏名（氏名欄・宛名等の記載から。敬称・フリガナは除く）。記載がなければ null
   "affiliationType": "EMPLOYEE" | "AFFILIATED" | "FREELANCER" | "SUBTIER1" | null,
                                        // 所属区分: 自社社員(正社員・雇用) / 自社所属(業務委託) / 個人事業主(フリーランス・弊社直個人) / 一社下(協力会社所属)。判断できなければ null
   "ageBand": number | null,            // 5歳刻み年代の下限（例: 35）

@@ -6,7 +6,6 @@ import { ActionButton } from "@/components/ActionButton";
 import { DeleteResourceButton } from "@/components/DeleteResourceButton";
 import { ConfirmIngestionForm } from "@/components/ConfirmIngestionForm";
 import { hasPermission } from "@/server/auth/rbac";
-import { suggestPersonName } from "@/server/pipeline/pii";
 import { Pager, parsePage } from "@/components/Pager";
 import { LIST_PAGE_SIZE } from "@/lib/constants";
 import { AutoRefresh } from "@/components/AutoRefresh";
@@ -49,24 +48,6 @@ export default async function IngestionsPage({
     }),
   ]);
   const canConfirm = hasPermission(auth.roles, "ingestion.confirm");
-
-  // 人材の確認フォーム用: 匿名化時のPII置換表から氏名候補を引く（氏名はLLMに送らないため、
-  // LLM抽出値ではなくローカル検出の結果を初期値として提示し、人が確認・修正する）
-  const engineerDocIds = pending
-    .filter((j) => j.sourceDocument.kind === "ENGINEER_SHEET")
-    .map((j) => j.sourceDocumentId);
-  const nameTokens = engineerDocIds.length
-    ? await prisma.piiTokenMap.findMany({
-        where: { sourceDocumentId: { in: engineerDocIds }, kind: "NAME" },
-        select: { sourceDocumentId: true, kind: true, token: true, originalValue: true },
-      })
-    : [];
-  const suggestedNames = new Map(
-    engineerDocIds.map((docId) => [
-      docId,
-      suggestPersonName(nameTokens.filter((t) => t.sourceDocumentId === docId)),
-    ])
-  );
 
   const kindLabel = (job: JobWithRelations) =>
     job.sourceDocument.kind === "ENGINEER_SHEET"
@@ -122,13 +103,12 @@ export default async function IngestionsPage({
             jobId={job.id}
             kind={job.sourceDocument.kind as "ENGINEER_SHEET" | "PROJECT_DESCRIPTION"}
             extracted={job.extraction.extractedJson as never}
-            suggestedName={suggestedNames.get(job.sourceDocumentId) ?? null}
           />
         )}
       {job.extraction && (
         <details className="mt-3">
           <summary className="cursor-pointer text-xs text-slate-500">
-            匿名化済みテキスト・抽出値を表示
+            取込テキスト・抽出値を表示
           </summary>
           <div className="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
             <pre className="overflow-x-auto rounded bg-slate-50 p-3 text-xs">

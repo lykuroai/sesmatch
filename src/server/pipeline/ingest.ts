@@ -6,7 +6,6 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { prisma } from "@/server/db";
-import { maskPii, verifyMasked } from "./pii";
 import { llmGateway } from "./llm";
 import { extractDocumentText } from "./extract-text";
 import { splitFilename, splitProjectItems } from "./split";
@@ -154,13 +153,11 @@ async function processDocument(params: {
   }
 
   if (segments.length > 1) {
-    // 分割前に文書全体の種別を確認する（匿名化済みテキストのみLLMへ送信 §25）。
+    // 分割前に文書全体の種別を確認する。
     // 全体がスキルシートなら分割しない: 職務経歴の「案件名」繰り返しに分割判定が
     // 誤ヒットした場合に、経歴の断片が案件として誤登録されるのを防ぐ
-    const { masked } = maskPii(text);
-    const wholeKind = verifyMasked(masked).ok
-      ? await llmGateway.classify(masked).catch(() => "UNKNOWN" as const)
-      : ("UNKNOWN" as const);
+    // （LLM送信禁止は2026-08-19に全面撤廃 §25.2。原文をそのまま送信する）
+    const wholeKind = await llmGateway.classify(text).catch(() => "UNKNOWN" as const);
     if (wholeKind === "ENGINEER_SHEET") {
       if (params.expectedKind === "PROJECT_DESCRIPTION") {
         await prisma.ingestionJob
@@ -276,7 +273,10 @@ async function processSegments(
   }
 }
 
-// パイプライン本体（PII匿名化 → 検査 → 分類 → LLM正規化 → 人手確認待ち）。
+// パイプライン本体（分類 → LLM正規化 → 人手確認待ち）。
+// LLM送信禁止・取込時のPIIマスキングは2026-08-19に全面撤廃（§25.2。郭指示）。
+// 原文をそのままLLMへ送信する（事業者はゼロデータ保持・学習オプトアウト契約 §25.4 が前提）。
+// 公開画面の匿名性（Level 1 の非開示・匿名要約）と段階開示は従来どおり維持する。
 // 失敗はジョブの status/error に記録し、例外は投げない
 async function runPipeline(params: {
   tenantCompanyId: string;
@@ -288,38 +288,10 @@ async function runPipeline(params: {
 }) {
   const { tenantCompanyId, actorUserId, docId, jobId, text, expectedKind } = params;
   try {
-    // PII検出・匿名化
-    await prisma.ingestionJob.update({ where: { id: jobId }, data: { status: "MASKING", error: null } });
-    const { masked, tokens } = maskPii(text);
+    const masked = text; // マスキング廃止後も保存カラム名（maskedText）は互換のため維持
 
-    // 置換表は保護ストアへ（MVPは別テーブル §25.3）
-    if (tokens.length > 0) {
-      await prisma.piiTokenMap.createMany({
-        data: tokens.map((t) => ({
-          sourceDocumentId: docId,
-          token: t.token,
-          originalValue: t.originalValue,
-          kind: t.kind,
-        })),
-      });
-    }
-
-    // 匿名化検査: 残存PIIがあれば LLM 呼出しを停止する（§34）
-    const check = verifyMasked(masked);
-    if (!check.ok) {
-      throw new Error(`PII_VALIDATION_FAILED: 匿名化検査で残存PIIを検出 (${check.findings.join(", ")})`);
-    }
-    await audit({
-      tenantCompanyId,
-      actorUserId,
-      action: "PiiMasked",
-      targetType: "SourceDocument",
-      targetId: docId,
-      metadata: { tokenCount: tokens.length },
-    });
-
-    // 種別分類 → LLM正規化（匿名化済みテキストのみ送信 §25）
-    await prisma.ingestionJob.update({ where: { id: jobId }, data: { status: "EXTRACTING" } });
+    // 種別分類 → LLM正規化
+    await prisma.ingestionJob.update({ where: { id: jobId }, data: { status: "EXTRACTING", error: null } });
     const kind = await llmGateway.classify(masked);
     if (kind === "UNKNOWN") throw new Error("文書種別を判定できませんでした");
     // 期待種別との突き合わせ（案件取込は案件のみ・人材取込は人材のみ）。

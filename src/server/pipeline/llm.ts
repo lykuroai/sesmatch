@@ -7,6 +7,9 @@ import { z } from "zod";
 
 export const engineerDraftSchema = z.object({
   kind: z.literal("ENGINEER_SHEET"),
+  // 氏名（2026-08-19: LLM送信禁止の全面撤廃により抽出対象。確認画面で人手確定。
+  // 過去の抽出結果には存在しないため default で後方互換）
+  name: z.string().nullable().default(null),
   // 所属区分（§12）: 文書から判断できない場合は null（確定時は自社所属が既定）
   affiliationType: z.enum(["EMPLOYEE", "AFFILIATED", "FREELANCER", "SUBTIER1"]).nullable(),
   ageBand: z.number().int().min(20).max(70).nullable(),
@@ -167,8 +170,16 @@ export class MockLlmGateway implements LlmGateway {
             ? "外国籍"
             : natSuffix[1]
           : null;
+      // 氏名: ラベル付き記載（同一行・表レイアウトの単独行の両方）から抽出（§25.2 撤廃後は原文が入力）
+      const nameSame = maskedText.match(
+        /(?:氏[ 　]{0,2}名|名[ 　]{0,2}前)\s*[:：,，\t 　]+\s*([一-龥ぁ-んァ-ヶーA-Za-z]{1,12}(?:[ 　][一-龥ぁ-んァ-ヶーA-Za-z]{1,12})?)/
+      );
+      const nameLine = maskedText.match(
+        /(?:^|\n)(?:氏[ 　]{0,2}名|名[ 　]{0,2}前)[ 　]*\n{1,3}[ 　]*([一-龥ぁ-んァ-ヶーA-Za-z]{1,12}(?:[ 　][一-龥ぁ-んァ-ヶーA-Za-z]{1,12})?)(?=[ 　]*(?:\n|$))/
+      );
       const draft: EngineerDraft = {
         kind: "ENGINEER_SHEET",
+        name: nameSame?.[1] ?? nameLine?.[1] ?? null,
         affiliationType: /個人事業主|フリーランス/.test(maskedText)
           ? "FREELANCER"
           : /正社員|自社社員/.test(maskedText)

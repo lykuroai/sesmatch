@@ -210,7 +210,7 @@ export default async function ProjectDetailPage({
 
       {p.maskedSourceText && (
         <details className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <summary className="cursor-pointer font-bold">取込原文（匿名化済み）</summary>
+          <summary className="cursor-pointer font-bold">取込原文</summary>
           <pre className="mt-3 max-h-96 overflow-y-auto whitespace-pre-wrap rounded bg-slate-50 p-4 text-sm text-slate-700">
             {p.maskedSourceText}
           </pre>

@@ -1,6 +1,6 @@
 // ローカルOCR（§9.2 / §25）: 撮影画像・画像PDFをサーバー内で文字起こしする。
 // 原本画像は氏名・顔写真等のPIIを含み得るため、外部サービス・LLMには一切送らず、
-// tesseract CLI（jpn+eng）で処理する。抽出テキストはこの後の maskPii で匿名化される。
+// tesseract CLI（jpn+eng）で処理する。
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";

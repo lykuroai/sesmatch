@@ -34,6 +34,10 @@ const ENGINEER_SCHEMA = {
   additionalProperties: false,
   properties: {
     kind: { type: "string", enum: ["ENGINEER_SHEET"] },
+    name: {
+      ...nullable("string"),
+      description: "エンジニア本人の氏名（氏名欄・宛名等の記載から。敬称・フリガナは除く）。記載がなければ null",
+    },
     affiliationType: {
       anyOf: [
         { type: "string", enum: ["EMPLOYEE", "AFFILIATED", "FREELANCER", "SUBTIER1"] },
@@ -95,6 +99,7 @@ const ENGINEER_SCHEMA = {
   },
   required: [
     "kind",
+    "name",
     "affiliationType",
     "ageBand",
     "nationality",
@@ -157,8 +162,8 @@ const PROJECT_SCHEMA = {
 } as unknown as Record<string, unknown>;
 
 const SYSTEM_PROMPT = `あなたはSES（システムエンジニアリングサービス）業界の文書を正規化する抽出エンジンです。
-入力は PII 匿名化済みのテキストで、[PII_EMAIL_1] のようなトークンを含むことがあります。
-出力に PII トークンや個人を特定しうる情報（氏名・連絡先・企業実名）を含めてはいけません。
+入力は取込書類の原文です（氏名等の個人情報を含むことがあります）。
+氏名は name 項目にのみ出力し、summary 等の自由記述には個人を特定しうる情報（氏名・連絡先・企業実名）を含めてはいけません（他社に公開される匿名要約のため）。
 - 日付は ISO 8601（YYYY-MM-DD）で出力する
 - 単価は月額の円整数で出力する（例: 70万円 → 700000）
 - スキル名は一般的な正式名称に正規化する（例: "JAVA" → "Java", "railsフレームワーク" → "Rails"）
@@ -218,7 +223,7 @@ export class ClaudeLlmGateway implements LlmGateway {
   ): Promise<ExtractionDraft> {
     const isEngineer = kind === "ENGINEER_SHEET";
     const instruction = isEngineer
-      ? "次のスキルシートから構造化データを抽出してください。summary には技術・経験の匿名要約を200字以内の自然な日本語で書いてください（氏名・企業名・連絡先・PIIトークンを含めない）。"
+      ? "次のスキルシートから構造化データを抽出してください。name にはエンジニア本人の氏名を抽出してください。summary には技術・経験の匿名要約を200字以内の自然な日本語で書いてください（氏名・企業名・連絡先を含めない）。"
       : "次の案件情報から構造化データを抽出してください。summary には業務内容の匿名要約を200字以内の自然な日本語で書いてください（エンド企業名は「大手金融機関」等の抽象カテゴリに置換する）。";
     const raw = await this.call(
       `extract:${kind}`,

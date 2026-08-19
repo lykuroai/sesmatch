@@ -6,7 +6,6 @@ import { ageBandLabel, rateBand, remoteLevelToOnsiteDays, LIST_PAGE_SIZE } from 
 import { expandSearchTerms, registerNewTermAliases } from "./skill-aliases";
 import { STORAGE_DIR, truncateFilenameBytes } from "@/server/pipeline/ingest";
 import { extractDocumentText, isSkillSheetFile } from "@/server/pipeline/extract-text";
-import { maskPii, verifyMasked } from "@/server/pipeline/pii";
 import { llmGateway } from "@/server/pipeline/llm";
 import { mkdir, writeFile, readFile } from "fs/promises";
 import path from "path";
@@ -64,7 +63,7 @@ export function serializeEngineer(e: EngineerWithRels, auth: AuthContext) {
     workAuthStatus: own ? e.workAuthStatus : undefined,
     nationality: own ? e.nationality : undefined, // 国籍は自社のみ表示（未指定=日本国籍）
     foreignNational: isForeignNationality(e.nationality), // マッチ条件表示用
-    maskedSourceText: own ? e.maskedSourceText : undefined, // 取込時の匿名化済み原文（自社のみ）
+    maskedSourceText: own ? e.maskedSourceText : undefined, // 取込原文（自社のみ。2026-08-19以降はマスクなし）
     // ---- Level 2 相当（自社 + PII権限のみ）----
     name: canPii ? e.name : undefined,
     desiredRateYen: canPii ? e.desiredRateYen : undefined,
@@ -147,7 +146,7 @@ export async function getEngineer(auth: AuthContext, id: string) {
 }
 
 // 職務経歴書（スキルシート）の添付・差し替え。原本は取込と同じストレージに保存し
-// SourceDocument として管理する（PII を含むため LLM には送らない）
+// SourceDocument として管理する
 export async function attachSkillSheet(
   auth: AuthContext,
   engineerId: string,
@@ -234,7 +233,8 @@ export async function reExtractSkillSheet(auth: AuthContext, engineerId: string)
   return { ok: true as const, ...result };
 }
 
-// 経歴書の内容をマッチングへ反映: テキスト抽出 → PII匿名化 → LLM正規化 → 不足スキルの追加。
+// 経歴書の内容をマッチングへ反映: テキスト抽出 → LLM正規化 → 不足スキルの追加。
+// LLM送信禁止・マスキングは2026-08-19に全面撤廃（§25.2）。原文をそのまま送信する。
 // 既存スキルは上書きせず、未登録スキルの追加と経験月数0の補完のみ行う（担当者の入力を正とする）
 async function extractSheetIntoEngineer(
   auth: AuthContext,
@@ -249,22 +249,7 @@ async function extractSheetIntoEngineer(
   let extractWarning: string | null = null;
   try {
     const text = await extractDocumentText(filename, content);
-    const { masked, tokens } = maskPii(text);
-    // 再抽出時の重複を避けるため置換表は入れ替える
-    await prisma.piiTokenMap.deleteMany({ where: { sourceDocumentId: docId } });
-    if (tokens.length > 0) {
-      await prisma.piiTokenMap.createMany({
-        data: tokens.map((t) => ({
-          sourceDocumentId: docId,
-          token: t.token,
-          originalValue: t.originalValue,
-          kind: t.kind,
-        })),
-      });
-    }
-    const check = verifyMasked(masked);
-    if (!check.ok) throw new Error("匿名化検査で残存PIIを検出したため内容反映を中止しました");
-    const extracted = await llmGateway.extract(masked, "ENGINEER_SHEET");
+    const extracted = await llmGateway.extract(text, "ENGINEER_SHEET");
     if (extracted.kind === "ENGINEER_SHEET") {
       const existing = new Map(engineer.skills.map((s) => [s.name.trim().toLowerCase(), s]));
       for (const s of extracted.skills) {
@@ -328,7 +313,7 @@ async function extractSheetIntoEngineer(
       if (engineer.industries.length === 0 && extracted.industries.length > 0)
         profile.industries = extracted.industries;
       if (!engineer.summary && extracted.summary) profile.summary = extracted.summary;
-      if (!engineer.maskedSourceText) profile.maskedSourceText = masked;
+      if (!engineer.maskedSourceText) profile.maskedSourceText = text; // マスキング撤廃後は原文（カラム名は互換のため維持）
       if (Object.keys(profile).length > 0) {
         await prisma.engineer.update({ where: { id: engineer.id }, data: profile });
       }

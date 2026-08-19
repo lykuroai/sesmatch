@@ -1198,8 +1198,11 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
     // 許容出社条件: 確認時の指定 > 抽出値の最大出社日数からの導出。週最大出社日数は連動
     const bodyRemotePref = REMOTE_LEVELS.find((r) => r === body?.remotePreference);
     const result = await createEngineer(auth, {
-      // 氏名は匿名化済み抽出値に含まれないため、確認画面で担当者が入力する
-      name: typeof body?.name === "string" && body.name ? body.name : "（未入力）",
+      // 氏名: 確認時の指定 > LLM抽出値（2026-08-19 §25.2撤廃で抽出対象）
+      name:
+        typeof body?.name === "string" && body.name
+          ? body.name
+          : ((d as { name?: string | null }).name ?? "（未入力）"),
       ageBand: d.ageBand ?? 30,
       affiliationType: bodyAffiliation ?? d.affiliationType ?? "AFFILIATED",
       nationality: d.nationality ?? undefined, // 国籍（国名。未指定は日本国籍とみなす）
@@ -1269,7 +1272,7 @@ app.post("/ingestions/:id/confirm", requirePermission("ingestion.confirm"), asyn
     await registerNewTermAliases([...d.requiredSkills, ...d.preferredSkills], auth.companyId);
   }
 
-  // 匿名化済み原文を作成された案件・人材に保存する（詳細表示用）。
+  // 取込原文を作成された案件・人材に保存する（詳細表示用。マスキングは2026-08-19撤廃、カラム名は互換のため維持）。
   // 人材は取込原本を職務経歴書（スキルシート）としてそのまま紐づける
   if (createdId && job.sourceDocument.kind === "ENGINEER_SHEET") {
     await prisma.engineer.update({
