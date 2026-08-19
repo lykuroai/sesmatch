@@ -77,7 +77,7 @@ async function moveToError(store, filePath, reason) {
   await writeFile(`${dest}.エラー.txt`, `${reason}\n`, "utf-8").catch(() => {});
 }
 
-async function processInboxFile(store, llm, kind, filePath) {
+async function processInboxFile(store, llm, kind, filePath, extraMeta = {}) {
   const name = path.basename(filePath);
   const kindLabel = KIND_DIRS[kind];
   try {
@@ -89,7 +89,7 @@ async function processInboxFile(store, llm, kind, filePath) {
     const check = verifyMasked(masked);
     if (!check.ok) throw new Error(`匿名化検査で残存PIIを検出したため中止 (${check.findings.join(", ")})`);
     const extracted = await llm.extract(masked, kind);
-    const meta = await store.saveItem({ kind, sourcePath: filePath, filename: name, extracted, maskedText: masked });
+    const meta = await store.saveItem({ kind, sourcePath: filePath, filename: name, extracted, maskedText: masked, ...extraMeta });
     log(`在庫に保存: [${kindLabel}] ${name} (id: ${meta.id})`);
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e);
@@ -304,6 +304,9 @@ async function handleApi(req, res, { store, parent, config, llm }) {
     if (!text) return json(res, 400, { error: "テキストが空です" });
     if (text.length > 100_000) return json(res, 413, { error: "テキストが大きすぎます（上限10万文字）" });
     const title = typeof body.title === "string" ? path.basename(body.title.trim()).replace(/^\.+/, "").slice(0, 80) : "";
+    // 人材の氏名（任意）: PIIのためLLMには送らず、在庫メタ情報として保持する
+    const personName =
+      kind === "ENGINEER_SHEET" && typeof body.name === "string" ? body.name.trim().slice(0, 80) || null : null;
     const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
     const filename = `${title || `貼り付け_${stamp}`}.txt`;
 
@@ -316,7 +319,7 @@ async function handleApi(req, res, { store, parent, config, llm }) {
     processing.add(dest); // フォルダ監視との二重処理を防止
     await rename(tmp, dest);
     log(`画面から貼り付け受入: [${KIND_DIRS[kind]}] ${path.basename(dest)}`);
-    processInboxFile(store, llm, kind, dest).finally(() => processing.delete(dest));
+    processInboxFile(store, llm, kind, dest, personName ? { personName } : {}).finally(() => processing.delete(dest));
     return json(res, 200, { ok: true, filename: path.basename(dest) });
   }
 
@@ -478,6 +481,7 @@ async function handleApi(req, res, { store, parent, config, llm }) {
           publishedAt: new Date().toISOString(),
           parentId: created.id,
           parentName: payload.name,
+          ...(kind === "ENGINEER_SHEET" ? { personName: payload.name } : {}),
         });
         log(`公開送信: [${KIND_DIRS[kind]}] ${meta.filename} → 親サーバ ${created.id}`);
         return json(res, 200, { meta, parentId: created.id });
@@ -533,6 +537,9 @@ async function handleApi(req, res, { store, parent, config, llm }) {
           ? buildProjectExtracted(item.extracted, body)
           : buildEngineerExtracted(item.extracted, body);
       await store.updateExtracted(kind, id, extracted);
+      // 人材の氏名はPIIのため抽出データと分け、メタ情報として保存する
+      if (kind === "ENGINEER_SHEET" && typeof body.name === "string")
+        await store.updateMeta(kind, id, { personName: body.name.trim().slice(0, 80) || null });
       log(`在庫を修正: [${KIND_DIRS[kind]}] ${item.meta.filename}`);
       return json(res, 200, { ok: true, extracted });
     }

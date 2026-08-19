@@ -33,7 +33,8 @@ export class Store {
   }
 
   // 解析済みの1件を在庫に保存し、受入フォルダの原本を在庫ディレクトリへ移動する
-  async saveItem({ kind, sourcePath, filename, extracted, maskedText }) {
+  // personName: 人材の氏名（PII。LLMには送らずメタ情報として保持。親サーバでは Level 2 開示まで相手に非公開）
+  async saveItem({ kind, sourcePath, filename, extracted, maskedText, personName }) {
     const id = `${Date.now()}_${randomBytes(4).toString("hex")}`;
     const dir = this.itemDir(kind, id);
     await mkdir(dir, { recursive: true });
@@ -43,6 +44,7 @@ export class Store {
       id,
       kind,
       filename,
+      personName: personName ?? null,
       status: "STORED", // STORED（ローカル保存のみ） | SENT（親サーバへ送信済み）
       createdAt: new Date().toISOString(),
       sentAt: null,

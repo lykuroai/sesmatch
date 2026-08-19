@@ -42,6 +42,7 @@
   button.danger { color: #dc2626; border-color: #fca5a5; }
   button:disabled { opacity: .5; cursor: default; }
   .empty { color: #94a3b8; text-align: center; padding: 20px; }
+  .pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 10px; font-size: 12px; color: #64748b; }
   #message { position: fixed; right: 16px; bottom: 16px; background: #0f172a; color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 13px; display: none; max-width: 420px; z-index: 30; }
   .paste-form { display: none; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; margin: 0 0 12px; }
   .paste-form.open { display: block; }
@@ -107,6 +108,7 @@
     <thead><tr><th>案件名 / ファイル</th><th>要約</th><th>取込日</th><th>状態</th><th></th></tr></thead>
     <tbody id="projects"></tbody>
   </table>
+  <div class="pager" id="pager-projects"></div>
   </section>
 
   <section id="view-local-engineers">
@@ -120,6 +122,7 @@
     <button onclick="togglePaste('engineers')">テキスト貼り付け</button>
   </h2>
   <div class="paste-form" id="paste-engineers">
+    <input type="text" id="paste-name-engineers" placeholder="氏名（任意・PII。親サーバでは双方承認（Level 2）まで相手に非公開）">
     <input type="text" id="paste-title-engineers" placeholder="タイトル（任意・一覧での表示名。例: △△さんスキルシート）">
     <textarea id="paste-text-engineers" rows="8" placeholder="メール本文やスキルシートのテキストをここに貼り付けてください" oninput="updatePasteCount('engineers')"></textarea>
     <div class="paste-actions">
@@ -128,9 +131,10 @@
     </div>
   </div>
   <table>
-    <thead><tr><th>ファイル</th><th>要約</th><th>取込日</th><th>状態</th><th></th></tr></thead>
+    <thead><tr><th>氏名 / ファイル</th><th>要約</th><th>取込日</th><th>状態</th><th></th></tr></thead>
     <tbody id="engineers"></tbody>
   </table>
+  <div class="pager" id="pager-engineers"></div>
   </section>
 
   <section id="view-public-projects">
@@ -254,7 +258,9 @@ async function loadInfo() {
 
 function row(kindPath, item) {
   const m = item.meta;
-  const title = item.name ? `${esc(item.name)}<br><span style="color:#94a3b8;font-size:11px">${esc(m.filename)}</span>` : esc(m.filename);
+  // 人材は氏名（ローカル保持のPII）、案件は抽出した案件名を表示名にする
+  const displayName = kindPath === "engineers" ? m.personName : item.name;
+  const title = displayName ? `${esc(displayName)}<br><span style="color:#94a3b8;font-size:11px">${esc(m.filename)}</span>` : esc(m.filename);
   let status, actions;
   if (m.status === "PUBLISHED") {
     status = `<span class="badge published">公開済み ${fmtDate(m.publishedAt)}</span>`;
@@ -271,16 +277,37 @@ function row(kindPath, item) {
   return `<tr><td>${title}</td><td class="summary"><div class="clamp2">${esc(clip(item.summary))}</div></td><td>${fmtDate(m.createdAt)}</td><td>${status}</td><td style="white-space:nowrap">${actions}</td></tr>`;
 }
 
+const PAGE_SIZE = 50;
+const listPage = { projects: 1, engineers: 1 };
+
+function setListPage(kindPath, page) {
+  listPage[kindPath] = page;
+  renderList(kindPath);
+}
+
+function renderList(kindPath) {
+  const items = itemsCache[kindPath] ?? [];
+  const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  if (listPage[kindPath] > pages) listPage[kindPath] = pages;
+  const page = listPage[kindPath];
+  const slice = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  document.getElementById(`count-${kindPath}`).textContent = items.length;
+  document.getElementById(kindPath).innerHTML = slice.length
+    ? slice.map((i) => row(kindPath, i)).join("")
+    : `<tr><td colspan="5" class="empty">在庫はありません（取込ボタンまたは受入フォルダから追加してください）</td></tr>`;
+  document.getElementById(`pager-${kindPath}`).innerHTML =
+    items.length > PAGE_SIZE
+      ? `<button ${page <= 1 ? "disabled" : ""} onclick="setListPage('${kindPath}', ${page - 1})">前へ</button>
+         <span>${page} / ${pages} ページ（全${items.length}件）</span>
+         <button ${page >= pages ? "disabled" : ""} onclick="setListPage('${kindPath}', ${page + 1})">次へ</button>`
+      : "";
+}
+
 async function refresh() {
   const data = await fetch("/api/items").then((r) => r.json());
   itemsCache = data;
-  for (const [kindPath, key] of [["projects", "projects"], ["engineers", "engineers"]]) {
-    const items = data[key];
-    document.getElementById(`count-${key}`).textContent = items.length;
-    document.getElementById(key).innerHTML = items.length
-      ? items.map((i) => row(kindPath, i)).join("")
-      : `<tr><td colspan="5" class="empty">在庫はありません（取込ボタンまたは受入フォルダから追加してください）</td></tr>`;
-  }
+  renderList("projects");
+  renderList("engineers");
   updateMatchTargets();
 }
 
@@ -342,13 +369,19 @@ async function submitPaste(kindPath) {
   const res = await fetch(`/api/paste/${kindPath}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, title: titleEl.value.trim() || undefined }),
+    body: JSON.stringify({
+      text,
+      title: titleEl.value.trim() || undefined,
+      name: document.getElementById(`paste-name-${kindPath}`)?.value.trim() || undefined,
+    }),
   }).catch(() => null);
   button.disabled = false;
   const body = await res?.json().catch(() => null);
   if (res?.ok) {
     textEl.value = "";
     titleEl.value = "";
+    const nameEl = document.getElementById(`paste-name-${kindPath}`);
+    if (nameEl) nameEl.value = "";
     updatePasteCount(kindPath);
     document.getElementById(`paste-${kindPath}`).classList.remove("open");
     showMessage("受け付けました。解析が終わると一覧に表示されます（数十秒）");
@@ -412,7 +445,7 @@ async function openPublish(kindPath, id, mode = "publish") {
     document.getElementById("publish-title").textContent = `${verb} — 人材（${item.meta.filename}）`;
     fieldsEl.innerHTML = `
       <div class="grid2">
-        ${pub ? field("氏名（親サーバでは双方承認まで相手に開示されません）", true, textInput("pf-name", "", "例: 山田 太郎")) : ""}
+        ${field("氏名（PII・親サーバでは双方承認（Level 2）まで相手に非公開）", pub, textInput("pf-name", item.meta.personName ?? "", "例: 山田 太郎"))}
         ${pub ? field("所属", true, selectInput("pf-affiliation", AFFILIATIONS, "EMPLOYEE")) : ""}
         ${field("年代（5歳刻み下限: 20-70）", pub, `<input id="pf-ageBand" type="number" min="20" max="70" step="5" value="${x.ageBand ?? ""}">`)}
         ${field("希望単価（円/月）", pub, `<input id="pf-desiredRate" type="number" min="1" value="${x.desiredRateYen ?? ""}">`)}
