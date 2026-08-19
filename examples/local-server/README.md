@@ -65,6 +65,11 @@ npm install
 | `parent.email` / `password` | トークンを使わない場合の暫定認証。環境変数 `SES_PARENT_PASSWORD` の利用を推奨 |
 | `llm.baseUrl` / `apiKey` / `model` | 自社契約のOpenAI互換API。キーと費用は自社負担。例: AI Gateway（`https://api.lykuro.ai/v1` + `deepseek/deepseek-v4-flash`）、OpenAI（`https://api.openai.com/v1` + `gpt-4o-mini`）、社内のOllama等 |
 
+**AI Gateway（api.lykuro.ai）のAPIキー取得方法**:
+[https://app.lykuro.ai/](https://app.lykuro.ai/) でアカウント登録し、ログイン後の画面からAPIキーを発行して
+`llm.apiKey` に設定してください（`llm.baseUrl` は `https://api.lykuro.ai/v1` のまま）。
+複数のAIモデルをひとつのAPIキーで利用できます。
+
 `config.json` には秘密情報が入ります。ファイル権限を制限してください（Linux: `chmod 600 config.json`）。
 
 3. 起動

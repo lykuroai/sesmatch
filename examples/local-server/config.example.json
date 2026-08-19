@@ -11,7 +11,7 @@
   },
   "llm": {
     "baseUrl": "https://api.lykuro.ai/v1",
-    "apiKey": "（LLM APIキー。この例は AI Gateway（api.lykuro.ai）。環境変数 LLM_API_KEY も可）",
+    "apiKey": "（LLM APIキー。この例の AI Gateway は https://app.lykuro.ai/ で登録してキーを発行。環境変数 LLM_API_KEY も可）",
     "model": "deepseek/deepseek-v4-flash"
   }
 }
