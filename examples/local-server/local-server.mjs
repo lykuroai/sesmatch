@@ -17,7 +17,6 @@ import { createServer } from "http";
 import { readFile, writeFile, readdir, stat, rename, mkdir } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-import { maskPii, suggestPersonName, verifyMasked } from "./lib/pii.mjs";
 import { extractText, SUPPORTED_EXTENSIONS } from "./lib/extract.mjs";
 import { LlmClient } from "./lib/llm.mjs";
 import { Store, KIND_DIRS } from "./lib/store.mjs";
@@ -84,20 +83,17 @@ async function processInboxFile(store, llm, kind, filePath, extraMeta = {}) {
     log(`解析開始: [${kindLabel}] ${name}`);
     const buffer = await readFile(filePath);
     const text = await extractText(name, buffer);
-    const { masked, tokens } = maskPii(text);
-    // 匿名化検査: 残存PIIがあれば外部LLMに送らない（本体 §25.3 と同じ作法）
-    const check = verifyMasked(masked);
-    if (!check.ok) throw new Error(`匿名化検査で残存PIIを検出したため中止 (${check.findings.join(", ")})`);
-    const extracted = await llm.extract(masked, kind);
-    // 人材の氏名: 画面入力がなければPII検出結果から自動抽出してメタ情報に保存（LLMには送らない）
+    // LLM送信禁止・取込時の匿名化は2026-08-19に全面撤廃（本体 §25.2 と同じ）。原文を送信する
+    const extracted = await llm.extract(text, kind);
+    // 人材の氏名: 画面入力 > LLM抽出値 の優先でメタ情報に保存
     const meta = await store.saveItem({
       kind,
       sourcePath: filePath,
       filename: name,
       extracted,
-      maskedText: masked,
-      ...(kind === "ENGINEER_SHEET" && !extraMeta.personName
-        ? { personName: suggestPersonName(tokens) }
+      maskedText: text, // 保存ファイル名（masked.txt）は互換のため維持
+      ...(kind === "ENGINEER_SHEET" && !extraMeta.personName && extracted.name
+        ? { personName: String(extracted.name) }
         : {}),
       ...extraMeta,
     });
