@@ -225,6 +225,7 @@
   </div>
 </div>
 
+<input type="file" id="attach-file" accept=".pdf,.doc,.docx,.xls,.xlsx" style="display:none" onchange="uploadAttachment(this)">
 <div id="message"></div>
 <script>
 const messageEl = document.getElementById("message");
@@ -260,7 +261,9 @@ function row(kindPath, item) {
   const m = item.meta;
   // 人材は氏名（ローカル保持のPII）、案件は抽出した案件名を表示名にする
   const displayName = kindPath === "engineers" ? m.personName : item.name;
-  const title = displayName ? `${esc(displayName)}<br><span style="color:#94a3b8;font-size:11px">${esc(m.filename)}</span>` : esc(m.filename);
+  let title = displayName ? `${esc(displayName)}<br><span style="color:#94a3b8;font-size:11px">${esc(m.filename)}</span>` : esc(m.filename);
+  if (m.attachmentFilename)
+    title += `<br><span style="color:#64748b;font-size:11px">📎 ${esc(m.attachmentFilename)}</span>`;
   let status, actions;
   if (m.status === "PUBLISHED") {
     status = `<span class="badge published">公開済み ${fmtDate(m.publishedAt)}</span>`;
@@ -270,8 +273,13 @@ function row(kindPath, item) {
     actions = `<button onclick="checkStatus('${kindPath}','${m.id}')">親の状況</button>`;
   } else {
     status = `<span class="badge stored">ローカル保存</span>`;
+    const attachButton =
+      kindPath === "engineers"
+        ? `<button onclick="pickAttachment('${m.id}')">${m.attachmentFilename ? "添付変更" : "添付"}</button>`
+        : "";
     actions = `<button class="primary" onclick="openPublish('${kindPath}','${m.id}')">公開送信</button>
        <button onclick="openPublish('${kindPath}','${m.id}','edit')">編集</button>
+       ${attachButton}
        <button class="danger" onclick="deleteItem('${kindPath}','${m.id}','${esc(m.filename)}')">削除</button>`;
   }
   return `<tr><td>${title}</td><td class="summary"><div class="clamp2">${esc(clip(item.summary))}</div></td><td>${fmtDate(m.createdAt)}</td><td>${status}</td><td style="white-space:nowrap">${actions}</td></tr>`;
@@ -348,6 +356,32 @@ async function uploadFiles(kindPath, input) {
   }
   if (ok) showMessage(`${ok}件を受け付けました。解析が終わると一覧に表示されます（1件あたり数十秒）`);
   setTimeout(refresh, 3000);
+}
+
+// ---- 添付ファイル（職務経歴書。人材のみ）----
+
+let attachTarget = null;
+function pickAttachment(id) {
+  attachTarget = id;
+  document.getElementById("attach-file").click();
+}
+
+async function uploadAttachment(input) {
+  const file = input.files[0];
+  input.value = "";
+  if (!file || !attachTarget) return;
+  const res = await fetch(`/api/items/engineers/${attachTarget}/attachment`, {
+    method: "POST",
+    headers: { "X-Filename": encodeURIComponent(file.name), "Content-Type": "application/octet-stream" },
+    body: file,
+  }).catch(() => null);
+  const body = await res?.json().catch(() => null);
+  showMessage(
+    res?.ok
+      ? "職務経歴書を添付しました（公開送信時に親サーバへ登録され、双方承認後に相手へ開示されます）"
+      : `添付に失敗: ${body?.error ?? "通信エラー"}`
+  );
+  refresh();
 }
 
 function togglePaste(kindPath) {
@@ -523,7 +557,13 @@ async function submitPublish() {
   const resBody = await res?.json().catch(() => null);
   if (res?.ok) {
     closeModal("publish-overlay");
-    showMessage(pub ? "公開送信しました。親サーバに登録・公開済みです" : "在庫を修正しました");
+    showMessage(
+      pub
+        ? resBody?.sheetWarning
+          ? `公開送信しました（職務経歴書の添付のみ失敗: ${resBody.sheetWarning}）`
+          : "公開送信しました。親サーバに登録・公開済みです"
+        : "在庫を修正しました"
+    );
     refresh();
   } else {
     showMessage(`${pub ? "公開送信" : "修正"}に失敗: ${resBody?.error ?? "通信エラー"}`);

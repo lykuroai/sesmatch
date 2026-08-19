@@ -74,7 +74,32 @@ export class Store {
     const extracted = JSON.parse(await readFile(path.join(dir, "extracted.json"), "utf-8"));
     const files = await readdir(dir);
     const originalFile = files.find((f) => f.startsWith("original"));
-    return { meta, extracted, originalPath: originalFile ? path.join(dir, originalFile) : null };
+    const attachmentFile = files.find((f) => f.startsWith("attachment"));
+    return {
+      meta,
+      extracted,
+      originalPath: originalFile ? path.join(dir, originalFile) : null,
+      attachmentPath: attachmentFile ? path.join(dir, attachmentFile) : null,
+    };
+  }
+
+  // 添付ファイル（職務経歴書等）を保存する。1件につき1ファイル（再添付で置き換え）
+  async saveAttachment(kind, id, filename, buffer) {
+    const dir = this.itemDir(kind, id);
+    for (const f of await readdir(dir)) {
+      if (f.startsWith("attachment")) await rm(path.join(dir, f), { force: true });
+    }
+    const ext = path.extname(filename);
+    await writeFile(path.join(dir, `attachment${ext}`), buffer);
+    return this.updateMeta(kind, id, { attachmentFilename: filename });
+  }
+
+  async deleteAttachment(kind, id) {
+    const dir = this.itemDir(kind, id);
+    for (const f of await readdir(dir)) {
+      if (f.startsWith("attachment")) await rm(path.join(dir, f), { force: true });
+    }
+    return this.updateMeta(kind, id, { attachmentFilename: null });
   }
 
   // ローカル在庫の抽出データ（extracted.json）を差し替える（編集保存用）

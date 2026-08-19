@@ -97,6 +97,20 @@ export class ParentClient {
     return this.#post("/api/v1/entries", payload);
   }
 
+  // 職務経歴書の添付（公開送信した人材へ。双方承認後の Level 2 開示で相手がダウンロード可能になる）
+  async uploadSkillSheet(engineerId, filePath, filename) {
+    const content = await readFile(filePath);
+    const form = new FormData();
+    form.append("file", new Blob([content]), filename);
+    const res = await this.request(`/api/v1/engineers/${engineerId}/skill-sheet`, {
+      method: "POST",
+      body: form,
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(body?.error?.message ?? `職務経歴書の添付に失敗しました (HTTP ${res.status})`);
+    return body;
+  }
+
   // 原本ファイルを親サーバの取込APIへ送信する（親側でPII匿名化→LLM解析→人手確認）
   async sendDocument(filePath, displayName, expectedKind) {
     const content = await readFile(filePath);

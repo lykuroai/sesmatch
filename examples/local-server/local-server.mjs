@@ -467,6 +467,39 @@ async function handleApi(req, res, { store, parent, config, llm }) {
     const item = await store.getItem(kind, id).catch(() => null);
     if (!item) return json(res, 404, { error: "見つかりません" });
 
+    // 添付ファイル（職務経歴書。人材のみ・1件1ファイル・再添付で置き換え）
+    if (req.method === "POST" && parts[4] === "attachment") {
+      if (kind !== "ENGINEER_SHEET") return json(res, 400, { error: "添付は人材のみ対応です" });
+      let rawName = "";
+      try {
+        rawName = decodeURIComponent(req.headers["x-filename"] ?? "");
+      } catch {
+        return json(res, 400, { error: "ファイル名が不正です" });
+      }
+      const filename = path.basename(rawName).replace(/^\.+/, "");
+      const ext = path.extname(filename).toLowerCase();
+      const SHEET_EXTENSIONS = [".pdf", ".doc", ".docx", ".xls", ".xlsx"];
+      if (!filename || !SHEET_EXTENSIONS.includes(ext))
+        return json(res, 400, { error: `職務経歴書は ${SHEET_EXTENSIONS.join(" ")} のファイルを添付してください` });
+      const chunks = [];
+      let size = 0;
+      for await (const chunk of req) {
+        size += chunk.length;
+        if (size > 10 * 1024 * 1024) return json(res, 413, { error: "ファイルは10MB以下にしてください" });
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
+      if (!buffer.length) return json(res, 400, { error: "空のファイルです" });
+      const meta = await store.saveAttachment(kind, id, filename, buffer);
+      log(`添付を保存: [${KIND_DIRS[kind]}] ${meta.filename} ← ${filename}`);
+      return json(res, 200, { meta });
+    }
+
+    if (req.method === "DELETE" && parts[4] === "attachment") {
+      const meta = await store.deleteAttachment(kind, id);
+      return json(res, 200, { meta });
+    }
+
     // 公開送信（§9.2）: 確認・修正済みの構造化データを親サーバへ直接登録し、公開まで行う
     if (req.method === "POST" && parts[4] === "publish") {
       if (!parent.configured) return json(res, 400, { error: "親サーバの認証情報が設定されていません（config.json の parent）" });
@@ -483,6 +516,30 @@ async function handleApi(req, res, { store, parent, config, llm }) {
         const created = isProject
           ? await parent.publishProject(payload)
           : await parent.publishEngineer(payload);
+        // 人材: 添付（なければ原本が経歴書形式の場合は原本）を職務経歴書として親へ登録
+        // （双方承認後の Level 2 開示で相手がダウンロードできるようになる）
+        let sheetWarning = null;
+        if (!isProject) {
+          const SHEET_EXTENSIONS = [".pdf", ".doc", ".docx", ".xls", ".xlsx"];
+          const sheetPath =
+            item.attachmentPath ??
+            (item.originalPath && SHEET_EXTENSIONS.includes(path.extname(item.originalPath).toLowerCase())
+              ? item.originalPath
+              : null);
+          if (sheetPath) {
+            const sheetName =
+              item.attachmentPath && item.meta.attachmentFilename
+                ? item.meta.attachmentFilename
+                : item.meta.filename;
+            try {
+              await parent.uploadSkillSheet(created.id, sheetPath, sheetName);
+              log(`職務経歴書を親サーバへ添付: ${sheetName}`);
+            } catch (e) {
+              sheetWarning = e instanceof Error ? e.message : String(e);
+              log(`職務経歴書の添付に失敗（登録・公開は完了）: ${sheetWarning}`);
+            }
+          }
+        }
         const meta = await store.updateMeta(kind, id, {
           status: "PUBLISHED",
           publishedAt: new Date().toISOString(),
@@ -491,7 +548,7 @@ async function handleApi(req, res, { store, parent, config, llm }) {
           ...(kind === "ENGINEER_SHEET" ? { personName: payload.name } : {}),
         });
         log(`公開送信: [${KIND_DIRS[kind]}] ${meta.filename} → 親サーバ ${created.id}`);
-        return json(res, 200, { meta, parentId: created.id });
+        return json(res, 200, { meta, parentId: created.id, sheetWarning });
       } catch (e) {
         return json(res, 502, { error: e instanceof Error ? e.message : String(e) });
       }
