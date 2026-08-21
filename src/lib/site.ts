@@ -7,4 +7,4 @@ export const SITE_DESCRIPTION =
 
 // GA4 測定ID（例: "G-XXXXXXXXXX"）。空ならタグを出力しない。
 // 本番のDockerビルドは .env.production をビルド時に読まないため、IDが決まったらここに直接記載する
-export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
+export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-3PL6PCVBCX";
