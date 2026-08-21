@@ -3,7 +3,13 @@ const h2 = "mt-8 mb-2 text-base font-bold text-slate-800";
 const p = "mb-2 text-sm leading-relaxed text-slate-700";
 const li = "mb-1 text-sm leading-relaxed text-slate-700";
 
-export const metadata = { title: "プライバシーポリシー | SES DirectMatch" };
+export const metadata = {
+  title: "プライバシーポリシー",
+  description:
+    "SES企業向けAI案件・人材マッチングサービス「SES DirectMatch」のプライバシーポリシー（個人情報の取扱い方針）です。",
+  alternates: { canonical: "/privacy-policy" },
+  openGraph: { title: "プライバシーポリシー" },
+};
 
 export default function PrivacyPage() {
   return (

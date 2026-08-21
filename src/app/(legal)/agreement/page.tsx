@@ -4,7 +4,13 @@ const h2 = "mt-8 mb-2 text-base font-bold text-slate-800";
 const p = "mb-2 text-sm leading-relaxed text-slate-700";
 const li = "mb-1 text-sm leading-relaxed text-slate-700";
 
-export const metadata = { title: "サービス利用基本契約 | SES DirectMatch" };
+export const metadata = {
+  title: "サービス利用基本契約",
+  description:
+    "SES企業向けAI案件・人材マッチングサービス「SES DirectMatch」のサービス利用基本契約です。",
+  alternates: { canonical: "/agreement" },
+  openGraph: { title: "サービス利用基本契約" },
+};
 
 export default function AgreementPage() {
   return (

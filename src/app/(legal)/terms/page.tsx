@@ -3,7 +3,13 @@ const h2 = "mt-8 mb-2 text-base font-bold text-slate-800";
 const p = "mb-2 text-sm leading-relaxed text-slate-700";
 const li = "mb-1 text-sm leading-relaxed text-slate-700";
 
-export const metadata = { title: "利用規約 | SES DirectMatch" };
+export const metadata = {
+  title: "利用規約",
+  description:
+    "SES企業向けAI案件・人材マッチングサービス「SES DirectMatch」の利用規約です。",
+  alternates: { canonical: "/terms" },
+  openGraph: { title: "利用規約" },
+};
 
 export default function TermsPage() {
   return (

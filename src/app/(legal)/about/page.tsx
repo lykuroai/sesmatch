@@ -1,6 +1,12 @@
 import Link from "next/link";
 
-export const metadata = { title: "サービス紹介 | SES DirectMatch" };
+export const metadata = {
+  title: "サービス紹介",
+  description:
+    "SES DirectMatchのサービス紹介。案件票・スキルシートをAIが自動整理し、案件⇄人材を双方向マッチング。商流は最大一社下まで、3段階の情報開示で安心して商談できます。成約手数料は3%のみ。",
+  alternates: { canonical: "/about" },
+  openGraph: { title: "サービス紹介" },
+};
 
 // サービス紹介ドキュメント（営業資料の公開版）: SES DirectMatch + SES-Connector
 // 未ログインで閲覧可能。(legal) レイアウト（白カード・max-w-3xl）で表示される

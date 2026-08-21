@@ -3,6 +3,7 @@
 // 企業申込（§6.4）。申込後は運営審査を経てコンソール開通。
 import { useState } from "react";
 import Link from "next/link";
+import { trackEvent } from "@/lib/gtag";
 
 const input = "w-full rounded border border-slate-300 px-3 py-2 text-sm";
 const label = "mb-1 block text-sm font-medium";
@@ -112,6 +113,8 @@ export default function ApplyPage() {
       setWarning(b.duplicateWarning);
       setPendingPayload(payload);
     } else if (res.ok) {
+      // 企業登録完了をGA4へ送信（GA4管理画面で sign_up をキーイベントに設定して計測する）
+      trackEvent("sign_up", { method: "company_application" });
       setDone(true);
     } else {
       setError(b?.error?.message ?? "申込に失敗しました");
