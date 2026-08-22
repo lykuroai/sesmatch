@@ -63,9 +63,14 @@ export default function LoginPage() {
       <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-8 lg:flex-row lg:items-start lg:gap-14 lg:px-6 lg:py-16">
         {/* LP: サービス紹介（モバイルではログインフォームの下に表示） */}
         <section className="order-2 flex-1 text-slate-100 lg:order-1">
-          <p className="mb-3 inline-block rounded-full bg-blue-500/20 px-3 py-1 text-xs font-medium text-blue-300">
-            SES企業間マッチングプラットフォーム
-          </p>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <p className="inline-block rounded-full bg-blue-500/20 px-3 py-1 text-xs font-medium text-blue-300">
+              SES企業間マッチングプラットフォーム
+            </p>
+            <p className="inline-block rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-300">
+              完全無料
+            </p>
+          </div>
           <h1 className="text-3xl font-bold leading-snug lg:text-4xl">
             <span className="flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -74,6 +79,7 @@ export default function LoginPage() {
             </span>
             <span className="mt-2 block text-lg font-medium text-slate-300 lg:text-xl">
               案件と人材を、余計な商流なしで直接つなぐ。
+              <span className="ml-2 text-emerald-300">完全無料。</span>
             </span>
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-400">
@@ -143,7 +149,9 @@ export default function LoginPage() {
             <img src="/logo-mark.svg" alt="SES DirectMatch ロゴ" className="h-9 w-9" />
             <div>
               <p className="text-lg font-bold leading-tight text-slate-100">SES DirectMatch</p>
-              <p className="text-xs text-slate-400">案件と人材を、余計な商流なしで直接つなぐ。</p>
+              <p className="text-xs text-slate-400">
+                案件と人材を、余計な商流なしで直接つなぐ。<span className="font-bold text-emerald-300">完全無料。</span>
+              </p>
             </div>
           </div>
           <form onSubmit={submit} className="rounded-xl border border-slate-200 bg-white p-6 shadow-lg lg:p-8">
@@ -175,12 +183,14 @@ export default function LoginPage() {
             </button>
             <div className="mt-6 rounded-lg bg-slate-50 p-4 text-center">
               <p className="text-sm font-medium text-slate-700">はじめてのご利用ですか？</p>
-              <p className="mt-1 text-xs text-slate-500">登録・掲載は無料。成約するまで費用はかかりません。</p>
+              <p className="mt-1 text-xs text-slate-500">
+                掲載料・月額費用・成約手数料すべて0円。<span className="font-bold text-emerald-700">完全無料</span>でご利用いただけます。
+              </p>
               <Link
                 href="/apply"
                 className="mt-3 inline-block w-full rounded border border-blue-600 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
               >
-                企業登録を申し込む（無料）
+                企業登録を申し込む（完全無料）
               </Link>
             </div>
           </form>
