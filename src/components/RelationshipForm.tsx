@@ -72,7 +72,9 @@ export function RelationshipTable({ items, canManage }: { items: RelationshipIte
         <tbody>
           {items.map((r) =>
             editingId === r.id ? (
-              <tr key={r.id} className="border-t border-slate-100 bg-blue-50/40">
+              // key を表示行と変えて行ごと再マウントする。同一 key だと React が「修正」ボタンの
+              // DOM 要素を「保存(type=submit)」に書き換え、クリックのデフォルト動作で即時送信されてしまう
+              <tr key={`${r.id}-edit`} className="border-t border-slate-100 bg-blue-50/40">
                 {/* 行内修正フォーム（form 属性で行外のフォームに紐付け） */}
                 <td className="px-4 py-2">
                   <form id={`rel-edit-${r.id}`} onSubmit={(e) => saveEdit(r.id, e)} />
