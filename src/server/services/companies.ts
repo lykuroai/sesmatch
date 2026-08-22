@@ -43,7 +43,8 @@ export async function sendEmailVerificationCode(email: string) {
   return { ok: true as const };
 }
 
-// 企業申込（§6.4: 申込 → 事業者情報確認 → 規約同意 → 運営審査 → 開通）
+// 企業申込（§6.4: 申込 → 事業者情報確認 → 規約同意 → 自動審査 → 即時開通。2026-08-22に運営の手動審査を廃止）
+// 自動審査 = メール確認コード + 重複チェック（法人番号/正規化名・管轄/LLM類似判定）。通過すれば ACTIVE で作成する
 export async function applyCompany(input: {
   companyName: string;
   companyType: "CORPORATION" | "SOLE_PROPRIETOR";
@@ -73,7 +74,7 @@ export async function applyCompany(input: {
         message: "メール確認コードが正しくないか期限切れです。コードを再送して入力し直してください",
       },
     };
-  // 法人番号は任意入力。指定時のみ形式を検査（§6.4 の事業者情報確認は運営審査で行う）
+  // 法人番号は任意入力。指定時のみ形式を検査（重複判定に使用）
   if (input.corporateNumber && !/^\d{13}$/.test(input.corporateNumber))
     return { error: { code: "VALIDATION_ERROR" as const, message: "法人番号は13桁で入力してください" } };
   // 所在地は必須。管轄法務局（都道府県）の重複判定に使うため、都道府県からの入力を求める
@@ -165,7 +166,9 @@ export async function applyCompany(input: {
         companyType: input.companyType,
         corporateNumber: input.corporateNumber,
         address,
-        status: "APPLIED", // 運営審査待ち
+        // 自動審査（重複チェック等）を通過したため即時開通。approvedAt は利用開始日時（有料化再開時の無料期間判定 §23.0 に使用）
+        status: "ACTIVE",
+        approvedAt: new Date(),
       },
     });
     const account = await tx.userAccount.create({
@@ -185,23 +188,26 @@ export async function applyCompany(input: {
     targetId: company.id,
     metadata: {
       companyType: input.companyType,
-      // 重複警告を確認済みで申込んだ場合は運営審査で注意できるよう記録する
+      // 重複警告を確認済みで申込んだ事実は運営が事後監視できるよう記録する
       duplicateWarningConfirmed: input.duplicateWarningConfirmed === true,
+      autoApproved: true, // 2026-08-22以降は自動審査で即時開通
     },
   });
   await sendMail({
     to: input.email,
-    subject: "【SES DirectMatch】企業登録の申込を受け付けました",
+    subject: "【SES DirectMatch】企業登録が完了しました",
     body: `${input.ownerName} 様
 
-${input.companyName} の企業登録申込を受け付けました。
-運営による審査ののち、結果をメールでお知らせします。
-審査完了までログインはできません。しばらくお待ちください。`,
+${input.companyName} の企業登録が完了し、ご利用を開始いただけます。
+以下の URL から登録したメールアドレスとパスワードでログインしてください。
+
+${appBaseUrl()}/login`,
   });
   return { companyId: company.id };
 }
 
-// 運営審査: 承認して企業コンソールを開通する（運営トークンで保護）。
+// 運営承認: 承認して企業コンソールを開通する（運営トークンで保護）。
+// 申込フローは2026-08-22から自動審査で即時開通するため、対象は CSV 取込由来の審査待ち（APPLIED）企業のみ。
 // 申込フロー（本人がパスワード設定済み）のオーナーへ承認通知メールを送る。
 // パスワード未発行（CSV取込由来）の担当者へは、承認時の初期パスワード自動発行は行わない。
 // 開通後、運営が担当者ごとに「初期パスワード再発行（再招待）」で個別に発行する。
@@ -210,7 +216,7 @@ export async function approveCompany(companyId: string) {
   if (!company) return { error: { code: "NOT_FOUND" as const } };
   if (company.status !== "APPLIED")
     return { error: { code: "VERSION_CONFLICT" as const, message: "審査待ちの企業ではありません" } };
-  // approvedAt は新規企業30日間手数料無料の起点（§23 キャンペーン）
+  // approvedAt は利用開始日時（有料化再開時の無料期間判定 §23.0 に使用）
   await prisma.company.update({
     where: { id: companyId },
     data: { status: "ACTIVE", approvedAt: new Date() },
@@ -242,7 +248,8 @@ ${appBaseUrl()}/login`,
 }
 
 export async function listPendingCompanies() {
-  // 審査に必要な詳細（所在地・申込担当者の氏名/メール/ロール）を含めて返す
+  // 審査待ち（APPLIED）は CSV 取込由来のみ（申込フローは自動審査で即時開通）。
+  // 承認判断に必要な詳細（所在地・担当者の氏名/メール/ロール）を含めて返す
   const companies = await prisma.company.findMany({
     where: { status: "APPLIED" },
     orderBy: { createdAt: "asc" },
@@ -263,7 +270,7 @@ export async function listPendingCompanies() {
   }));
 }
 
-// 運営審査: 却下。申込者へ通知メールを送り、申込データ（企業・担当者・アカウント）を削除する
+// 運営承認の却下（対象は CSV 取込由来の APPLIED 企業のみ）。担当者へ通知メールを送り、登録データ（企業・担当者・アカウント）を削除する
 export async function rejectCompany(companyId: string, reason?: string) {
   const company = await prisma.company.findUnique({
     where: { id: companyId },

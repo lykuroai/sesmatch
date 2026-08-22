@@ -1,13 +1,44 @@
 // 成約手数料エンジンのテスト（§23, §34）
-import { describe, expect, it } from "vitest";
+// エンジン本体（decideFee 等）は有料化再開に備えて維持・テストし続ける（2026-08-22 完全無料化）
+import { afterEach, describe, expect, it } from "vitest";
 import {
   calcFeeExTax,
   calcTax,
+  decideCurrentFee,
   decideFee,
+  feeChargingEnabled,
   isNewCompanyFreeMonth,
   isWithinRefundWindow,
   MAX_CHARGEABLE_MONTHS,
 } from "@/server/billing/fee";
+
+describe("完全無料化（請求停止方式・2026-08-22）", () => {
+  afterEach(() => {
+    delete process.env.FEE_CHARGING_ENABLED;
+  });
+
+  it("既定（環境変数未設定）では請求停止 = すべて FREE・0円で記録する", () => {
+    delete process.env.FEE_CHARGING_ENABLED;
+    expect(feeChargingEnabled()).toBe(false);
+    expect(decideCurrentFee(700_000, 0)).toEqual({
+      chargeableMonthIndex: 1,
+      feeExTaxYen: 0,
+      status: "FREE",
+    });
+    expect(decideCurrentFee(700_000, 5, false).status).toBe("FREE");
+  });
+
+  it("FEE_CHARGING_ENABLED=1 でエンジン（decideFee）に委譲する（有料化再開）", () => {
+    process.env.FEE_CHARGING_ENABLED = "1";
+    expect(feeChargingEnabled()).toBe(true);
+    expect(decideCurrentFee(700_000, 0)).toEqual({
+      chargeableMonthIndex: 1,
+      feeExTaxYen: 21_000,
+      status: "CHARGED",
+    });
+    expect(decideCurrentFee(700_000, 12).status).toBe("FREE"); // 12か月上限も生きる
+  });
+});
 
 describe("calcFeeExTax（§23: fee = floor(amount × 3 / 100)）", () => {
   it("3%を切り捨てで計算する", () => {

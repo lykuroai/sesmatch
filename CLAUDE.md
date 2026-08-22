@@ -23,7 +23,7 @@ npm run build             # 本番ビルド
 単一テスト実行: `npx vitest run tests/matching.test.ts`
 
 - LLM の選択（`src/server/pipeline/llm.ts` の `getLlmGateway`、優先順）: ① `LLM_BASE_URL` — OpenAI 互換 API（`llm-openai.ts`。現在 `https://api.lykuro.ai/v1` + `deepseek/deepseek-v4-flash`。**`LLM_API_KEY` の設定が必要**）② `ANTHROPIC_API_KEY` — Claude API（`llm-claude.ts`、`claude-opus-5` 構造化出力）③ どちらもなければ正規表現モック
-- 運営コンソール: `/admin`（`PLATFORM_ADMIN_TOKEN` でログイン）で企業審査・通報対応。API は `/api/v1/operations/*`（`X-Admin-Token` ヘッダ）
+- 運営コンソール: `/admin`（`PLATFORM_ADMIN_TOKEN` でログイン）で企業承認（CSV取込由来のみ。申込フローは2026-08-22から自動審査で即時開通）・通報対応。API は `/api/v1/operations/*`（`X-Admin-Token` ヘッダ）
 - 人材・案件の更新は `PUT /api/v1/engineers/:id` / `PUT /api/v1/projects/:id`（skills 全置換）。編集画面は詳細ページの「編集」から
 - 取込の確定は確認フォーム（`ConfirmIngestionForm`）で抽出値を修正してから `POST /ingestions/:id/confirm` に `{name, confirmed}` を送る
 - デプロイ: `DEPLOY.md` 参照（`Dockerfile` は migrate / runner の2ターゲット、`docker-compose.prod.yml` + `.env.production`。Next.js は standalone 出力）
@@ -42,7 +42,7 @@ npm run build             # 本番ビルド
 Phase 2 の要点: エントリーは `@@unique([projectId, engineerId])` で重複応募をブロック。相互承認前のメッセージは `detectContactInfo`（全角・空白挿入の回避表現も正規化して検出）で連絡先を拒否し監査記録。一社下（SUBTIER1）人材の提案は「案件側 allowSubtier + 直接契約確認済み SUBTIER 関係 + 案件単位の承認フラグ」の3条件が必須。
 
 Phase 3 の要点:
-- `src/server/billing/fee.ts` — 手数料の純粋関数。`floor(額×3/100)`、12稼働月上限は **(projectId, engineerId, demandCompanyId) の組合せで CHARGED 件数を数え、契約を跨いで累計**（更新でリセットしない）。返金判定は稼働開始から14日以内（境界含む）
+- `src/server/billing/fee.ts` — 手数料の純粋関数。**2026-08-22に完全無料化（請求停止方式・§23.0）**: 既定で全稼働月を FREE（0円）で記録し、業務コードは `decideCurrentFee` を使う。有料化再開は環境変数 `FEE_CHARGING_ENABLED=1`（テストはこれで有効化してエンジンを検証）。エンジン本体は維持: `floor(額×3/100)`、12稼働月上限は **(projectId, engineerId, demandCompanyId) の組合せで CHARGED 件数を数え、契約を跨いで累計**（更新でリセットしない）。返金判定は稼働開始から14日以内（境界含む）
 - 契約署名は承認と同じ「条件付き updateMany + 同一トランザクション」パターン。相互締結で EXECUTED＝成約、エントリーは CONTRACTED へ。契約作成には §22 の指揮命令チェックリスト5項目が必須
 - 月次確認（WorkMonth）は需要側企業のみ実行可。`@@unique([contractId, month])` で重複防止。手数料は確認と同一トランザクションで計算
 - 削除請求（§26）: 受付で即時非公開 → 承認で `Engineer.deletedAt` 論理削除（全クエリで `deletedAt: null` フィルタ必須）→ `scheduledPurgeAt`（+30日）以降のみ物理削除（PII不可逆除去・同意削除）。削除ログに個人情報を含めない
@@ -60,7 +60,7 @@ SES企業間で流通する案件情報と人材情報を、メール・ファ�
 - **LLM への送信制約**: **2026-08-19に全面撤廃（郭指示）**。取込テキストは原文のままLLMへ送信し、氏名・国籍は取込時のLLM抽出対象（確認画面で人手確定）。前提はゼロデータ保持・学習オプトアウト契約（§25.4）。公開画面の匿名性（Level 1 で氏名・実額・企業実名を出さない、匿名要約に書かない）と段階開示は維持。採否・契約判断を LLM だけで自動決定しない。
 - **エントリー状態遷移**: `DRAFT → SUBMITTED → SUPPLY_APPROVED/DEMAND_APPROVED → MUTUALLY_APPROVED → INTERVIEW → CONDITIONS → CONTRACTING → CONTRACTED`
 - **商流制約**: 最大一社下（SUBTIER1）まで。二社下以降・無承認再仲介・再転載は禁止。
-- **手数料**: 需要側企業負担、確定契約金額の3%、実稼働開始から最大12稼働月（`fee_ex_tax = floor(amount × 3 / 100)`）。12か月上限は案件マスター×人材×需要側企業の組合せで集計し、更新契約でリセットしない。稼働前キャンセル0円、開始後14日以内離脱は全額返金。
+- **手数料**: **2026-08-22に完全無料化（基本版・請求停止方式）**。既定で請求停止し全稼働月0円。以下は有料化再開時の体系（休眠中）: 需要側企業負担、確定契約金額の3%、実稼働開始から最大12稼働月（`fee_ex_tax = floor(amount × 3 / 100)`）。12か月上限は案件マスター×人材×需要側企業の組合せで集計し、更新契約でリセットしない。稼働前キャンセル0円、開始後14日以内離脱は全額返金。
 - **非同期処理**: トランザクショナルアウトボックスでイベント発行（`DocumentReceived`, `MutualApprovalCompleted`, `FeeCalculated` 等）。コンシューマは冪等実装。変更APIは `Idempotency-Key` 対応。
 - **API**: ベースパス `/api/v1`、JSON/UTF-8、日時は ISO 8601 UTC、金額は円整数。
 

@@ -15,7 +15,7 @@ export default async function DashboardPage() {
     { label: "承認待ちの商談申込み", value: kpi.pendingApprovals, href: "/entries?tab=pending", warn: kpi.pendingApprovals > 0 },
     { label: "面談予定", value: kpi.upcomingInterviews, href: "/entries" },
     { label: "稼働中人数", value: kpi.activeContracts, href: "/contracts" },
-    { label: "今月手数料（税抜）", value: `${kpi.monthFeeYen.toLocaleString()}円`, href: "/billing" },
+    // 今月手数料のKPIは完全無料化（2026-08-22）に伴い非表示（常に0円のため）
     { label: "人手確認待ち", value: kpi.reviewRequired, href: "/ingestions", warn: kpi.reviewRequired > 0 },
     { label: "直近7日のマッチ計算", value: kpi.recentMatches },
     { label: "下書き人材", value: kpi.draftEngineers, href: "/engineers" },

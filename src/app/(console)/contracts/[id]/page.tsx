@@ -104,8 +104,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
         <h2 className="mb-1 font-bold">{c.side === "DEMAND" ? "月次稼働・手数料（§23）" : "月次稼働"}</h2>
         {c.side === "DEMAND" && (
           <p className="mb-4 text-xs text-slate-500">
-            手数料 = 確定契約金額の3%（切り捨て）。実稼働開始から最大12稼働月、13稼働月目以降は無料。
-            稼働前キャンセルは0円、開始後14日以内の離脱は全額返金。
+            現在、基本版は完全無料のため成約手数料は発生しません（全稼働月0円で記録されます）。
           </p>
         )}
         <div className="mb-4 overflow-x-auto">
@@ -149,7 +148,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
         </div>
         {c.side === "DEMAND" && c.status === "ACTIVE" && (
           <p className="text-xs text-slate-400">
-            月次稼働と手数料は、稼働開始月から当月分まで月額契約金額をもとに自動計算されます。
+            月次稼働は、稼働開始月から当月分まで月額契約金額をもとに自動で記録されます。
           </p>
         )}
       </section>

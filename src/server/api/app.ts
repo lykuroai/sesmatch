@@ -199,7 +199,7 @@ app.post("/companies/applications", async (c) => {
   return c.json({ ok: true, companyId: (result as { companyId: string }).companyId }, 201);
 });
 
-// ---- 運営審査（運営トークン保護。運営コンソールは対象外のため簡易実装）----
+// ---- 運営承認（運営トークン保護。対象はCSV取込由来のAPPLIED企業のみ。申込フローは自動審査で即時開通）----
 
 const requireAdminToken = async (
   c: { req: { header: (n: string) => string | undefined }; json: (o: object, s: 401) => Response },
@@ -224,8 +224,8 @@ app.get("/operations/companies", requireAdminToken, async (c) =>
   c.json({ items: await listPendingCompanies() })
 );
 
-// 承認して開通。申込フローのオーナーへ承認通知メールを送る。
-// CSV取込由来のパスワード未発行担当者へは、開通後に運営が「初期パスワード再発行（再招待）」で個別発行する。
+// 承認して開通（CSV取込由来のAPPLIED企業のみ）。オーナーが登録済みなら承認通知メールを送る。
+// パスワード未発行担当者へは、開通後に運営が「初期パスワード再発行（再招待）」で個別発行する。
 app.post("/operations/companies/:id/approve", requireAdminToken, async (c) => {
   const result = await approveCompany(c.req.param("id"));
   const er = svcError(result);
@@ -233,7 +233,7 @@ app.post("/operations/companies/:id/approve", requireAdminToken, async (c) => {
   return c.json(result);
 });
 
-// 審査却下（申込者へ通知して申込データを削除）
+// 承認の却下（CSV取込由来のAPPLIED企業のみ。担当者へ通知して登録データを削除）
 app.post("/operations/companies/:id/reject", requireAdminToken, async (c) => {
   const parsed = z
     .object({ reason: z.string().optional() })
@@ -248,7 +248,7 @@ app.post("/operations/companies/:id/reject", requireAdminToken, async (c) => {
 });
 
 // 企業リスト（CSV）一括取込。ヘッダ行の列名で判定（3列: 企業名, 担当者名, メールアドレス も可）。
-// 取込企業は審査待ちで登録され、承認まで無効・メール配信なし
+// 取込企業は承認待ち（APPLIED）で登録され、運営承認まで無効・メール配信なし
 app.post("/operations/companies/import", requireAdminToken, async (c) => {
   const parsed = z
     .object({ csv: z.string().min(1).max(20_000_000) })
@@ -550,13 +550,13 @@ app.post("/auth/login", async (c) => {
     await audit({ action: "LoginFailed", metadata: { email: parsed.data.email } });
     return c.json(err("UNAUTHENTICATED", "メールアドレスまたはパスワードが違います"), 401);
   }
-  // 審査中・停止中の企業はログイン不可（§6.4）
+  // 承認待ち（CSV取込由来）・停止中の企業はログイン不可（§6.4）
   const membership = await prisma.companyMember.findFirst({
     where: { userAccountId: account.id, status: "ACTIVE" },
     include: { company: true },
   });
   if (membership?.company.status === "APPLIED")
-    return c.json(err("FORBIDDEN", "運営審査中です。開通までお待ちください"), 403);
+    return c.json(err("FORBIDDEN", "運営の承認待ちです。開通までお待ちください"), 403);
   if (!membership || membership.company.status !== "ACTIVE")
     return c.json(err("FORBIDDEN", "有効な企業所属がありません"), 403);
   const { token, expiresAt } = await createSession(account.id);

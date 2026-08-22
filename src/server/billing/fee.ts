@@ -1,4 +1,12 @@
 // 成約手数料エンジン（§23）— 純粋関数（テスト対象 §34）
+//
+// 2026-08-22 完全無料化（請求停止方式・郭指示）: 既定で請求を停止し、全稼働月を FREE（0円）で記録する。
+// エンジン本体（decideFee 等）とテストは有料化再開に備えて維持する。
+// 再開時は環境変数 FEE_CHARGING_ENABLED=1 を設定する（規約に基づく1か月前までの事前告知が必要）
+
+export function feeChargingEnabled(): boolean {
+  return process.env.FEE_CHARGING_ENABLED === "1";
+}
 
 export const FEE_RATE_PERCENT = 3;
 export const MAX_CHARGEABLE_MONTHS = 12; // 実稼働開始から最大12稼働月。13稼働月目以降は無料
@@ -38,6 +46,18 @@ export function decideFee(
     return { chargeableMonthIndex: index, feeExTaxYen: 0, status: "FREE" };
   }
   return { chargeableMonthIndex: index, feeExTaxYen: calcFeeExTax(amountYen), status: "CHARGED" };
+}
+
+// プラットフォーム設定（請求停止）を適用した手数料判定。業務コードはこちらを使う。
+// 請求停止中（既定）は常に FREE・0円。稼働月の記録自体は残す
+export function decideCurrentFee(
+  amountYen: number,
+  priorChargedMonths: number,
+  newCompanyFree = false
+): FeeDecision {
+  if (!feeChargingEnabled())
+    return { chargeableMonthIndex: priorChargedMonths + 1, feeExTaxYen: 0, status: "FREE" };
+  return decideFee(amountYen, priorChargedMonths, newCompanyFree);
 }
 
 // 開始後14日以内の離脱か（境界日を含む）

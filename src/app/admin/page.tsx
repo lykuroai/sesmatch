@@ -1,6 +1,6 @@
 "use client";
 
-// 運営コンソール（企業審査・通報対応）
+// 運営コンソール（企業承認〔CSV取込由来〕・通報対応。申込フローの企業は自動審査で即時開通）
 // 認証は X-Admin-Token（.env の PLATFORM_ADMIN_TOKEN）。企業コンソールとは独立。
 import { Fragment, useCallback, useEffect, useState } from "react";
 
@@ -60,7 +60,7 @@ type AdminInquiry = {
 
 // 機能ごとの画面（メニューで切り替え）
 const MENU = [
-  { key: "review", label: "企業審査" },
+  { key: "review", label: "企業承認" },
   { key: "companies", label: "企業一覧" },
   { key: "contracts", label: "契約・手数料" },
   { key: "engineers", label: "人材稼働状況" },
@@ -221,7 +221,7 @@ export default function AdminPage() {
   );
 }
 
-// 企業審査
+// 企業承認（CSV取込由来の承認待ち企業のみ）
 function CompanyReviewSection({
   token,
   companies,
@@ -278,7 +278,7 @@ function CompanyReviewSection({
   async function approveAll() {
     if (
       !window.confirm(
-        `審査待ち ${companies.length} 社をすべて承認して開通しますか？\n申込フローの代表には承認通知メールが送信されます（CSV取込企業の担当者へは初期パスワードを自動発行しません）。`
+        `承認待ち ${companies.length} 社をすべて承認して開通しますか？\nCSV取込企業の担当者へは初期パスワードを自動発行しません。`
       )
     )
       return;
@@ -310,13 +310,17 @@ function CompanyReviewSection({
       {error && <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
 
         <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-3 font-bold">企業審査（審査待ち {companies.length}件）</h2>
-          {companies.length === 0 && <p className="text-sm text-slate-400">審査待ちの企業はありません</p>}
+          <h2 className="mb-3 font-bold">企業承認（承認待ち {companies.length}件・CSV取込由来のみ）</h2>
+          {companies.length === 0 && (
+            <p className="text-sm text-slate-400">
+              承認待ちの企業はありません（申込フローは自動審査で即時開通するため、ここにはCSV取込企業のみ表示されます）
+            </p>
+          )}
           {companies.length > 0 && (
             <div className="mb-3 flex flex-wrap items-center gap-3 rounded border border-slate-100 bg-slate-50 p-3">
               <p className="w-full text-xs text-slate-500">
-                承認すると企業が有効になり、申込フローの代表へ承認通知メールが送信されます。
-                CSV取込企業の担当者へは初期パスワードを自動発行しません。開通後、各担当者の「初期パスワード再発行」で個別に発行してください。
+                承認すると企業が有効になります。CSV取込企業の担当者へは初期パスワードを自動発行しません。
+                開通後、各担当者の「初期パスワード再発行」で個別に発行してください。
               </p>
               <button
                 onClick={approveAll}
@@ -569,7 +573,7 @@ function CompanyListSection({
                       <td className="px-3 py-2 font-medium">{co.name}</td>
                       <td className="px-3 py-2 text-xs">{co.companyType === "CORPORATION" ? "法人" : "個人事業者"}</td>
                       <td className="px-3 py-2 text-xs">{co.corporateNumber ?? <span className="text-amber-600">未登録</span>}</td>
-                      <td className="px-3 py-2 text-xs">{co.status === "ACTIVE" ? "開通" : co.status === "APPLIED" ? "審査待ち" : "停止"}</td>
+                      <td className="px-3 py-2 text-xs">{co.status === "ACTIVE" ? "開通" : co.status === "APPLIED" ? "承認待ち" : "停止"}</td>
                       <td className="px-3 py-2 text-xs">{co._count.members}</td>
                       <td className="px-3 py-2 text-right text-xs">
                         <div className="flex justify-end gap-2">
@@ -1038,7 +1042,7 @@ function ContractMonitorSection({ token }: { token: string }) {
     <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="mb-1 font-bold">契約・手数料の監視（{contracts.length}件）</h2>
       <p className="mb-3 text-xs text-slate-500">
-        全テナントの契約と、月次確認済みの稼働金額・プラットフォーム手数料（3%・最大12稼働月）を一覧します。
+        全テナントの契約と、月次確認済みの稼働金額・プラットフォーム手数料を一覧します（2026-08-22の完全無料化以降、手数料は全稼働月0円で記録されます）。
       </p>
       {error && <p className="mb-2 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
       <div className="mb-3 flex flex-wrap gap-3 text-xs">

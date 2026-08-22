@@ -56,7 +56,7 @@ export function WorkControls({
       {contract.status === "ACTIVE" && (
         <button
           onClick={() => {
-            const d = window.prompt("終了日（YYYY-MM-DD）。開始後14日以内の離脱は手数料を全額返金します。", today);
+            const d = window.prompt("終了日（YYYY-MM-DD）を入力してください。", today);
             if (d) post(`/api/v1/contracts/${contract.id}/terminate`, { date: d });
           }}
           className="rounded border border-red-300 bg-white px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"

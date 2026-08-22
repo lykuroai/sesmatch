@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "企業登録の申込",
   description:
-    "SES DirectMatchの企業登録申込ページ。法人・個人事業者のSES企業が対象で、利用開始から30日間は成約手数料無料。案件票・スキルシートの取込とAIマッチングをすぐに利用できます。",
+    "SES DirectMatchの企業登録申込ページ。法人・個人事業者のSES企業が対象で、基本版は完全無料（掲載料・月額費用・成約手数料0円）。案件票・スキルシートの取込とAIマッチングをすぐに利用できます。",
   alternates: { canonical: "/apply" },
   openGraph: { title: "企業登録の申込" },
 };

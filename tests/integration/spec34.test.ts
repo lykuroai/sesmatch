@@ -1,5 +1,5 @@
 // 必須テスト（仕様書 §34）の統合テスト。専用DB sesmatch_test に対して実行する。
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/server/db";
 import {
   createEngineer,
@@ -292,6 +292,14 @@ async function makeActiveContract() {
 }
 
 describe("契約・手数料（§22, §23, §34）", () => {
+  // 手数料エンジンのテストのため請求を有効化する（既定は請求停止 = 完全無料。2026-08-22）
+  beforeAll(() => {
+    process.env.FEE_CHARGING_ENABLED = "1";
+  });
+  afterAll(() => {
+    delete process.env.FEE_CHARGING_ENABLED;
+  });
+
   it("稼働前キャンセルは手数料0円（§23）", async () => {
     const ctx = await makeApprovedEntry();
     const created = await createContract(ctx.demand, {
@@ -357,6 +365,22 @@ describe("契約・手数料（§22, §23, §34）", () => {
     await confirmWorkMonth(demand, contractId, { month: "2026-08", amountYen: 700_000 });
     const dup = await confirmWorkMonth(demand, contractId, { month: "2026-08", amountYen: 700_000 });
     expect(dup.error?.code).toBe("DUPLICATE_ENTRY");
+  });
+});
+
+describe("完全無料化（請求停止方式・2026-08-22）", () => {
+  it("既定（FEE_CHARGING_ENABLED 未設定）では稼働月を FREE・0円で記録し、請求書は発行できない", async () => {
+    delete process.env.FEE_CHARGING_ENABLED;
+    const { demand, contractId } = await makeActiveContract();
+    await confirmWorkMonth(demand, contractId, { month: "2026-08", amountYen: 700_000 });
+    const fees = await prisma.platformFee.findMany({ where: { contractId } });
+    expect(fees).toHaveLength(1);
+    expect(fees[0].status).toBe("FREE");
+    expect(fees[0].feeExTaxYen).toBe(0);
+    // CHARGED が無いため請求書発行の対象がない
+    const { generateInvoice } = await import("@/server/services/billing");
+    const invoice = await generateInvoice(demand, "2026-08");
+    expect("error" in invoice && invoice.error?.code).toBe("NOT_FOUND");
   });
 });
 

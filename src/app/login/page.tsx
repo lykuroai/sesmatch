@@ -19,8 +19,8 @@ const FEATURES = [
     body: "検索段階は匿名情報のみ。双方が承認して初めて、氏名・実額単価・企業名を相互同時に開示。片側だけに知られることはありません。",
   },
   {
-    title: "成約手数料は3%だけ",
-    body: "掲載料・月額費用は0円。成約した契約金額の3%（需要側負担）のみで、13稼働月目以降は手数料も0円になります。",
+    title: "基本版は完全無料",
+    body: "掲載料・月額費用・成約手数料のすべてが0円。登録から成約・稼働管理まで、費用は一切かかりません。",
   },
 ];
 
@@ -127,7 +127,7 @@ export default function LoginPage() {
           </a>
 
           <p className="mt-6 text-xs text-slate-500">
-            ご利用には企業（法人・個人事業者）としての登録と運営審査が必要です。
+            ご利用には企業（法人・個人事業者）としての登録が必要です。
             <Link href="/about" className="underline hover:text-slate-300">サービス紹介</Link>・
             <Link href="/terms" className="underline hover:text-slate-300">利用規約</Link>・
             <Link href="/agreement" className="underline hover:text-slate-300">基本契約</Link>・

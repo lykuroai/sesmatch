@@ -1,13 +1,21 @@
 // 新規企業30日間手数料無料の統合テスト。専用DB sesmatch_test に対して実行する。
 // 需要側企業の承認（approvedAt）から30日以内に月初が来る稼働月の手数料は FREE・0円。
 // 無料月は CHARGED に数えないため、12稼働月の課金枠を消費しない。
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/server/db";
 import { addConsent, createEngineer, publishEngineer } from "@/server/services/engineers";
 import { createProject, publishProject } from "@/server/services/projects";
 import { approveEntry, createEntry } from "@/server/services/entries";
 import { confirmWorkMonth, createContract, signContract, startWork } from "@/server/services/contracts";
 import { futureDate, iso, makeCompany, truncateAll } from "./helpers";
+
+// 手数料エンジンのテストのため請求を有効化する（既定は請求停止 = 完全無料。2026-08-22）
+beforeAll(() => {
+  process.env.FEE_CHARGING_ENABLED = "1";
+});
+afterAll(() => {
+  delete process.env.FEE_CHARGING_ENABLED;
+});
 
 beforeEach(async () => {
   await truncateAll();

@@ -1,6 +1,6 @@
 "use client";
 
-// 企業申込（§6.4）。申込後は運営審査を経てコンソール開通。
+// 企業申込（§6.4）。自動審査（メール確認・重複チェック）を通過すると即時にコンソール開通。
 import { useState } from "react";
 import Link from "next/link";
 import { trackEvent } from "@/lib/gtag";
@@ -26,9 +26,9 @@ function ApplyGuide() {
           </li>
           <li>・既存の登録企業に担当者として参加する場合は、新規申込ではなく既存企業の代表からの招待を受けてください。</li>
           <li>・所在地は必須です。管轄の判定に使用するため、都道府県から入力してください。</li>
-          <li>・法人番号（13桁）は任意です。入力すると重複判定に使用され、審査がスムーズになります。</li>
-          <li>・申込後は運営審査を行い、承認されるとメールでお知らせします。審査完了までログインはできません。</li>
-          <li>・利用開始（承認）から30日間は成約手数料が無料です。</li>
+          <li>・法人番号（13桁）は任意です。入力すると重複判定がより確実になります。</li>
+          <li>・審査は自動で行われ、通過するとその場で利用開始（開通）となります。完了メールが届いたらすぐにログインできます。</li>
+          <li>・基本版は完全無料です（掲載料・月額費用・成約手数料すべて0円）。</li>
         </ul>
       </div>
       <div>
@@ -46,7 +46,7 @@ function ApplyGuide() {
           <li>2. 双方向マッチングの候補から「商談を申し込む」と、相手企業の承認待ちになります。</li>
           <li>3. 双方が承認すると商談開始となり、氏名・実額単価・企業名が相互に同時開示されます（片方の承認だけでは開示されません）。</li>
           <li>4. 面談・条件調整ののち条件確認書を取り交わし、双方の署名で成約となります。</li>
-          <li>5. 稼働開始後は月次確認を行い、成約手数料（需要側企業負担・確定契約金額の3%・最大12稼働月）が確定します。</li>
+          <li>5. 稼働開始後は月次の稼働記録が自動で作成されます（成約手数料は無料化中のため0円です）。</li>
           <li>・詳しい操作方法は、開通後にコンソール内の「ご利用マニュアル」をご覧ください。</li>
         </ul>
       </div>
@@ -149,9 +149,9 @@ export default function ApplyPage() {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <div className="w-[28rem] rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <h1 className="mb-3 text-xl font-bold">申込を受け付けました</h1>
+          <h1 className="mb-3 text-xl font-bold">企業登録が完了しました</h1>
           <p className="text-sm text-slate-600">
-            運営審査ののち、企業コンソールが開通します。開通後、登録したメールアドレスとパスワードでログインしてください。
+            企業コンソールが開通しました。登録したメールアドレスとパスワードでログインしてご利用ください。
           </p>
           <Link href="/login" className="mt-6 inline-block text-sm text-blue-600 hover:underline">
             ログインページへ
@@ -288,7 +288,7 @@ export default function ApplyPage() {
           disabled={loading}
           className="mt-6 w-full rounded bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {loading ? "送信中..." : "申込む（運営審査へ）"}
+          {loading ? "送信中..." : "申込む（登録を完了する）"}
         </button>
         <p className="mt-4 text-center text-xs text-slate-400">
           既にアカウントをお持ちの方は <Link href="/login" className="text-blue-600 hover:underline">ログイン</Link>

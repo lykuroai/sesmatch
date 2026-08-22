@@ -3,7 +3,7 @@ import Link from "next/link";
 export const metadata = {
   title: "サービス紹介",
   description:
-    "SES DirectMatchのサービス紹介。案件票・スキルシートをAIが自動整理し、案件⇄人材を双方向マッチング。商流は最大一社下まで、3段階の情報開示で安心して商談できます。成約手数料は3%のみ。",
+    "SES DirectMatchのサービス紹介。案件票・スキルシートをAIが自動整理し、案件⇄人材を双方向マッチング。商流は最大一社下まで、3段階の情報開示で安心して商談できます。基本版は掲載料・月額費用・成約手数料すべて0円の完全無料。",
   alternates: { canonical: "/about" },
   openGraph: { title: "サービス紹介" },
 };
@@ -57,7 +57,7 @@ const COMPARE: [string, string, string][] = [
   ["データの置き場所", "プラットフォーム上で管理（テナント分離・段階開示で保護）", "全量は自社環境。商談に出す分だけを公開送信"],
   ["AI解析", "プラットフォームのAIが解析（追加費用なし）", "自社契約のAI（クラウド／社内LLM）で解析"],
   ["準備", "企業登録のみ。ブラウザだけで利用可", "企業登録＋一般的なPCにインストール（約5分）"],
-  ["費用", "成約手数料のみ", "成約手数料のみ（Connector本体は無料）"],
+  ["費用", "完全無料（基本版）", "完全無料（基本版・Connector本体も無料）"],
 ];
 
 export default function AboutPage() {
@@ -146,7 +146,7 @@ export default function AboutPage() {
             <li className="rounded bg-white p-2">匿名で掲載・検索（氏名・単価実額は非公開）</li>
             <li className="rounded bg-white p-2">人材提案・案件紹介で商談を申込み</li>
             <li className="rounded bg-white p-2">双方承認で実名・実額を相互開示</li>
-            <li className="rounded bg-white p-2">成約・稼働・手数料まで一貫管理</li>
+            <li className="rounded bg-white p-2">成約・稼働まで一貫管理（完全無料）</li>
           </ul>
         </div>
       </div>
@@ -205,26 +205,26 @@ export default function AboutPage() {
           商談をお互いが承認したときに初めて、氏名・実額・企業名を同時に相互開示
         </li>
         <li>
-          <b className="text-blue-700">成約</b> — 条件確認書の締結・稼働確認・成約手数料までプラットフォームが記録
+          <b className="text-blue-700">成約</b> — 条件確認書の締結から稼働確認までプラットフォームが記録
         </li>
       </ol>
       <p className="mt-3 text-xs text-slate-500">
-        このほか、企業データの行レベル分離（他社からは見えない）、AI解析前の個人情報匿名化、参加企業の運営審査、
+        このほか、企業データの行レベル分離（他社からは見えない）、AI解析前の個人情報匿名化、参加企業の登録審査（重複・実在性の自動チェック）、
         再転載・無承認再仲介の通報窓口など、企業間取引を安全に保つ仕組みを備えています。
         商流は最大一社下までに制限し、多重下請けを防ぎます。
       </p>
 
       {/* 料金 */}
-      <h2 className="mt-10 text-lg font-extrabold text-slate-900">成約するまで、費用はかかりません</h2>
+      <h2 className="mt-10 text-lg font-extrabold text-slate-900">基本版は完全無料です</h2>
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-xl border-2 border-blue-600 bg-white p-5">
-          <p className="font-extrabold text-slate-900">SES DirectMatch</p>
-          <p className="text-3xl font-extrabold text-blue-700">成約手数料 3%</p>
-          <p className="text-xs text-slate-500">登録・掲載・検索・商談まで無料</p>
+          <p className="font-extrabold text-slate-900">SES DirectMatch 基本版</p>
+          <p className="text-3xl font-extrabold text-blue-700">完全無料</p>
+          <p className="text-xs text-slate-500">登録・掲載・検索・商談から成約・稼働管理まで、すべて0円</p>
           <ul className="mt-2 list-disc pl-5 text-xs text-slate-500">
-            <li>費用が発生するのは成約して稼働が始まってから</li>
-            <li>確定契約金額の3%を、人材を受け入れる企業のみ負担（最大12稼働月）</li>
-            <li>稼働前のキャンセルは0円</li>
+            <li>掲載料・月額費用・成約手数料はすべて0円</li>
+            <li>成約しても稼働が始まっても、費用は発生しません</li>
+            <li>現在提供中の全機能を基本版としてご利用いただけます</li>
           </ul>
         </div>
         <div className="rounded-xl border-2 border-emerald-700 bg-white p-5">
@@ -240,11 +240,11 @@ export default function AboutPage() {
       </div>
 
       {/* 導入の流れ */}
-      <h2 className="mt-10 text-lg font-extrabold text-slate-900">今日申し込んで、審査後すぐに使えます</h2>
+      <h2 className="mt-10 text-lg font-extrabold text-slate-900">今日申し込んで、今日から使えます</h2>
       <ol className="mt-3 space-y-2">
         {[
-          ["企業登録を申込み", "企業情報を入力し、メールアドレス確認のうえ受付", false],
-          ["運営審査 → 利用開始", "審査完了の通知が届いたら、ブラウザで案件・人材の登録と商談を開始できます", false],
+          ["企業登録を申込み", "企業情報を入力し、メールアドレス確認のうえ登録（審査は自動・その場で完了）", false],
+          ["すぐに利用開始", "登録完了後すぐに、ブラウザで案件・人材の登録と商談を開始できます", false],
           ["（任意）SES-Connector を導入", "会社マイページの案内から約5分でインストール。データを自社に置く運用に切り替えられます", true],
         ].map(([title, body, optional], i) => (
           <li key={String(title)} className="flex gap-3">

@@ -3,7 +3,7 @@
 import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
-import { decideFee, isNewCompanyFreeMonth, isWithinRefundWindow } from "@/server/billing/fee";
+import { decideCurrentFee, isNewCompanyFreeMonth, isWithinRefundWindow } from "@/server/billing/fee";
 import { DISPATCH_CONTRACT_TYPE } from "@/lib/constants";
 import { Prisma } from "@prisma/client";
 import type { Contract, PlatformFee, WorkMonth } from "@prisma/client";
@@ -149,7 +149,7 @@ export async function ensureWorkMonths(c: Contract) {
             status: "CHARGED",
           },
         });
-        const decision = decideFee(c.monthlyRateYen, priorCharged, isNewCompanyFreeMonth(month, approvedAt));
+        const decision = decideCurrentFee(c.monthlyRateYen, priorCharged, isNewCompanyFreeMonth(month, approvedAt));
         await tx.platformFee.create({
           data: {
             workMonthId: wm.id,
@@ -690,7 +690,7 @@ export async function confirmWorkMonth(
           status: "CHARGED",
         },
       });
-      const decision = decideFee(input.amountYen, priorCharged, isNewCompanyFreeMonth(input.month, approvedAt));
+      const decision = decideCurrentFee(input.amountYen, priorCharged, isNewCompanyFreeMonth(input.month, approvedAt));
       const fee = await tx.platformFee.create({
         data: {
           workMonthId: wm.id,
