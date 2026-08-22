@@ -19,8 +19,8 @@ export default async function RelationshipsPage() {
       <h1 className="mb-2 text-2xl font-bold">企業間関係</h1>
       <p className="mb-6 text-sm text-slate-500">
         一社下人材を提案するには、直接契約が確認済みの「一社下」関係の登録が必要です（最大商流1・二社下以降は禁止）。
-        また、<b>自社と相手企業の双方がお互いを登録している（相互登録）</b>場合、その取引先の案件・人材には掲載企業名が表示されます
-        （相手の画面にも自社名が表示されます。片方だけの登録では表示されません。人材本人の氏名等の開示は従来どおり双方承認後です）。
+        また、<b>ここに登録した取引先</b>の案件・人材には掲載企業名が表示されます
+        （相手企業が本サービスに登録済みの場合。人材本人の氏名等の開示は従来どおり双方承認後です）。
       </p>
       {canManage && (
         <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

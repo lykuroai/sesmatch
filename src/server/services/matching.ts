@@ -8,7 +8,7 @@ import { score, type EngineerForMatch, type ProjectForMatch } from "@/server/mat
 import { normalizeSkillTerm } from "@/lib/constants";
 import { hasValidConsent, isForeignNationality, serializeEngineer } from "./engineers";
 import { serializeProject } from "./projects";
-import { mutualPartnerNames } from "./partners";
+import { registeredPartnerNames } from "./partners";
 import type { Engineer, EngineerSkill, PersonConsent, Project, ProjectSkill } from "@prisma/client";
 
 // 用語辞書（承認済みのみ）を読み込んだ名寄せ関数を作る（§19）。
@@ -95,7 +95,7 @@ export async function matchProjectToEngineers(
   // 自社案件は公開前でもマッチング計算対象にする
   const pmForCalc = { ...pm, status: "PUBLISHED" };
   const normalize = await buildTermNormalizer();
-  const partnerNames = await mutualPartnerNames(auth.companyId);
+  const partnerNames = await registeredPartnerNames(auth.companyId);
 
   const results = candidates
     .map((e) => ({
@@ -239,7 +239,7 @@ export async function matchEngineerToProjects(
   // 自社人材は公開前でも計算対象（公開可否は同意チェックで別途担保）
   const emForCalc = { ...em, status: "PUBLISHED" };
   const normalize = await buildTermNormalizer();
-  const partnerNames = await mutualPartnerNames(auth.companyId);
+  const partnerNames = await registeredPartnerNames(auth.companyId);
 
   const results = projects
     .map((p) => ({

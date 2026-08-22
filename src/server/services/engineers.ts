@@ -4,7 +4,7 @@ import type { AuthContext } from "@/server/auth/session";
 import { hasPermission } from "@/server/auth/rbac";
 import { ageBandLabel, rateBand, remoteLevelToOnsiteDays, LIST_PAGE_SIZE } from "@/lib/constants";
 import { expandSearchTerms, registerNewTermAliases } from "./skill-aliases";
-import { mutualPartnerNames } from "./partners";
+import { registeredPartnerNames } from "./partners";
 import { STORAGE_DIR, truncateFilenameBytes } from "@/server/pipeline/ingest";
 import { extractDocumentText, isSkillSheetFile } from "@/server/pipeline/extract-text";
 import { llmGateway } from "@/server/pipeline/llm";
@@ -33,7 +33,7 @@ type EngineerWithRels = Engineer & { skills: EngineerSkill[]; consents: PersonCo
 export function serializeEngineer(
   e: EngineerWithRels,
   auth: AuthContext,
-  partnerNames?: Map<string, string> // 相互取引先の実名表示（partners.ts）
+  partnerNames?: Map<string, string> // 登録済み取引先の実名表示（partners.ts）
 ) {
   const own = e.tenantCompanyId === auth.companyId;
   const canPii = own && hasPermission(auth.roles, "engineer.read.pii");
@@ -41,7 +41,7 @@ export function serializeEngineer(
     id: e.id,
     code: e.code,
     own,
-    // 相互登録済み取引先の他社人材のみ掲載企業名を開示（人材本人の氏名等は開示しない）
+    // 企業間関係に登録済みの取引先の他社人材のみ掲載企業名を開示（人材本人の氏名等は開示しない）
     partnerCompanyName: own ? undefined : partnerNames?.get(e.tenantCompanyId),
     createdAt: e.createdAt.toISOString(), // 一覧のNEW表示用
     ageBand: ageBandLabel(e.ageBand),
@@ -131,7 +131,7 @@ export async function listEngineers(
       orderBy: { createdAt: "desc" },
       ...(page ? { skip: (page - 1) * LIST_PAGE_SIZE, take: LIST_PAGE_SIZE } : {}),
     }),
-    scope === "public" ? mutualPartnerNames(auth.companyId) : undefined,
+    scope === "public" ? registeredPartnerNames(auth.companyId) : undefined,
   ]);
   return { items: engineers.map((e) => serializeEngineer(e, auth, partnerNames)), total };
 }
@@ -146,7 +146,7 @@ export async function getEngineer(auth: AuthContext, id: string) {
   if (e.deletedAt && e.tenantCompanyId !== auth.companyId) return null; // 論理削除済み（§26）
   if (e.tenantCompanyId !== auth.companyId && e.status !== "PUBLISHED") return null;
   const partnerNames =
-    e.tenantCompanyId === auth.companyId ? undefined : await mutualPartnerNames(auth.companyId);
+    e.tenantCompanyId === auth.companyId ? undefined : await registeredPartnerNames(auth.companyId);
   return {
     ...serializeEngineer(e, auth, partnerNames),
     // 職務経歴書（原本・PII含む）: 自社のみファイル名を返す。取得はPII権限で別途制御

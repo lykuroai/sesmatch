@@ -9,21 +9,21 @@ import {
 } from "@/lib/constants";
 import type { Project, ProjectSkill } from "@prisma/client";
 import { expandSearchTerms } from "./skill-aliases";
-import { mutualPartnerNames } from "./partners";
+import { registeredPartnerNames } from "./partners";
 
 type ProjectWithRels = Project & { skills: ProjectSkill[] };
 
 export function serializeProject(
   p: ProjectWithRels,
   auth: AuthContext,
-  partnerNames?: Map<string, string> // 相互取引先の実名表示（partners.ts）
+  partnerNames?: Map<string, string> // 登録済み取引先の実名表示（partners.ts）
 ) {
   const own = p.tenantCompanyId === auth.companyId;
   return {
     id: p.id,
     code: p.code,
     own,
-    // 相互登録済み取引先の他社案件のみ掲載企業名を開示（それ以外は匿名のまま）
+    // 企業間関係に登録済みの取引先の他社案件のみ掲載企業名を開示（それ以外は匿名のまま）
     partnerCompanyName: own ? undefined : partnerNames?.get(p.tenantCompanyId),
     name: p.name,
     anonymousSummary: p.anonymousSummary,
@@ -97,7 +97,7 @@ export async function listProjects(
       orderBy: { createdAt: "desc" },
       ...(page ? { skip: (page - 1) * LIST_PAGE_SIZE, take: LIST_PAGE_SIZE } : {}),
     }),
-    scope === "public" ? mutualPartnerNames(auth.companyId) : undefined,
+    scope === "public" ? registeredPartnerNames(auth.companyId) : undefined,
   ]);
   return { items: projects.map((p) => serializeProject(p, auth, partnerNames)), total };
 }
@@ -107,7 +107,7 @@ export async function getProject(auth: AuthContext, id: string) {
   if (!p) return null;
   if (p.tenantCompanyId !== auth.companyId && p.status !== "PUBLISHED") return null; // §29
   const partnerNames =
-    p.tenantCompanyId === auth.companyId ? undefined : await mutualPartnerNames(auth.companyId);
+    p.tenantCompanyId === auth.companyId ? undefined : await registeredPartnerNames(auth.companyId);
   return serializeProject(p, auth, partnerNames);
 }
 

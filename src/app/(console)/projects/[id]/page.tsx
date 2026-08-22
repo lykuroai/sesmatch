@@ -55,7 +55,7 @@ export default async function ProjectDetailPage({
             {p.code} {p.name}
             {!p.own &&
               (p.partnerCompanyName ? (
-                // 相互登録済み取引先の案件は掲載企業名を表示
+                // 登録済み取引先の案件は掲載企業名を表示
                 <span className="ml-3 rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
                   取引先: {p.partnerCompanyName}
                 </span>
