@@ -373,8 +373,8 @@ export default async function EngineersPage({
               {isNew(e.createdAt) && (
                 <NewBadge />
               )}
-              <span className={`rounded px-1.5 py-0.5 text-xs ${e.own ? "bg-purple-50 text-purple-700" : "bg-slate-100 text-slate-600"}`}>
-                {e.own ? "自社" : "他社"}
+              <span className={`rounded px-1.5 py-0.5 text-xs ${e.own ? "bg-purple-50 text-purple-700" : e.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                {e.own ? "自社" : (e.partnerCompanyName ?? "他社")}
               </span>
               {statusBadges(e)}
             </div>
@@ -424,8 +424,8 @@ export default async function EngineersPage({
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`rounded px-1.5 py-0.5 text-xs ${e.own ? "bg-purple-50 text-purple-700" : "bg-slate-100 text-slate-600"}`}>
-                    {e.own ? "自社" : "他社"}
+                  <span className={`rounded px-1.5 py-0.5 text-xs ${e.own ? "bg-purple-50 text-purple-700" : e.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                    {e.own ? "自社" : (e.partnerCompanyName ?? "他社")}
                   </span>
                 </td>
                 <td className="px-4 py-3">{e.ageBand}</td>

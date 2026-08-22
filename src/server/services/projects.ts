@@ -9,15 +9,22 @@ import {
 } from "@/lib/constants";
 import type { Project, ProjectSkill } from "@prisma/client";
 import { expandSearchTerms } from "./skill-aliases";
+import { mutualPartnerNames } from "./partners";
 
 type ProjectWithRels = Project & { skills: ProjectSkill[] };
 
-export function serializeProject(p: ProjectWithRels, auth: AuthContext) {
+export function serializeProject(
+  p: ProjectWithRels,
+  auth: AuthContext,
+  partnerNames?: Map<string, string> // 相互取引先の実名表示（partners.ts）
+) {
   const own = p.tenantCompanyId === auth.companyId;
   return {
     id: p.id,
     code: p.code,
     own,
+    // 相互登録済み取引先の他社案件のみ掲載企業名を開示（それ以外は匿名のまま）
+    partnerCompanyName: own ? undefined : partnerNames?.get(p.tenantCompanyId),
     name: p.name,
     anonymousSummary: p.anonymousSummary,
     industry: p.industry,
@@ -82,7 +89,7 @@ export async function listProjects(
       }
     : {};
   const where = { ...base, ...search };
-  const [total, projects] = await Promise.all([
+  const [total, projects, partnerNames] = await Promise.all([
     prisma.project.count({ where }),
     prisma.project.findMany({
       where,
@@ -90,15 +97,18 @@ export async function listProjects(
       orderBy: { createdAt: "desc" },
       ...(page ? { skip: (page - 1) * LIST_PAGE_SIZE, take: LIST_PAGE_SIZE } : {}),
     }),
+    scope === "public" ? mutualPartnerNames(auth.companyId) : undefined,
   ]);
-  return { items: projects.map((p) => serializeProject(p, auth)), total };
+  return { items: projects.map((p) => serializeProject(p, auth, partnerNames)), total };
 }
 
 export async function getProject(auth: AuthContext, id: string) {
   const p = await prisma.project.findUnique({ where: { id }, include: { skills: true } });
   if (!p) return null;
   if (p.tenantCompanyId !== auth.companyId && p.status !== "PUBLISHED") return null; // §29
-  return serializeProject(p, auth);
+  const partnerNames =
+    p.tenantCompanyId === auth.companyId ? undefined : await mutualPartnerNames(auth.companyId);
+  return serializeProject(p, auth, partnerNames);
 }
 
 export type ProjectInput = {

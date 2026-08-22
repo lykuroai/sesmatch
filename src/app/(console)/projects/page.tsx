@@ -359,8 +359,8 @@ export default async function ProjectsPage({
               {isNew(p.createdAt) && (
                 <NewBadge />
               )}
-              <span className={`rounded px-1.5 py-0.5 text-xs ${p.own ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
-                {p.own ? "自社" : "他社"}
+              <span className={`rounded px-1.5 py-0.5 text-xs ${p.own ? "bg-blue-50 text-blue-700" : p.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                {p.own ? "自社" : (p.partnerCompanyName ?? "他社")}
               </span>
               {statusBadges(p)}
             </div>
@@ -410,8 +410,8 @@ export default async function ProjectsPage({
                   )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3">
-                  <span className={`rounded px-1.5 py-0.5 text-xs ${p.own ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
-                    {p.own ? "自社" : "他社"}
+                  <span className={`rounded px-1.5 py-0.5 text-xs ${p.own ? "bg-blue-50 text-blue-700" : p.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                    {p.own ? "自社" : (p.partnerCompanyName ?? "他社")}
                   </span>
                 </td>
                 {/* 長い案件名は改行せず1行で省略表示（全文はツールチップ） */}

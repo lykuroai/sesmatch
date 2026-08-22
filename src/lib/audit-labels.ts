@@ -22,6 +22,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   MemberDeleted: "メンバーを削除",
   MemberDeletedByOperations: "運営がメンバーを削除",
   RelationshipRegistered: "企業間関係を登録",
+  RelationshipUpdated: "企業間関係を修正",
+  RelationshipDeleted: "企業間関係を削除",
   // 案件・人材
   ProjectCreated: "案件を作成",
   ProjectUpdated: "案件を更新",

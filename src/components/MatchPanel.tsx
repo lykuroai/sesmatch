@@ -7,8 +7,8 @@ import Link from "next/link";
 // 他社候補にはエントリー作成ボタンを表示（案件→人材: スカウト / 人材→案件: 人材提案 §20.1）。
 // 自社→自社はエントリー対象外のためボタンなし
 type MatchRow = {
-  engineer?: { id: string; code: string; own: boolean; rateBand: string; ageBand: string };
-  project?: { id: string; code: string; own: boolean; name: string; rateMaxYen: number };
+  engineer?: { id: string; code: string; own: boolean; rateBand: string; ageBand: string; partnerCompanyName?: string };
+  project?: { id: string; code: string; own: boolean; name: string; rateMaxYen: number; partnerCompanyName?: string };
   result: {
     score: number;
     breakdown: Record<string, number>;
@@ -157,6 +157,9 @@ export function MatchPanel({
                     {title}
                     {target.own ? (
                       <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">自社</span>
+                    ) : target.partnerCompanyName ? (
+                      // 相互登録済み取引先の候補は掲載企業名を表示
+                      <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-700">{target.partnerCompanyName}</span>
                     ) : (
                       <span className="ml-2 rounded bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-600">他社</span>
                     )}

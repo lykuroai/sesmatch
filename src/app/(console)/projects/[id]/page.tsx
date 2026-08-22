@@ -53,7 +53,15 @@ export default async function ProjectDetailPage({
         <div>
           <h1 className="text-2xl font-bold">
             {p.code} {p.name}
-            {!p.own && <span className="ml-3 rounded bg-indigo-50 px-2 py-1 text-xs text-indigo-600">他社案件</span>}
+            {!p.own &&
+              (p.partnerCompanyName ? (
+                // 相互登録済み取引先の案件は掲載企業名を表示
+                <span className="ml-3 rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
+                  取引先: {p.partnerCompanyName}
+                </span>
+              ) : (
+                <span className="ml-3 rounded bg-indigo-50 px-2 py-1 text-xs text-indigo-600">他社案件</span>
+              ))}
           </h1>
           {/* 状態表示: 「公開状態」（自社のみ）と「案件状況」をラベル付きで並べる */}
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">

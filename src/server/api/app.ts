@@ -1592,6 +1592,58 @@ app.post("/relationships", requirePermission("relationship.manage"), async (c) =
   return c.json(rel, 201);
 });
 
+// 修正。他テナントの関係は 404（存在推測防止 §29: companyId 条件付き updateMany）
+app.put("/relationships/:id", requirePermission("relationship.manage"), async (c) => {
+  const parsed = z
+    .object({
+      partnerName: z.string().min(1),
+      type: z.enum(["PARTNER", "SUBTIER", "SALES_DELEGATION"]),
+      contractConfirmed: z.boolean().optional(),
+      note: z.string().optional(),
+    })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const auth = c.get("auth");
+  const id = c.req.param("id");
+  const updated = await prisma.companyRelationship.updateMany({
+    where: { id, companyId: auth.companyId },
+    data: {
+      partnerName: parsed.data.partnerName,
+      type: parsed.data.type,
+      contractConfirmed: parsed.data.contractConfirmed ?? false,
+      note: parsed.data.note ?? null,
+    },
+  });
+  if (updated.count === 0) return c.json(err("NOT_FOUND"), 404);
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "RelationshipUpdated",
+    targetType: "CompanyRelationship",
+    targetId: id,
+    metadata: { type: parsed.data.type },
+  });
+  return c.json({ ok: true });
+});
+
+// 削除。一社下の提案条件・相互取引先の実名表示（§10.1）にも即時反映される
+app.delete("/relationships/:id", requirePermission("relationship.manage"), async (c) => {
+  const auth = c.get("auth");
+  const id = c.req.param("id");
+  const deleted = await prisma.companyRelationship.deleteMany({
+    where: { id, companyId: auth.companyId },
+  });
+  if (deleted.count === 0) return c.json(err("NOT_FOUND"), 404);
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "RelationshipDeleted",
+    targetType: "CompanyRelationship",
+    targetId: id,
+  });
+  return c.json({ ok: true });
+});
+
 // ---- 通報・異議申立て（§24, Phase 2）----
 
 app.get("/reports", requirePermission("report.create"), async (c) => {
