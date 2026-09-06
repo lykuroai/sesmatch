@@ -799,6 +799,25 @@ model InquiryMessage {
   @@map("inquiry_messages")
 }
 
+// ---- システムエラーログ (§33): LLM・取込・API・メール等の障害を記録し運営へ通知する ----
+// 個人情報（氏名・連絡先・原文）は message / detail に含めないこと
+model SystemErrorLog {
+  id              String    @id @default(cuid())
+  source          String // LLM / INGEST / API / PAGE / MAIL / OTHER
+  message         String // 要約（500文字まで）
+  detail          String? // スタックトレース等（4000文字まで）
+  tenantCompanyId String?
+  targetType      String? // IngestionJob 等
+  targetId        String?
+  notifiedAt      DateTime? // 運営へメール通知した時刻（同一内容は30分以内は再通知しない）
+  acknowledgedAt  DateTime? // 運営コンソールで確認済みにした時刻
+  createdAt       DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([source, message, notifiedAt])
+  @@map("system_error_logs")
+}
+
 // ---- 監査 (§31, §32): 追記型。更新・削除パスを実装しないこと ----
 
 model AuditEvent {

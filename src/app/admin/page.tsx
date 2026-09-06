@@ -58,6 +58,19 @@ type AdminInquiry = {
   messages: { id: string; fromOperator: boolean; body: string; createdAt: string }[];
 };
 
+type AdminSystemError = {
+  id: string;
+  source: string;
+  message: string;
+  detail: string | null;
+  tenantCompanyName: string | null;
+  targetType: string | null;
+  targetId: string | null;
+  notifiedAt: string | null;
+  acknowledgedAt: string | null;
+  createdAt: string;
+};
+
 // 機能ごとの画面（メニューで切り替え）
 const MENU = [
   { key: "review", label: "企業承認" },
@@ -68,6 +81,7 @@ const MENU = [
   { key: "aliases", label: "用語辞書" },
   { key: "reports", label: "通報対応" },
   { key: "inquiries", label: "お問合せ" },
+  { key: "errors", label: "エラーログ" },
 ] as const;
 type MenuKey = (typeof MENU)[number]["key"];
 
@@ -79,6 +93,8 @@ export default function AdminPage() {
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [inquiries, setInquiries] = useState<AdminInquiry[]>([]);
   const [allCompanies, setAllCompanies] = useState<AdminCompany[]>([]);
+  const [errorLogs, setErrorLogs] = useState<AdminSystemError[]>([]);
+  const [unackedErrors, setUnackedErrors] = useState(0);
   const [tab, setTab] = useState<MenuKey>("review");
 
   // URL ハッシュ（#companies 等）と画面を同期し、リロード後も同じ画面を開く
@@ -93,17 +109,21 @@ export default function AdminPage() {
 
   const load = useCallback(async (t: string) => {
     const headers = { "X-Admin-Token": t };
-    const [cRes, rRes, aRes, qRes] = await Promise.all([
+    const [cRes, rRes, aRes, qRes, eRes] = await Promise.all([
       fetch("/api/v1/operations/companies", { headers }),
       fetch("/api/v1/operations/reports", { headers }),
       fetch("/api/v1/operations/companies/all", { headers }),
       fetch("/api/v1/operations/inquiries", { headers }),
+      fetch("/api/v1/operations/errors", { headers }),
     ]);
-    if (!cRes.ok || !rRes.ok || !aRes.ok || !qRes.ok) throw new Error("認証エラー");
+    if (!cRes.ok || !rRes.ok || !aRes.ok || !qRes.ok || !eRes.ok) throw new Error("認証エラー");
     setCompanies((await cRes.json()).items);
     setReports((await rRes.json()).items);
     setAllCompanies((await aRes.json()).items);
     setInquiries((await qRes.json()).items);
+    const errs = await eRes.json();
+    setErrorLogs(errs.items);
+    setUnackedErrors(errs.unacknowledged);
   }, []);
 
   useEffect(() => {
@@ -153,7 +173,15 @@ export default function AdminPage() {
   const openReports = reports.filter((r) => r.status !== "RESOLVED").length;
   const openInquiries = inquiries.filter((q) => q.status !== "RESOLVED").length;
   const badge = (key: MenuKey) =>
-    key === "review" ? companies.length : key === "reports" ? openReports : key === "inquiries" ? openInquiries : 0;
+    key === "review"
+      ? companies.length
+      : key === "reports"
+        ? openReports
+        : key === "inquiries"
+          ? openInquiries
+          : key === "errors"
+            ? unackedErrors
+            : 0;
 
   return (
     <main className="min-h-screen bg-slate-100 p-8">
@@ -213,6 +241,9 @@ export default function AdminPage() {
             )}
             {tab === "inquiries" && (
               <InquiriesSection token={token} inquiries={inquiries} reload={() => load(token)} />
+            )}
+            {tab === "errors" && (
+              <ErrorLogSection token={token} errors={errorLogs} reload={() => load(token)} />
             )}
           </div>
         </div>
@@ -1804,5 +1835,185 @@ function CompanyMembersPanel({ companyId, token }: { companyId: string; token: s
         ))}
       </div>
     </div>
+  );
+}
+
+// ---- エラーログ（§33 監視）: LLM・取込・API・画面・メールのシステムエラー ----
+
+const ERROR_SOURCE_LABELS: Record<string, string> = {
+  LLM: "LLM",
+  INGEST: "取込",
+  API: "API",
+  PAGE: "画面",
+  MAIL: "メール",
+  OTHER: "その他",
+};
+
+function ErrorLogSection({
+  token,
+  errors,
+  reload,
+}: {
+  token: string;
+  errors: AdminSystemError[];
+  reload: () => Promise<void>;
+}) {
+  const [sourceFilter, setSourceFilter] = useState("");
+  const [showAcked, setShowAcked] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function acknowledge(ids?: string[]) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/v1/operations/errors/acknowledge", {
+        method: "POST",
+        headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+        body: JSON.stringify(ids ? { ids } : {}),
+      });
+      if (!res.ok) throw new Error();
+      await reload();
+    } catch {
+      setError("確認済みへの更新に失敗しました");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const unacked = errors.filter((e) => !e.acknowledgedAt);
+  const visible = errors.filter(
+    (e) => (showAcked || !e.acknowledgedAt) && (!sourceFilter || e.source === sourceFilter)
+  );
+  const countBySource = (src: string) => unacked.filter((e) => e.source === src).length;
+
+  return (
+    <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 className="mb-1 font-bold">エラーログ（未確認 {unacked.length} 件）</h2>
+      <p className="mb-3 text-xs text-slate-500">
+        LLM 呼出し・取込・API・画面・メール送信のシステムエラーを全テナント横断で一覧します（直近300件）。
+        書類側の問題（種別不一致・テキスト無し）は含みません。
+        OPERATIONS_MAIL が設定されていれば発生時に運営へメール通知します（同一内容は30分以内は再通知しません）。
+      </p>
+      {error && <p className="mb-2 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+      <div className="mb-3 flex flex-wrap gap-3 text-xs">
+        {Object.entries(ERROR_SOURCE_LABELS).map(([src, label]) => (
+          <button
+            key={src}
+            onClick={() => setSourceFilter(sourceFilter === src ? "" : src)}
+            className={`rounded px-2 py-1 ${
+              sourceFilter === src ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            {label} {countBySource(src)} 件
+          </button>
+        ))}
+      </div>
+      <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
+        <label className="flex items-center gap-1 text-xs text-slate-600">
+          <input type="checkbox" checked={showAcked} onChange={(e) => setShowAcked(e.target.checked)} />
+          確認済みも表示
+        </label>
+        <button
+          onClick={() => acknowledge()}
+          disabled={busy || unacked.length === 0}
+          className="rounded border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50 disabled:opacity-50"
+        >
+          未確認をすべて確認済みにする
+        </button>
+        <button
+          onClick={() => reload()}
+          disabled={busy}
+          className="rounded border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50 disabled:opacity-50"
+        >
+          再読込
+        </button>
+      </div>
+      {visible.length === 0 ? (
+        <p className="rounded bg-slate-50 p-4 text-sm text-slate-500">該当するエラーはありません</p>
+      ) : (
+        <div className="max-h-[32rem] overflow-x-auto overflow-y-auto rounded border border-slate-100">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-slate-50 text-left text-xs text-slate-500">
+              <tr>
+                <th className="px-3 py-2">発生時刻</th>
+                <th className="px-3 py-2">分類</th>
+                <th className="px-3 py-2">内容</th>
+                <th className="px-3 py-2">企業／対象</th>
+                <th className="px-3 py-2">通知</th>
+                <th className="px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((e) => (
+                <Fragment key={e.id}>
+                  <tr className={`border-t border-slate-100 ${e.acknowledgedAt ? "text-slate-400" : ""}`}>
+                    <td className="whitespace-nowrap px-3 py-2 align-top text-xs">
+                      {new Date(e.createdAt).toLocaleString("ja-JP")}
+                    </td>
+                    <td className="px-3 py-2 align-top">
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-xs ${
+                          e.source === "LLM"
+                            ? "bg-purple-50 text-purple-700"
+                            : e.source === "API" || e.source === "PAGE"
+                              ? "bg-red-50 text-red-700"
+                              : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {ERROR_SOURCE_LABELS[e.source] ?? e.source}
+                      </span>
+                    </td>
+                    <td className="max-w-md px-3 py-2 align-top">
+                      <button
+                        onClick={() => setOpenId(openId === e.id ? null : e.id)}
+                        className="break-words text-left hover:underline"
+                        title="クリックで詳細を表示"
+                      >
+                        {e.message}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2 align-top text-xs">
+                      {e.tenantCompanyName && <div>{e.tenantCompanyName}</div>}
+                      {(e.targetType || e.targetId) && (
+                        <div className="text-slate-500">
+                          {[e.targetType, e.targetId].filter(Boolean).join(" ")}
+                        </div>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 align-top text-xs">
+                      {e.notifiedAt ? "メール済" : "－"}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 align-top text-xs">
+                      {e.acknowledgedAt ? (
+                        <span>確認済 {new Date(e.acknowledgedAt).toLocaleString("ja-JP")}</span>
+                      ) : (
+                        <button
+                          onClick={() => acknowledge([e.id])}
+                          disabled={busy}
+                          className="rounded border border-slate-300 px-2 py-0.5 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          確認済みにする
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  {openId === e.id && (
+                    <tr className="border-t border-slate-100 bg-slate-50">
+                      <td colSpan={6} className="px-3 py-2">
+                        <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all text-xs text-slate-700">
+                          {e.detail || "（詳細なし）"}
+                        </pre>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }

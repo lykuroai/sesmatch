@@ -5,6 +5,7 @@
 
 import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
+import { errorMessageOf, reportSystemError } from "@/server/system-error";
 import { getLlmGateway } from "@/server/pipeline/llm";
 import { normalizeSkillTerm } from "@/lib/constants";
 
@@ -32,7 +33,11 @@ export async function expandSearchTerms(q: string): Promise<string[]> {
       }
     }
   } catch (e) {
-    console.error("[alias] 検索語の同義語展開に失敗", e);
+    await reportSystemError({
+      source: "OTHER",
+      message: `検索語の同義語展開に失敗: ${errorMessageOf(e)}`,
+      error: e,
+    });
   }
   return [...variants].filter(Boolean);
 }
@@ -79,7 +84,12 @@ export async function registerNewTermAliases(terms: string[], tenantCompanyId: s
       });
     }
   } catch (e) {
-    // 辞書増補の失敗は取込を失敗させない（次回の取込で再挑戦される）
-    console.error("[alias] 用語辞書の自動増補に失敗", e);
+    // 辞書増補の失敗は取込を失敗させない（次回の取込で再挑戦される）が、LLM 障害として記録する
+    await reportSystemError({
+      source: "LLM",
+      message: `用語辞書の自動増補に失敗: ${errorMessageOf(e)}`,
+      error: e,
+      tenantCompanyId,
+    });
   }
 }

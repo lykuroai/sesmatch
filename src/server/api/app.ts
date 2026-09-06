@@ -3,6 +3,7 @@
 
 import { timingSafeEqual, createHash } from "crypto";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { z } from "zod";
 import { prisma } from "@/server/db";
@@ -119,6 +120,7 @@ import {
 } from "@/server/services/operations-monitor";
 import { retryIngestion, startIngestion } from "@/server/pipeline/ingest";
 import { appBaseUrl, sendMail } from "@/server/mail";
+import { errorMessageOf, reportSystemError } from "@/server/system-error";
 import { isImageFilename, MAX_MERGE_IMAGES, mergeImagesToPdf } from "@/server/pipeline/images-to-pdf";
 import { csvToCompanyRows, parseCsv } from "@/lib/csv";
 import { remoteLevelFromOnsiteDays, remoteLevelToOnsiteDays } from "@/lib/constants";
@@ -148,6 +150,23 @@ const statusFor = (code: string): 400 | 403 | 404 | 409 | 422 =>
         : code === "CONSENT_REQUIRED" || code === "PII_VALIDATION_FAILED"
           ? 422
           : 400;
+
+// ---- 未処理例外（§29 INTERNAL_ERROR）: システムエラーログに記録し運営へ通知する ----
+// 認証情報・リクエスト本文は記録しない（パス・メソッドのみ）
+
+app.onError(async (e, c) => {
+  if (e instanceof HTTPException) return e.getResponse();
+  const path = new URL(c.req.url).pathname;
+  await reportSystemError({
+    source: "API",
+    message: `${c.req.method} ${path}: ${errorMessageOf(e)}`,
+    error: e,
+    tenantCompanyId: c.get("auth")?.companyId ?? null,
+    targetType: "ApiRequest",
+    targetId: c.req.header("Idempotency-Key") ?? null,
+  });
+  return c.json(err("INTERNAL_ERROR", "サーバ内部でエラーが発生しました"), 500);
+});
 
 // ---- ヘルスチェック（ALB・監視用）: 未認証。DB 疎通まで確認する ----
 
@@ -397,6 +416,47 @@ app.get("/operations/engineers", requireAdminToken, async (c) =>
 );
 
 // ---- 用語辞書（スキル・工程・業種の同義語 §19 名寄せ）----
+// ---- システムエラーログ（§33 監視。運営コンソール #errors）----
+
+app.get("/operations/errors", requireAdminToken, async (c) => {
+  const logs = await prisma.systemErrorLog.findMany({ orderBy: { createdAt: "desc" }, take: 300 });
+  const companyIds = [...new Set(logs.flatMap((l) => (l.tenantCompanyId ? [l.tenantCompanyId] : [])))];
+  const companies = companyIds.length
+    ? await prisma.company.findMany({ where: { id: { in: companyIds } }, select: { id: true, name: true } })
+    : [];
+  const nameOf = new Map(companies.map((x) => [x.id, x.name]));
+  const unacknowledged = await prisma.systemErrorLog.count({ where: { acknowledgedAt: null } });
+  return c.json({
+    unacknowledged,
+    items: logs.map((l) => ({
+      id: l.id,
+      source: l.source,
+      message: l.message,
+      detail: l.detail,
+      tenantCompanyId: l.tenantCompanyId,
+      tenantCompanyName: l.tenantCompanyId ? (nameOf.get(l.tenantCompanyId) ?? null) : null,
+      targetType: l.targetType,
+      targetId: l.targetId,
+      notifiedAt: l.notifiedAt,
+      acknowledgedAt: l.acknowledgedAt,
+      createdAt: l.createdAt,
+    })),
+  });
+});
+
+// 確認済みにする（ids 省略時は未確認の全件）
+app.post("/operations/errors/acknowledge", requireAdminToken, async (c) => {
+  const body = z
+    .object({ ids: z.array(z.string()).max(1000).optional() })
+    .safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await prisma.systemErrorLog.updateMany({
+    where: { acknowledgedAt: null, ...(body.data.ids ? { id: { in: body.data.ids } } : {}) },
+    data: { acknowledgedAt: new Date() },
+  });
+  return c.json({ count: result.count });
+});
+
 app.get("/operations/skill-aliases", requireAdminToken, async (c) =>
   c.json({ items: await prisma.skillAlias.findMany({ orderBy: { createdAt: "desc" } }) })
 );

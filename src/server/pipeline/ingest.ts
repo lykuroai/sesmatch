@@ -11,6 +11,12 @@ import { extractDocumentText } from "./extract-text";
 import { splitFilename, splitProjectItems } from "./split";
 import { demoteLearnableSkills } from "./skill-rules";
 import { audit } from "@/server/audit";
+import {
+  errorMessageOf,
+  ingestionErrorSource,
+  isUserSideIngestionError,
+  reportSystemError,
+} from "@/server/system-error";
 
 export const STORAGE_DIR = process.env.STORAGE_DIR ?? "./storage";
 
@@ -106,6 +112,25 @@ export async function startIngestion(params: {
   });
 }
 
+// 取込ジョブを失敗にする。書類側の問題（種別不一致・テキスト無し等）以外は
+// システムエラーとして記録し運営へ通知する（LLM API 障害・接続失敗・JSON 検証失敗など）
+async function failJob(params: { jobId: string; tenantCompanyId: string; error: unknown }) {
+  const message = errorMessageOf(params.error);
+  await prisma.ingestionJob
+    .update({ where: { id: params.jobId }, data: { status: "FAILED", error: message } })
+    .catch(() => {});
+  if (!isUserSideIngestionError(message)) {
+    await reportSystemError({
+      source: ingestionErrorSource(message),
+      message,
+      error: params.error,
+      tenantCompanyId: params.tenantCompanyId,
+      targetType: "IngestionJob",
+      targetId: params.jobId,
+    });
+  }
+}
+
 // テキスト抽出（OCR含む）→ パイプライン本体。失敗はジョブに記録し、例外は投げない
 async function processDocument(params: {
   tenantCompanyId: string;
@@ -121,12 +146,7 @@ async function processDocument(params: {
   try {
     text = await extractDocumentText(params.filename, params.content);
   } catch (e) {
-    await prisma.ingestionJob
-      .update({
-        where: { id: params.jobId },
-        data: { status: "FAILED", error: e instanceof Error ? e.message : String(e) },
-      })
-      .catch(() => {});
+    await failJob({ jobId: params.jobId, tenantCompanyId: params.tenantCompanyId, error: e });
     return;
   }
 
@@ -157,7 +177,18 @@ async function processDocument(params: {
     // 全体がスキルシートなら分割しない: 職務経歴の「案件名」繰り返しに分割判定が
     // 誤ヒットした場合に、経歴の断片が案件として誤登録されるのを防ぐ
     // （LLM送信禁止は2026-08-19に全面撤廃 §25.2。原文をそのまま送信する）
-    const wholeKind = await llmGateway.classify(text).catch(() => "UNKNOWN" as const);
+    const wholeKind = await llmGateway.classify(text).catch(async (e: unknown) => {
+      // 分類失敗は UNKNOWN として続行するが、LLM 障害は運営が追跡できるよう記録する
+      await reportSystemError({
+        source: "LLM",
+        message: `分割前の種別判定に失敗: ${errorMessageOf(e)}`,
+        error: e,
+        tenantCompanyId: params.tenantCompanyId,
+        targetType: "IngestionJob",
+        targetId: params.jobId,
+      });
+      return "UNKNOWN" as const;
+    });
     if (wholeKind === "ENGINEER_SHEET") {
       if (params.expectedKind === "PROJECT_DESCRIPTION") {
         await prisma.ingestionJob
@@ -335,10 +366,7 @@ async function runPipeline(params: {
       metadata: { kind },
     });
   } catch (e) {
-    await prisma.ingestionJob.update({
-      where: { id: jobId },
-      data: { status: "FAILED", error: e instanceof Error ? e.message : String(e) },
-    });
+    await failJob({ jobId, tenantCompanyId, error: e });
   }
 }
 

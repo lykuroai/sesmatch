@@ -1,7 +1,7 @@
 // メール配信（Amazon SES）
 // MAIL_FROM が未設定の間は送信せずログのみ（開発・モック動作）。
 // 認証は AWS SDK の既定チェーン（EC2 インスタンスロール推奨。無ければ AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY）。
-// 送信失敗は業務処理を失敗させない（ログのみ）。
+// 送信失敗は業務処理を失敗させない（ログとシステムエラーログへの記録のみ）。
 
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 
@@ -43,5 +43,14 @@ export async function sendMail(input: {
     );
   } catch (e) {
     console.error(`[mail] 送信失敗 to=${input.to} subject=${input.subject}`, e);
+    // 運営コンソールのエラーログに記録（メール通知はしない: 送信失敗の通知がループするため）。
+    // 宛先メールアドレスは個人情報のため記録しない。循環 import を避けるため動的 import
+    const { reportSystemError } = await import("@/server/system-error");
+    await reportSystemError({
+      source: "MAIL",
+      message: `メール送信失敗: ${input.subject}`,
+      error: e,
+      notify: false,
+    });
   }
 }

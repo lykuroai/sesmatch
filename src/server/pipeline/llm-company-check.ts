@@ -5,6 +5,7 @@
 // LLM 未設定・障害時は判定をスキップして申込を通す（可用性優先。決定的チェックは別途実施）
 
 import { audit } from "@/server/audit";
+import { reportSystemError } from "@/server/system-error";
 
 export type DuplicateCheckResult = {
   duplicate: boolean;
@@ -111,6 +112,12 @@ matchedName には同一と判断した既存企業の名称（リストの表�
       action: "CompanyDuplicateCheckSkipped",
       metadata: { reason: reason.slice(0, 120) },
     }).catch(() => {});
+    await reportSystemError({
+      source: "LLM",
+      message: `企業重複判定（LLM）をスキップ: ${reason}`,
+      error: e,
+      targetType: "CompanyApplication",
+    });
     return null;
   }
 }

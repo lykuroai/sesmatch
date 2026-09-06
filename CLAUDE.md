@@ -24,6 +24,7 @@ npm run build             # 本番ビルド
 
 - LLM の選択（`src/server/pipeline/llm.ts` の `getLlmGateway`、優先順）: ① `LLM_BASE_URL` — OpenAI 互換 API（`llm-openai.ts`。現在 `https://api.lykuro.ai/v1` + `deepseek/deepseek-v4-flash`。**`LLM_API_KEY` の設定が必要**）② `ANTHROPIC_API_KEY` — Claude API（`llm-claude.ts`、`claude-opus-5` 構造化出力）③ どちらもなければ正規表現モック
 - 運営コンソール: `/admin`（`PLATFORM_ADMIN_TOKEN` でログイン）で企業承認（CSV取込由来のみ。申込フローは2026-08-22から自動審査で即時開通）・通報対応。API は `/api/v1/operations/*`（`X-Admin-Token` ヘッダ）
+- システムエラーログ（§33.1、2026-09-06追加）: `src/server/system-error/`（`reportSystemError`。純粋ロジックは `logic.ts`、テスト `tests/system-error.test.ts`）。LLM・取込・API（`app.onError`）・画面（`src/instrumentation.ts` の `onRequestError`）・メール失敗を `system_error_logs` に記録し、`OPERATIONS_MAIL` へ通知（同一内容は30分抑制）。運営コンソール `/admin#errors` で一覧・確認済み化。書類側の取込失敗（`KIND_MISMATCH` 等）は記録しない。記録に個人情報を含めないこと
 - 人材・案件の更新は `PUT /api/v1/engineers/:id` / `PUT /api/v1/projects/:id`（skills 全置換）。編集画面は詳細ページの「編集」から
 - 取込の確定は確認フォーム（`ConfirmIngestionForm`）で抽出値を修正してから `POST /ingestions/:id/confirm` に `{name, confirmed}` を送る
 - デプロイ: `DEPLOY.md` 参照（`Dockerfile` は migrate / runner の2ターゲット、`docker-compose.prod.yml` + `.env.production`。Next.js は standalone 出力）
