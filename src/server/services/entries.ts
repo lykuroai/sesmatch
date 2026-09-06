@@ -137,6 +137,53 @@ export async function getEntry(auth: AuthContext, id: string) {
 // 受信側企業の entry.approve 権限を持つアクティブ担当者全員へフォールバック。
 // 双方承認前のため相手企業名・人材氏名等の Level 2 情報は含めない（§10, §20.3）。
 // 通知の失敗はエントリー作成を失敗させない。
+type NotifyMember = Prisma.CompanyMemberGetPayload<{ include: { userAccount: true } }>;
+
+// 通知先の解決: 指定された担当者ID（優先順）のうち、対象企業に属するアクティブな担当者を返す。
+// 誰も有効でなければ、対象企業の entry.approve 権限を持つアクティブ担当者全員へフォールバック。
+async function resolveNotifyMembers(
+  companyId: string,
+  preferredMemberIds: (string | null | undefined)[],
+  options: { union?: boolean } = {}
+): Promise<NotifyMember[]> {
+  const ids = [...new Set(preferredMemberIds.filter((id): id is string => !!id))];
+  let members: NotifyMember[] = [];
+  if (options.union) {
+    if (ids.length > 0) {
+      members = await prisma.companyMember.findMany({
+        where: { id: { in: ids }, companyId, status: "ACTIVE" },
+        include: { userAccount: true },
+      });
+    }
+  } else {
+    for (const memberId of ids) {
+      members = await prisma.companyMember.findMany({
+        where: {
+          id: memberId,
+          companyId, // 対象企業に属することを確認
+          status: "ACTIVE",
+        },
+        include: { userAccount: true },
+      });
+      if (members.length > 0) break;
+    }
+  }
+  if (members.length === 0) {
+    const approverRoles = Object.values(RoleCode).filter((role) =>
+      hasPermission([role], "entry.approve")
+    );
+    members = await prisma.companyMember.findMany({
+      where: {
+        companyId,
+        status: "ACTIVE",
+        roles: { some: { role: { in: approverRoles } } },
+      },
+      include: { userAccount: true },
+    });
+  }
+  return members;
+}
+
 async function notifyEntryReceived(
   entry: { id: string; type: string; demandCompanyId: string; supplyCompanyId: string },
   project: { name: string; code: string; createdByMemberId: string | null; updatedByMemberId: string | null },
@@ -146,33 +193,10 @@ async function notifyEntryReceived(
     const receivingCompanyId =
       entry.type === "PROPOSAL" ? entry.demandCompanyId : entry.supplyCompanyId;
     const target = entry.type === "PROPOSAL" ? project : engineer;
-
-    let members: Prisma.CompanyMemberGetPayload<{ include: { userAccount: true } }>[] = [];
-    for (const memberId of [target.createdByMemberId, target.updatedByMemberId]) {
-      if (!memberId) continue;
-      members = await prisma.companyMember.findMany({
-        where: {
-          id: memberId,
-          companyId: receivingCompanyId, // 受信側企業に属することを確認
-          status: "ACTIVE",
-        },
-        include: { userAccount: true },
-      });
-      if (members.length > 0) break;
-    }
-    if (members.length === 0) {
-      const approverRoles = Object.values(RoleCode).filter((role) =>
-        hasPermission([role], "entry.approve")
-      );
-      members = await prisma.companyMember.findMany({
-        where: {
-          companyId: receivingCompanyId,
-          status: "ACTIVE",
-          roles: { some: { role: { in: approverRoles } } },
-        },
-        include: { userAccount: true },
-      });
-    }
+    const members = await resolveNotifyMembers(receivingCompanyId, [
+      target.createdByMemberId,
+      target.updatedByMemberId,
+    ]);
     const detail =
       entry.type === "PROPOSAL"
         ? `貴社案件「${project.name}」（${project.code}）への商談の申込み（人材のご提案）が届きました。
@@ -198,6 +222,66 @@ ${appBaseUrl()}/entries/${entry.id}`,
     );
   } catch (e) {
     console.error(`[mail] エントリー受信通知の送信に失敗 entryId=${entry.id}`, e);
+  }
+}
+
+// メッセージ受信通知: 相手企業の担当者へメール。
+// 宛先は「この商談で相手企業からメッセージを送った担当者」「相手企業が商談を申し込んだ場合はその申込者」
+// 「相手企業側の対象（案件 or 人材）の登録者・最終更新者」の和集合。誰も有効でなければ承認権限者全員。
+// 双方承認前は相手企業名・人材氏名等の Level 2 情報を含めない（送信者は担当者名のみ）（§10, §20.3）。
+// 通知の失敗はメッセージ送信を失敗させない。
+async function notifyMessageReceived(
+  entry: {
+    id: string;
+    demandCompanyId: string;
+    supplyCompanyId: string;
+    createdByCompanyId: string;
+    createdByMemberId: string;
+    project: { name: string; code: string; createdByMemberId: string | null; updatedByMemberId: string | null };
+    engineer: { code: string; createdByMemberId: string | null; updatedByMemberId: string | null };
+  },
+  message: { senderCompanyId: string; senderName: string; body: string }
+) {
+  try {
+    const receivingCompanyId =
+      message.senderCompanyId === entry.demandCompanyId ? entry.supplyCompanyId : entry.demandCompanyId;
+    const target = receivingCompanyId === entry.demandCompanyId ? entry.project : entry.engineer;
+    const priorSenders = await prisma.entryMessage.findMany({
+      where: { entryId: entry.id, senderCompanyId: receivingCompanyId },
+      select: { senderMemberId: true },
+      distinct: ["senderMemberId"],
+    });
+    const members = await resolveNotifyMembers(
+      receivingCompanyId,
+      [
+        ...priorSenders.map((m) => m.senderMemberId),
+        entry.createdByCompanyId === receivingCompanyId ? entry.createdByMemberId : null,
+        target.createdByMemberId,
+        target.updatedByMemberId,
+      ],
+      { union: true }
+    );
+    await Promise.all(
+      members.map((m) =>
+        sendMail({
+          to: m.userAccount.email,
+          subject: "【SES DirectMatch】商談に新しいメッセージが届きました",
+          body: `${m.userAccount.name} 様
+
+商談（案件「${entry.project.name}」（${entry.project.code}） × 人材 ${entry.engineer.code}）に
+${message.senderName} 様から新しいメッセージが届きました。
+
+----------------------------------------
+${message.body}
+----------------------------------------
+
+返信は以下のURLから商談画面で行ってください（このメールに返信しても相手には届きません）。
+${appBaseUrl()}/entries/${entry.id}`,
+        })
+      )
+    );
+  } catch (e) {
+    console.error(`[mail] メッセージ受信通知の送信に失敗 entryId=${entry.id}`, e);
   }
 }
 
@@ -564,7 +648,7 @@ export async function declineEntry(auth: AuthContext, entryId: string, reason: s
 export async function sendMessage(auth: AuthContext, entryId: string, body: string) {
   const entry = await prisma.entry.findUnique({
     where: { id: entryId },
-    include: { disclosure: true },
+    include: { disclosure: true, project: true, engineer: true },
   });
   if (!entry || !sideOf(entry, auth.companyId)) return { error: { code: "NOT_FOUND" as const } };
 
@@ -597,6 +681,7 @@ export async function sendMessage(auth: AuthContext, entryId: string, body: stri
       body,
     },
   });
+  await notifyMessageReceived(entry, message);
   return { message };
 }
 
