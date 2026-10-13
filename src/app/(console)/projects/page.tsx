@@ -11,7 +11,24 @@ import { IngestPanel } from "@/components/IngestPanel";
 import { PendingIngestions } from "@/components/PendingIngestions";
 import { Pager, parsePage, slicePage } from "@/components/Pager";
 import { NewBadge } from "@/components/NewBadge";
+import { ProjectImage } from "@/components/ProjectImage";
+import { classifyProjectImage } from "@/lib/project-image";
 import { SkillChipsInput } from "@/components/SkillChipsInput";
+
+// 一覧のイメージ画像: 案件の内容（業種・案件名・概要・スキル）から種別を判定（表示のみに使用）
+const imageKindOf = (p: {
+  industry: string | null;
+  name: string;
+  anonymousSummary: string;
+  requiredSkills: { name: string }[];
+  preferredSkills: { name: string }[];
+}) =>
+  classifyProjectImage({
+    industry: p.industry,
+    name: p.name,
+    summary: p.anonymousSummary,
+    skills: [...p.requiredSkills, ...p.preferredSkills].map((s) => s.name),
+  });
 
 const START_WITHIN_OPTIONS: [string, string][] = [
   ["1", "1か月以内"],
@@ -352,29 +369,32 @@ export default async function ProjectsPage({
           <Link
             key={p.id}
             href={`/projects/${p.id}`}
-            className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm active:bg-slate-50"
+            className="flex gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm active:bg-slate-50"
           >
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="font-medium text-blue-700">{p.code}</span>
-              {isNew(p.createdAt) && (
-                <NewBadge />
-              )}
-              <span className={`rounded px-1.5 py-0.5 text-xs ${p.own ? "bg-blue-50 text-blue-700" : p.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                {p.own ? "自社" : (p.partnerCompanyName ?? "他社")}
-              </span>
-              {statusBadges(p)}
-            </div>
-            <p className="mt-1.5 text-sm font-medium text-slate-800">{p.name}</p>
-            <p className="mt-2 text-xs text-slate-500">
-              開始 {new Date(p.startDate).toLocaleDateString("ja-JP")} ／ 単価上限{" "}
-              {(p.rateMaxYen / 10_000).toLocaleString()}万円 ／ {REMOTE_LEVEL_LABELS[p.remoteLevel]} ／ 登録{" "}
-              {new Date(p.createdAt).toLocaleDateString("ja-JP")}
-            </p>
-            {p.requiredSkills.length > 0 && (
-              <p className="mt-1 truncate text-xs text-slate-500">
-                必須: {p.requiredSkills.map((s) => s.name).join(", ")}
+            <ProjectImage kind={imageKindOf(p)} size={44} className="mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="font-medium text-blue-700">{p.code}</span>
+                {isNew(p.createdAt) && (
+                  <NewBadge />
+                )}
+                <span className={`rounded px-1.5 py-0.5 text-xs ${p.own ? "bg-blue-50 text-blue-700" : p.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                  {p.own ? "自社" : (p.partnerCompanyName ?? "他社")}
+                </span>
+                {statusBadges(p)}
+              </div>
+              <p className="mt-1.5 text-sm font-medium text-slate-800">{p.name}</p>
+              <p className="mt-2 text-xs text-slate-500">
+                開始 {new Date(p.startDate).toLocaleDateString("ja-JP")} ／ 単価上限{" "}
+                {(p.rateMaxYen / 10_000).toLocaleString()}万円 ／ {REMOTE_LEVEL_LABELS[p.remoteLevel]} ／ 登録{" "}
+                {new Date(p.createdAt).toLocaleDateString("ja-JP")}
               </p>
-            )}
+              {p.requiredSkills.length > 0 && (
+                <p className="mt-1 truncate text-xs text-slate-500">
+                  必須: {p.requiredSkills.map((s) => s.name).join(", ")}
+                </p>
+              )}
+            </div>
           </Link>
         ))}
         {projects.length === 0 && (
@@ -417,7 +437,12 @@ export default async function ProjectsPage({
                   </span>
                 </td>
                 {/* 長い案件名は改行せず1行で省略表示（全文はツールチップ） */}
-                <td className="max-w-72 truncate px-4 py-3" title={p.name}>{p.name}</td>
+                <td className="max-w-72 px-4 py-2" title={p.name}>
+                  <span className="flex items-center gap-2.5">
+                    <ProjectImage kind={imageKindOf(p)} size={32} />
+                    <span className="truncate">{p.name}</span>
+                  </span>
+                </td>
                 <td className="whitespace-nowrap px-4 py-3">{new Date(p.startDate).toLocaleDateString("ja-JP")}</td>
                 <td className="whitespace-nowrap px-4 py-3">{(p.rateMaxYen / 10_000).toLocaleString()}万円</td>
                 <td className="whitespace-nowrap px-4 py-3 text-xs">{REMOTE_LEVEL_LABELS[p.remoteLevel]}</td>
