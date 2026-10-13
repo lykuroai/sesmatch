@@ -17,6 +17,8 @@ import { IngestPanel } from "@/components/IngestPanel";
 import { PendingIngestions } from "@/components/PendingIngestions";
 import { Pager, parsePage, slicePage } from "@/components/Pager";
 import { NewBadge } from "@/components/NewBadge";
+import { ProjectImage } from "@/components/ProjectImage";
+import { classifyEngineerImage } from "@/lib/project-image";
 import { SkillChipsInput } from "@/components/SkillChipsInput";
 
 const START_WITHIN_OPTIONS: [string, string][] = [
@@ -363,29 +365,32 @@ export default async function EngineersPage({
           <Link
             key={e.id}
             href={`/engineers/${e.id}`}
-            className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm active:bg-slate-50"
+            className="flex gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm active:bg-slate-50"
           >
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="font-medium text-blue-700">
-                {e.code}
-                {e.name ? ` ${e.name}` : ""}
-              </span>
-              {isNew(e.createdAt) && (
-                <NewBadge />
-              )}
-              <span className={`rounded px-1.5 py-0.5 text-xs ${e.own ? "bg-purple-50 text-purple-700" : e.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                {e.own ? "自社" : (e.partnerCompanyName ?? "他社")}
-              </span>
-              {statusBadges(e)}
+            <ProjectImage kind={classifyEngineerImage(e)} size={44} className="mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="font-medium text-blue-700">
+                  {e.code}
+                  {e.name ? ` ${e.name}` : ""}
+                </span>
+                {isNew(e.createdAt) && (
+                  <NewBadge />
+                )}
+                <span className={`rounded px-1.5 py-0.5 text-xs ${e.own ? "bg-purple-50 text-purple-700" : e.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                  {e.own ? "自社" : (e.partnerCompanyName ?? "他社")}
+                </span>
+                {statusBadges(e)}
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                {e.ageBand} ／ {AFFILIATION_LABELS[e.affiliationType]} ／ 単価帯 {e.rateBand} ／{" "}
+                {REMOTE_LEVEL_LABELS[e.remotePreference]}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                稼働可能日 {e.availableFrom ? new Date(e.availableFrom).toLocaleDateString("ja-JP") : "-"} ／ 登録{" "}
+                {new Date(e.createdAt).toLocaleDateString("ja-JP")}
+              </p>
             </div>
-            <p className="mt-2 text-xs text-slate-500">
-              {e.ageBand} ／ {AFFILIATION_LABELS[e.affiliationType]} ／ 単価帯 {e.rateBand} ／{" "}
-              {REMOTE_LEVEL_LABELS[e.remotePreference]}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              稼働可能日 {e.availableFrom ? new Date(e.availableFrom).toLocaleDateString("ja-JP") : "-"} ／ 登録{" "}
-              {new Date(e.createdAt).toLocaleDateString("ja-JP")}
-            </p>
           </Link>
         ))}
         {engineers.length === 0 && (
@@ -414,14 +419,19 @@ export default async function EngineersPage({
           <tbody>
             {engineers.map((e) => (
               <tr key={e.id} className="border-t border-slate-100 hover:bg-slate-50">
-                <td className="whitespace-nowrap px-4 py-3">
-                  <Link href={`/engineers/${e.id}`} className="font-medium text-blue-700 hover:underline">
-                    {e.code}
-                    {e.name ? ` ${e.name}` : ""}
-                  </Link>
-                  {isNew(e.createdAt) && (
-                    <NewBadge className="ml-1.5" />
-                  )}
+                <td className="whitespace-nowrap px-4 py-2">
+                  <span className="flex items-center gap-2.5">
+                    <ProjectImage kind={classifyEngineerImage(e)} size={32} />
+                    <span>
+                      <Link href={`/engineers/${e.id}`} className="font-medium text-blue-700 hover:underline">
+                        {e.code}
+                        {e.name ? ` ${e.name}` : ""}
+                      </Link>
+                      {isNew(e.createdAt) && (
+                        <NewBadge className="ml-1.5" />
+                      )}
+                    </span>
+                  </span>
                 </td>
                 <td className="px-4 py-3">
                   <span className={`rounded px-1.5 py-0.5 text-xs ${e.own ? "bg-purple-50 text-purple-700" : e.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>

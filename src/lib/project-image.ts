@@ -1,8 +1,9 @@
-// 案件一覧のイメージ画像: 案件の内容（業種・案件名・概要・スキル）から
-// 表示するイメージ種別を判定する純粋関数（テスト対象）。
+// 案件・人材一覧のイメージ画像: 案件の内容（業種・案件名・概要・スキル）や
+// 人材のスキル・経験から表示するイメージ種別を判定する純粋関数（テスト対象）。
 // 業種系（金融・通信・製造…）を優先し、業種が読み取れないときは技術領域
 // （Webフロント・クラウド・データ/AI…）で判定、どれにも当たらなければ汎用の業務システム。
 // 判定は一覧の見た目のためだけに使い、検索・マッチング・採否には一切用いない。
+// 人材は性別・顔写真・国籍などの属性を一切使わず、技術領域（スキル・役割・概要）と業種経験のみで判定する。
 
 export const PROJECT_IMAGE_KINDS = [
   "finance",
@@ -98,33 +99,55 @@ const INDUSTRY_RULES: [ProjectImageKind, RegExp][] = [
   ],
 ];
 
-// 技術領域の判定語（業種が読み取れない場合）
+// 技術領域の判定語。先頭ほど専門性が高く、同点のときは先頭側を優先する（汎用の business は最後）
 const TECH_RULES: [ProjectImageKind, RegExp][] = [
-  [
-    "security",
-    /セキュリティ|security|soc\b|脆弱性|siem|waf\b|ゼロトラスト|認証基盤/i,
-  ],
+  ["security", /セキュリティ|security|\bsoc\b|脆弱性|siem|\bwaf\b|ゼロトラスト|認証基盤/i],
   [
     "data",
-    /データ分析|データ基盤|機械学習|\bai\b|生成ai|llm|\bbi\b|dwh|etl|snowflake|bigquery|databricks|python.*(分析|学習)|深層学習|rag\b|データサイエン/i,
+    /データ分析|データ基盤|データ連携|機械学習|\bai\b|生成ai|llm|\bbi\b|dwh|etl|snowflake|bigquery|databricks|深層学習|\brag\b|データサイエン|spark|hadoop|tableau|power ?bi/i,
   ],
-  [
-    "embedded",
-    /組込|組み込み|iot|ファーム|firmware|制御|車載|マイコン|rtos|デバイス|センサ/i,
-  ],
-  [
-    "mobile",
-    /ios|android|swift|kotlin|flutter|react native|スマホアプリ|モバイルアプリ|アプリ開発/i,
-  ],
+  ["embedded", /組込|組み込み|iot|ファーム|firmware|制御|車載|マイコン|rtos|デバイス|センサ|\bc\b|c\+\+|verilog/i],
+  ["mobile", /\bios\b|android|swift|kotlin|flutter|react native|スマホアプリ|モバイルアプリ|アプリ開発|xcode/i],
   [
     "cloud",
-    /aws|azure|gcp|クラウド|インフラ|kubernetes|k8s|docker|terraform|sre\b|ネットワーク構築|サーバ構築|運用保守|監視/i,
+    /aws|azure|gcp|google cloud|amazon web|クラウド|インフラ|kubernetes|k8s|docker|terraform|ansible|\bsre\b|ネットワーク構築|サーバ構築|運用保守|監視|linux|vmware|cisco|ccna|ccnp/i,
   ],
   [
     "web",
-    /フロントエンド|webフロント|web\s*フロント|react|vue|angular|next\.js|nuxt|typescript|javascript|ui\/ux|web開発|webアプリ|webサイト|lp\b/i,
+    /フロントエンド|webフロント|web\s*フロント|react|vue|angular|next\.js|nuxt|typescript|javascript|ui\/ux|web開発|webアプリ|webサイト|webシステム|\blp\b|\bphp\b|laravel|wordpress|html|css|ruby|rails|django|node\.?js|express|jquery|svelte/i,
+  ],
+  [
+    "business",
+    /\bjava\b|spring|c#|\.net|\bvb\b|visual basic|cobol|pl\/sql|oracle|\bsap\b|salesforce|\berp\b|基幹|業務システム|勘定|会計|販売管理|在庫管理|人事給与|\bpmo?\b|\bpl\b|要件定義|sharepoint|access/i,
   ],
 ];
+
+type Weighted = { text: string; weight: number };
+
+// 重み付きの語ごとに各技術領域の一致を集計し、最多の領域を返す（一致なしは null）
+function scoreTech(terms: Weighted[]): ProjectImageKind | null {
+  const score = new Map<ProjectImageKind, number>();
+  for (const t of terms) {
+    if (!t.text.trim()) continue;
+    for (const [kind, re] of TECH_RULES) if (re.test(t.text)) score.set(kind, (score.get(kind) ?? 0) + t.weight);
+  }
+  let best: ProjectImageKind | null = null;
+  let bestScore = 0;
+  for (const [kind] of TECH_RULES) {
+    const v = score.get(kind) ?? 0;
+    if (v > bestScore) {
+      best = kind;
+      bestScore = v;
+    }
+  }
+  return best;
+}
+
+function matchIndustry(text: string): ProjectImageKind | null {
+  if (!text.trim()) return null;
+  for (const [kind, re] of INDUSTRY_RULES) if (re.test(text)) return kind;
+  return null;
+}
 
 export type ProjectImageInput = {
   industry?: string | null;
@@ -134,17 +157,37 @@ export type ProjectImageInput = {
 };
 
 export function classifyProjectImage(p: ProjectImageInput): ProjectImageKind {
-  const industry = (p.industry ?? "").trim();
   const text = [p.name, p.summary ?? ""].join("\n");
-  const skills = (p.skills ?? []).join("\n");
-
   // 1) 業種欄 → 2) 案件名・概要 の順に業種系で判定
-  for (const source of [industry, text]) {
-    if (!source) continue;
-    for (const [kind, re] of INDUSTRY_RULES) if (re.test(source)) return kind;
-  }
-  // 3) スキル・案件名・概要から技術領域で判定
-  const techText = [text, skills].join("\n");
-  for (const [kind, re] of TECH_RULES) if (re.test(techText)) return kind;
-  return "business";
+  const industry = matchIndustry(p.industry ?? "") ?? matchIndustry(text);
+  if (industry) return industry;
+  // 3) 案件名・概要とスキルから技術領域を集計して判定
+  const tech = scoreTech([{ text, weight: 2 }, ...(p.skills ?? []).map((name) => ({ text: name, weight: 2 }))]);
+  return tech ?? "business";
+}
+
+export type EngineerImageInput = {
+  skills?: { category: string; name: string }[];
+  roles?: string[];
+  industries?: string[];
+  summary?: string | null;
+};
+
+// 人材: スキル（言語・フレームワーク・DB は重み2、クラウド・ツール等は重み1）、概要（重み2）、役割（重み1）から
+// 技術領域を集計して判定する。汎用の業務システム止まりなら業種経験で判定する
+export function classifyEngineerImage(e: EngineerImageInput): ProjectImageKind {
+  const skills = e.skills ?? [];
+  const tech = scoreTech([
+    ...skills
+      .filter((s) => s.category !== "INDUSTRY")
+      .map((s) => ({ text: s.name, weight: ["LANGUAGE", "FRAMEWORK", "DATABASE"].includes(s.category) ? 2 : 1 })),
+    { text: e.summary ?? "", weight: 2 },
+    ...(e.roles ?? []).map((r) => ({ text: r, weight: 1 })),
+  ]);
+  if (tech && tech !== "business") return tech;
+
+  const industry = matchIndustry(
+    [...skills.filter((s) => s.category === "INDUSTRY").map((s) => s.name), ...(e.industries ?? [])].join("\n")
+  );
+  return industry ?? tech ?? "business";
 }
