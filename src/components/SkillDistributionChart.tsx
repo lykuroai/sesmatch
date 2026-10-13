@@ -17,7 +17,7 @@ export function SkillDistributionChart({ data }: { data: SkillDistribution }) {
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 className="text-base font-semibold">案件と人材：主要なスキル分布</h2>
         <p className="text-xs text-slate-500">
-          プラットフォーム全体の公開中案件 {totalProjects} 件・営業中人材 {totalEngineers} 名（上位 {rows.length} スキル）
+          プラットフォーム全体の公開中案件 {totalProjects} 件（必須スキルのみ）・営業中人材 {totalEngineers} 名（上位 {rows.length} スキル）
         </p>
       </div>
       <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-600" aria-label="凡例">

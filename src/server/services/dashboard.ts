@@ -84,6 +84,7 @@ export async function getDashboard(auth: AuthContext) {
 // ホームのスキル分布（案件と人材の主要スキル）。
 // プラットフォーム全体の公開中案件・営業中人材を対象に、スキル名を
 // 用語辞書（承認済み）と接尾辞正規化で名寄せして件数を数える（1案件/1人材につき同一スキルは1件）。
+// 案件側は必須スキル（required=true）のみを対象とし、尚可スキルは数えない。
 // 人材側の工程（PROCESS）・業種（INDUSTRY）は技術スキルではないため除外する。
 // 個人情報・企業名は一切含めない（Level 1 の匿名集計）。
 export type SkillDistributionRow = { name: string; projects: number; engineers: number };
@@ -97,7 +98,7 @@ export async function getSkillDistribution(limit = 15): Promise<SkillDistributio
   const [projects, engineers, aliases] = await Promise.all([
     prisma.project.findMany({
       where: { status: "PUBLISHED" },
-      select: { skills: { select: { name: true } } },
+      select: { skills: { where: { required: true }, select: { name: true } } },
     }),
     prisma.engineer.findMany({
       where: { status: "PUBLISHED", deletedAt: null },
