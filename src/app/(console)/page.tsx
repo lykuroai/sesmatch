@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
-import { getDashboard } from "@/server/services/dashboard";
+import { getDashboard, getSkillDistribution } from "@/server/services/dashboard";
+import { SkillDistributionChart } from "@/components/SkillDistributionChart";
 
 // ホームKPI（§8.3）
 export default async function DashboardPage() {
   const auth = await getAuth();
   if (!auth) redirect("/login");
-  const kpi = await getDashboard(auth);
+  const [kpi, skills] = await Promise.all([getDashboard(auth), getSkillDistribution()]);
 
   const cards: { label: string; value: number | string; href?: string; warn?: boolean }[] = [
     { label: "公開中案件", value: kpi.publishedProjects, href: "/projects" },
@@ -44,6 +45,10 @@ export default async function DashboardPage() {
             </div>
           );
         })}
+      </div>
+      {/* 案件と人材の主要スキル分布（プラットフォーム全体の公開分を匿名集計） */}
+      <div className="mt-8">
+        <SkillDistributionChart data={skills} />
       </div>
     </div>
   );
