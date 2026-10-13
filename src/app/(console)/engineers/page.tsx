@@ -383,8 +383,8 @@ export default async function EngineersPage({
               {REMOTE_LEVEL_LABELS[e.remotePreference]}
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              稼働可能日 {e.availableFrom ? new Date(e.availableFrom).toLocaleDateString("ja-JP") : "-"} ／ 同意{" "}
-              {e.hasValidConsent ? "〇" : <span className="text-red-600">なし</span>}
+              稼働可能日 {e.availableFrom ? new Date(e.availableFrom).toLocaleDateString("ja-JP") : "-"} ／ 登録{" "}
+              {new Date(e.createdAt).toLocaleDateString("ja-JP")}
             </p>
           </Link>
         ))}
@@ -408,7 +408,7 @@ export default async function EngineersPage({
               <th className="px-4 py-3">稼働可能日</th>
               <th className="px-4 py-3">在宅希望</th>
               <th className="px-4 py-3">状態</th>
-              <th className="px-4 py-3">同意</th>
+              <th className="whitespace-nowrap px-4 py-3">登録日</th>
             </tr>
           </thead>
           <tbody>
@@ -438,7 +438,7 @@ export default async function EngineersPage({
                 <td className="px-4 py-3">
                   <span className="flex items-center gap-1.5">{statusBadges(e)}</span>
                 </td>
-                <td className="px-4 py-3">{e.hasValidConsent ? "〇" : <span className="text-red-600">なし</span>}</td>
+                <td className="whitespace-nowrap px-4 py-3">{new Date(e.createdAt).toLocaleDateString("ja-JP")}</td>
               </tr>
             ))}
             {engineers.length === 0 && (

@@ -367,7 +367,8 @@ export default async function ProjectsPage({
             <p className="mt-1.5 text-sm font-medium text-slate-800">{p.name}</p>
             <p className="mt-2 text-xs text-slate-500">
               開始 {new Date(p.startDate).toLocaleDateString("ja-JP")} ／ 単価上限{" "}
-              {(p.rateMaxYen / 10_000).toLocaleString()}万円 ／ {REMOTE_LEVEL_LABELS[p.remoteLevel]}
+              {(p.rateMaxYen / 10_000).toLocaleString()}万円 ／ {REMOTE_LEVEL_LABELS[p.remoteLevel]} ／ 登録{" "}
+              {new Date(p.createdAt).toLocaleDateString("ja-JP")}
             </p>
             {p.requiredSkills.length > 0 && (
               <p className="mt-1 truncate text-xs text-slate-500">
@@ -396,6 +397,7 @@ export default async function ProjectsPage({
               <th className="whitespace-nowrap px-4 py-3">出社/在宅</th>
               <th className="px-4 py-3">必須スキル</th>
               <th className="whitespace-nowrap px-4 py-3">状態</th>
+              <th className="whitespace-nowrap px-4 py-3">登録日</th>
             </tr>
           </thead>
           <tbody>
@@ -423,11 +425,12 @@ export default async function ProjectsPage({
                 <td className="whitespace-nowrap px-4 py-3">
                   <span className="flex items-center gap-1.5">{statusBadges(p)}</span>
                 </td>
+                <td className="whitespace-nowrap px-4 py-3">{new Date(p.createdAt).toLocaleDateString("ja-JP")}</td>
               </tr>
             ))}
             {projects.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                   該当する案件がありません
                 </td>
               </tr>
