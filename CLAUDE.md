@@ -29,6 +29,15 @@ npm run build             # 本番ビルド
 - 取込の確定は確認フォーム（`ConfirmIngestionForm`）で抽出値を修正してから `POST /ingestions/:id/confirm` に `{name, confirmed}` を送る
 - デプロイ: `DEPLOY.md` 参照（`Dockerfile` は migrate / runner の2ターゲット、`docker-compose.prod.yml` + `.env.production`。Next.js は standalone 出力）
 
+## EC2 上の開発環境（2026-10-13 移設）
+
+本番 EC2（`ses.lykuro.ai`）の `/home/ubuntu/sesmatch` に開発環境を置いている。同じホストで本番スタック（`/opt/sesmatch`、compose プロジェクト `sesmatch`、app=127.0.0.1:3000、db=127.0.0.1:5433）が稼働しているため、**開発側は必ず以下に分離する**:
+
+- 開発 DB: `npm run db:up`（`.env` の `COMPOSE_PROJECT_NAME=sesmatch-dev` / `DEV_DB_PORT=127.0.0.1:5434` により `127.0.0.1:5434`、コンテナ名 `sesmatch-db`）。`/opt/sesmatch` で `docker compose` を実行しない
+- 開発サーバー: `PORT=3002 npm run dev`（`127.0.0.1:3002`。3000 は本番 app）。手元 PC からは `ssh -L 3002:127.0.0.1:3002 ubuntu@<EC2>` のトンネルで http://localhost:3002
+- 本番 DB（5433）・本番コンテナ（`sesmatch-app-1` / `sesmatch-db-1`）を開発作業で触らない。本番反映は従来どおり `scripts/release-ec2.sh`（ビルド機で実行）
+- Node は nvm（`~/.nvm`、v20）。メモリ 4GB のため `next build` と本番の同時実行は避ける
+
 ## 実装構成
 
 - `prisma/schema.prisma` — 全テーブル。業務データは必ず `tenantCompanyId` を持つ

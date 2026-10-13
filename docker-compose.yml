@@ -1,3 +1,7 @@
+# ローカル開発用 DB。EC2 など本番と同居させる場合は .env で
+#   COMPOSE_PROJECT_NAME=sesmatch-dev   （本番 compose プロジェクト "sesmatch" と分離）
+#   DEV_DB_PORT=127.0.0.1:5434          （本番 DB の 5433 と衝突させない）
+# を設定する。
 services:
   db:
     image: postgres:16-alpine
@@ -7,7 +11,7 @@ services:
       POSTGRES_PASSWORD: sesmatch
       POSTGRES_DB: sesmatch
     ports:
-      - "5433:5432"
+      - "${DEV_DB_PORT:-5433}:5432"
     volumes:
       - sesmatch-pgdata:/var/lib/postgresql/data
 
