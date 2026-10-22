@@ -134,6 +134,15 @@ export default function ApplyPage() {
     setWarning(null);
     setPendingPayload(null);
     const f = new FormData(e.currentTarget);
+    // パスワードの打ち間違い防止: 確認欄と一致しなければ送信しない
+    if (f.get("password") !== f.get("passwordConfirm")) {
+      const confirmInput = e.currentTarget.elements.namedItem("passwordConfirm") as HTMLInputElement | null;
+      confirmInput?.setCustomValidity("パスワードと確認用パスワードが一致しません");
+      confirmInput?.reportValidity();
+      setError("パスワードと確認用パスワードが一致しません");
+      return;
+    }
+    setError(null);
     await post({
       companyName: f.get("companyName"),
       companyType: f.get("companyType"),
@@ -278,7 +287,20 @@ export default function ApplyPage() {
           </div>
           <div>
             <label className={label}>パスワード（8文字以上）</label>
-            <input type="password" name="password" required minLength={8} className={input} />
+            <input type="password" name="password" required minLength={8} autoComplete="new-password" className={input} />
+          </div>
+          <div>
+            <label className={label}>パスワード（確認用）</label>
+            <input
+              type="password"
+              name="passwordConfirm"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              onChange={(ev) => ev.currentTarget.setCustomValidity("")}
+              className={input}
+              placeholder="同じパスワードをもう一度入力"
+            />
           </div>
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" name="agreedToTerms" required className="mt-0.5" />
