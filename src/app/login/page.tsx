@@ -27,7 +27,7 @@ const FEATURES = [
   },
   {
     icon: "yen",
-    title: "基本版は完全無料",
+    title: "基本版は0円で利用可能",
     body: "掲載料・月額費用・成約手数料のすべてが0円。登録から成約・稼働管理まで、費用は一切かかりません。",
   },
 ];
@@ -153,7 +153,6 @@ export default function LoginPage() {
               <p className="inline-block rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-medium text-blue-700">
                 SES企業間マッチングプラットフォーム
               </p>
-              <p className="inline-block rounded-full bg-emerald-500 px-3 py-1 text-xs font-bold text-white">完全無料</p>
             </div>
             <h1 className="text-3xl font-bold leading-[1.3] tracking-tight text-slate-900 sm:text-4xl lg:text-[2.75rem]">
               余計な商流なしで、
@@ -204,7 +203,7 @@ export default function LoginPage() {
           <div id="login" className="order-1 w-full scroll-mt-20 lg:order-2">
             <div className="mb-4 flex items-center gap-3 lg:hidden">
               <p className="text-sm font-medium text-slate-600">
-                案件と人材を、余計な商流なしで直接つなぐ。<span className="font-bold text-emerald-600 whitespace-nowrap">完全無料。</span>
+                案件と人材を、余計な商流なしで直接つなぐ。
               </p>
             </div>
             <form onSubmit={submit} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/10 lg:p-8">
@@ -239,14 +238,14 @@ export default function LoginPage() {
               <div className="mt-6 rounded-xl bg-gradient-to-br from-sky-50 to-emerald-50 p-4 text-center">
                 <p className="text-sm font-bold text-slate-800">はじめてのご利用ですか？</p>
                 <p className="mt-1 text-xs text-slate-600">
-                  掲載料・月額費用・成約手数料すべて0円。<span className="font-bold text-emerald-700">完全無料</span>でご利用いただけます。
+                  掲載料・月額費用・成約手数料すべて0円でご利用いただけます。
                 </p>
                 <Link
                   href="/apply"
                   onClick={reportHomeApplyClick}
                   className="mt-3 inline-block w-full rounded-full bg-blue-600 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-600/30 hover:bg-blue-700"
                 >
-                  企業登録を申し込む（完全無料）
+                  企業登録を申し込む
                 </Link>
               </div>
             </form>
