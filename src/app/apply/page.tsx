@@ -4,62 +4,26 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { reportApplyReachConversion, reportSignupConversion } from "@/lib/gtag";
+import PublicHeader from "@/components/PublicHeader";
+import PublicFooter from "@/components/PublicFooter";
 
-const input = "w-full rounded border border-slate-300 px-3 py-2 text-sm";
-const label = "mb-1 block text-sm font-medium";
+// 入力欄・ラベルの見た目はログイン画面に合わせる
+const input =
+  "w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20";
+const label = "mb-1 block text-sm font-medium text-slate-700";
 
-// 申込画面の横に表示する企業登録ルール・担当者登録・運用方法の説明（画面用語は統一ルールに準拠）
-function ApplyGuide() {
-  const h = "mb-2 text-sm font-bold text-slate-800";
-  const ul = "space-y-1.5 text-xs leading-relaxed text-slate-600";
+// 公開ページ共通の外枠（ヘッダー・淡いグラデーション背景・フッター）
+function ApplyShell({ children }: { children: React.ReactNode }) {
   return (
-    <aside className="w-[28rem] max-w-full space-y-5 rounded-xl border border-slate-200 bg-slate-50 p-6">
-      <div>
-        <h2 className={h}>企業登録のルール</h2>
-        <ul className={ul}>
-          <li>・契約主体は企業または個人事業者です。個人アカウントでの利用はできません。</li>
-          <li>・代表メールアドレス宛の確認コード（15分有効）で本人確認を行います。同じメールアドレスは1アカウントのみ登録できます。</li>
-          <li>
-            ・重複登録は次のとおり防止されます:
-            同一管轄（都道府県）内に同名の企業が既にある場合は<b>登録できません</b>。
-            社名または所在地が既存企業と一致する場合は<b>警告を表示</b>し、内容を確認の上で申込めます。
-          </li>
-          <li>・既存の登録企業に担当者として参加する場合は、新規申込ではなく既存企業の代表からの招待を受けてください。</li>
-          <li>・所在地は必須です。管轄の判定に使用するため、都道府県から入力してください。</li>
-          <li>・法人番号（13桁）は任意です。入力すると重複判定がより確実になります。</li>
-          <li>・審査は自動で行われ、通過するとその場で利用開始（開通）となります。完了メールが届いたらすぐにログインできます。</li>
-          <li>・基本版は完全無料です（掲載料・月額費用・成約手数料すべて0円）。</li>
-        </ul>
-      </div>
-      <div>
-        <h2 className={h}>担当者の登録</h2>
-        <ul className={ul}>
-          <li>・申込者が「代表」として登録されます。代表は企業情報・担当者・契約のすべてを管理できます。</li>
-          <li>・追加の担当者は、開通後に「設定 &gt; 担当者管理」から代表・企業管理者が招待します。初期パスワードが招待メールで届き、初回ログイン後に変更します。</li>
-          <li>・担当者には役割（企業管理者・営業担当・人材管理担当・案件管理担当・契約担当・経理担当・個人情報管理者・監査担当・閲覧者）を複数割り当てられます。操作できる範囲は役割で決まります。</li>
-        </ul>
-      </div>
-      <div>
-        <h2 className={h}>運用の流れ</h2>
-        <ul className={ul}>
-          <li>1. 案件・人材を登録します（画面入力のほか、ファイル・メールの取込に対応。個人情報は匿名化してから自動整理し、確認画面で確定します）。</li>
-          <li>2. 双方向マッチングの候補から「商談を申し込む」と、相手企業の承認待ちになります。</li>
-          <li>3. 双方が承認すると商談開始となり、氏名・実額単価・企業名が相互に同時開示されます（片方の承認だけでは開示されません）。</li>
-          <li>4. 面談・条件調整ののち条件確認書を取り交わし、双方の署名で成約となります。</li>
-          <li>5. 稼働開始後は月次の稼働記録が自動で作成されます（成約手数料は無料化中のため0円です）。</li>
-          <li>・詳しい操作方法は、開通後にコンソール内の「ご利用マニュアル」をご覧ください。</li>
-        </ul>
-      </div>
-      <div>
-        <h2 className={h}>禁止事項</h2>
-        <ul className={ul}>
-          <li>・案件・人材情報の再転載、無承認の再仲介、二社下以降への流通は禁止です（商流は最大一社下まで）。</li>
-          <li>・プラットフォームを介さない直接取引への誘引・迂回は禁止です。</li>
-          <li>・商談開始（双方承認）前のメッセージで連絡先を交換することはできません。</li>
-          <li>・違反が確認された場合、利用停止や登録抹消の対象となります。</li>
-        </ul>
-      </div>
-    </aside>
+    <main className="min-h-screen bg-white text-slate-900">
+      <PublicHeader showApply={false} />
+      <section className="relative overflow-hidden bg-gradient-to-b from-sky-50 via-white to-white">
+        <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-blue-200/40 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -right-20 top-40 h-96 w-96 rounded-full bg-emerald-200/40 blur-3xl" />
+        <div className="relative mx-auto max-w-md px-4 py-10 lg:py-16">{children}</div>
+      </section>
+      <PublicFooter />
+    </main>
   );
 }
 
@@ -164,30 +128,40 @@ export default function ApplyPage() {
 
   if (done) {
     return (
-      <main className="flex min-h-screen items-center justify-center">
-        <div className="w-[28rem] rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+      <ApplyShell>
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-xl shadow-slate-900/10">
           <h1 className="mb-3 text-xl font-bold">企業登録が完了しました</h1>
           <p className="text-sm text-slate-600">
             企業コンソールが開通しました。登録したメールアドレスとパスワードでログインしてご利用ください。
           </p>
-          <Link href="/login" className="mt-6 inline-block text-sm text-blue-600 hover:underline">
+          <Link
+            href="/login"
+            className="mt-6 inline-block w-full rounded-full bg-slate-900 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+          >
             ログインページへ
           </Link>
         </div>
-      </main>
+      </ApplyShell>
     );
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-4 py-10 lg:flex-row lg:items-start">
-      <form onSubmit={submit} className="w-[28rem] max-w-full rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-xl font-bold">企業申込</h1>
-        <p className="mb-6 text-sm text-slate-500">
+    <ApplyShell>
+      <form onSubmit={submit} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/10 sm:p-8">
+        <h1 className="text-xl font-bold">企業申込</h1>
+        <p className="mt-1 text-sm text-slate-500">
           契約主体は企業または個人事業者です（個人アカウントでの利用はできません）
         </p>
-        {error && <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+        <p className="mb-6 mt-2 text-xs text-slate-500">
+          申込の前に
+          <Link href="/apply/rules" target="_blank" className="mx-0.5 font-medium text-blue-600 hover:underline">
+            企業登録のルール・運用の流れ
+          </Link>
+          をご確認ください。
+        </p>
+        {error && <p className="mb-4 rounded-lg bg-red-50 p-2.5 text-sm text-red-700">{error}</p>}
         {warning && (
-          <div className="mb-4 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
             <p className="font-medium">類似する企業が既に登録されています</p>
             <p className="mt-1">
               {warning.matchedField === "address"
@@ -200,7 +174,7 @@ export default function ApplyPage() {
                 type="button"
                 onClick={confirmAndSubmit}
                 disabled={loading}
-                className="rounded bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+                className="rounded-full bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
               >
                 {loading ? "送信中..." : "別企業として申込む"}
               </button>
@@ -210,7 +184,7 @@ export default function ApplyPage() {
                   setWarning(null);
                   setPendingPayload(null);
                 }}
-                className="rounded border border-amber-400 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
+                className="rounded-full border border-amber-400 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
               >
                 入力を修正する
               </button>
@@ -263,7 +237,7 @@ export default function ApplyPage() {
                 type="button"
                 onClick={sendCode}
                 disabled={sendingCode}
-                className="shrink-0 rounded border border-blue-600 bg-white px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+                className="shrink-0 rounded-lg border border-blue-600 bg-white px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"
               >
                 {sendingCode ? "送信中..." : codeSent ? "コード再送" : "確認コード送信"}
               </button>
@@ -316,15 +290,14 @@ export default function ApplyPage() {
         <button
           type="submit"
           disabled={loading}
-          className="mt-6 w-full rounded bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="mt-6 w-full rounded-full bg-blue-600 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700 disabled:opacity-50"
         >
           {loading ? "送信中..." : "申込む（登録を完了する）"}
         </button>
-        <p className="mt-4 text-center text-xs text-slate-400">
-          既にアカウントをお持ちの方は <Link href="/login" className="text-blue-600 hover:underline">ログイン</Link>
+        <p className="mt-4 text-center text-xs text-slate-500">
+          既にアカウントをお持ちの方は <Link href="/login" className="font-medium text-blue-600 hover:underline">ログイン</Link>
         </p>
       </form>
-      <ApplyGuide />
-    </main>
+    </ApplyShell>
   );
 }

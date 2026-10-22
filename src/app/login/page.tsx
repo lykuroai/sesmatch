@@ -8,6 +8,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { reportHomeApplyClick } from "@/lib/gtag";
+import PublicHeader from "@/components/PublicHeader";
+import PublicFooter from "@/components/PublicFooter";
 
 const FEATURES = [
   {
@@ -108,36 +110,7 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-white text-slate-900">
-      {/* ヘッダー */}
-      <header className="sticky top-0 z-20 border-b border-slate-100 bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 lg:px-6">
-          <Link href="/login" className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-mark.svg" alt="SES DirectMatch ロゴ" className="h-8 w-8" />
-            <span className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">SES DirectMatch</span>
-          </Link>
-          <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
-            <a href="#flow" className="hover:text-blue-700">ご利用の流れ</a>
-            <a href="#features" className="hover:text-blue-700">選ばれる理由</a>
-            <Link href="/about" className="hover:text-blue-700">サービス紹介</Link>
-          </nav>
-          <div className="flex items-center gap-2">
-            <a
-              href="#login"
-              className="hidden rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50 sm:inline-block"
-            >
-              ログイン
-            </a>
-            <Link
-              href="/apply"
-              onClick={reportHomeApplyClick}
-              className="rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm shadow-blue-600/30 hover:bg-blue-700"
-            >
-              無料で始める
-            </Link>
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
       {/* ヒーロー */}
       <section className="relative overflow-hidden bg-gradient-to-b from-sky-50 via-white to-white">
@@ -375,29 +348,7 @@ export default function LoginPage() {
         </div>
       </section>
 
-      {/* フッター */}
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 lg:flex-row lg:items-start lg:justify-between lg:px-6">
-          <div>
-            <div className="flex items-center gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-mark.svg" alt="" className="h-7 w-7" />
-              <span className="font-bold">SES DirectMatch</span>
-            </div>
-            <p className="mt-2 text-xs text-slate-500">案件と人材を、余計な商流なしで直接つなぐ。</p>
-            {/* 関連サービス: AI Gateway */}
-            <a href="https://app.lykuro.ai" target="_blank" rel="noopener" className="mt-3 inline-block text-xs text-slate-500 hover:text-blue-700">
-              本サービスのAI機能を支える LLMゲートウェイ <span className="font-bold text-blue-700">AI Gateway</span>（app.lykuro.ai ↗）
-            </a>
-          </div>
-          <nav className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600">
-            <Link href="/about" className="hover:text-blue-700">サービス紹介</Link>
-            <Link href="/terms" className="hover:text-blue-700">利用規約</Link>
-            <Link href="/agreement" className="hover:text-blue-700">基本契約</Link>
-            <Link href="/privacy-policy" className="hover:text-blue-700">プライバシーポリシー</Link>
-          </nav>
-        </div>
-      </footer>
+      <PublicFooter />
     </main>
   );
 }
