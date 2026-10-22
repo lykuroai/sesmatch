@@ -34,8 +34,33 @@ function reportConversion(label: string) {
   });
 }
 
-// 「申し込み到達」: 企業申込画面（/apply）を開いた時に1回呼ぶ
+// 「申し込み到達」の送信済みフラグ（sessionStorage）。ホーム画面のボタン押下で送った直後に /apply が開いて
+// 画面表示時にもう一度送られる二重計上を防ぐ。/apply 側は読み取ったらフラグを消す
+const APPLY_REACH_SENT_KEY = "ads_apply_reach_sent";
+
+// 「申し込み到達」: ホーム画面（ログインLP）の「企業登録を申し込む」ボタンを押した時に呼ぶ。
+// GA4 にも apply_click を送る
+export function reportHomeApplyClick() {
+  trackEvent("apply_click", { location: "home" });
+  reportConversion(ADS_APPLY_REACH_CONVERSION_LABEL);
+  try {
+    sessionStorage.setItem(APPLY_REACH_SENT_KEY, "1");
+  } catch {
+    // プライベートモード等で保存できない場合は二重送信の抑止なしで続行
+  }
+}
+
+// 「申し込み到達」: 企業申込画面（/apply）を開いた時に1回呼ぶ。
+// 直前にホーム画面のボタン経由で送信済みなら送らない（直接URL・/about 経由などは送る）
 export function reportApplyReachConversion() {
+  let alreadySent = false;
+  try {
+    alreadySent = sessionStorage.getItem(APPLY_REACH_SENT_KEY) === "1";
+    sessionStorage.removeItem(APPLY_REACH_SENT_KEY);
+  } catch {
+    // 読めない場合は未送信として扱う
+  }
+  if (alreadySent) return;
   reportConversion(ADS_APPLY_REACH_CONVERSION_LABEL);
 }
 

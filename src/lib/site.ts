@@ -11,7 +11,7 @@ export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G
 
 // Google 広告のコンバージョン計測ID（Google タグ）とコンバージョンラベル。空ならタグ・イベントを出力しない
 export const ADS_CONVERSION_ID = "AW-18224920135";
-// 「申し込み到達」コンバージョン（企業申込画面 /apply を開いた時に送信）
+// 「申し込み到達」コンバージョン（ホーム画面＝ログインLPの申込ボタン押下時、または企業申込画面 /apply を直接開いた時に送信。二重送信はしない）
 export const ADS_APPLY_REACH_CONVERSION_LABEL = "eCruCM_LoKUdEMfsqPJD";
 // 「申し込み登録完了」コンバージョン（企業登録完了時に送信）
 export const ADS_SIGNUP_CONVERSION_LABEL = "KmhRCP7NoKUdEMfsqPJD";

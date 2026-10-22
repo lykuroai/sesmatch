@@ -4,6 +4,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { reportHomeApplyClick } from "@/lib/gtag";
 
 const FEATURES = [
   {
@@ -188,6 +189,7 @@ export default function LoginPage() {
               </p>
               <Link
                 href="/apply"
+                onClick={reportHomeApplyClick}
                 className="mt-3 inline-block w-full rounded border border-blue-600 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
               >
                 企業登録を申し込む（完全無料）

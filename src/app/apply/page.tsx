@@ -1,7 +1,7 @@
 "use client";
 
 // 企業申込（§6.4）。自動審査（メール確認・重複チェック）を通過すると即時にコンソール開通。
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { reportApplyReachConversion, reportSignupConversion, trackEvent } from "@/lib/gtag";
 
@@ -77,8 +77,11 @@ export default function ApplyPage() {
   const [warning, setWarning] = useState<{ matchedName: string; matchedField: string } | null>(null);
   const [pendingPayload, setPendingPayload] = useState<ApplyPayload | null>(null);
 
-  // Google 広告の「申し込み到達」コンバージョンを画面表示時に1回送信
+  // Google 広告の「申し込み到達」コンバージョンを画面表示時に1回送信（開発時の Strict Mode による effect 二重実行も1回に抑える）
+  const reachReported = useRef(false);
   useEffect(() => {
+    if (reachReported.current) return;
+    reachReported.current = true;
     reportApplyReachConversion();
   }, []);
 
