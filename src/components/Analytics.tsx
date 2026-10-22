@@ -1,26 +1,8 @@
 import Script from "next/script";
-import { ADS_CONVERSION_ID, GA_MEASUREMENT_ID, GTM_CONTAINER_ID } from "@/lib/site";
+import { GTM_CONTAINER_ID } from "@/lib/site";
 
-// GA4 計測タグ + Google 広告コンバージョン用の Google タグ設定。測定ID未設定なら何も出力しない
-export function Analytics() {
-  if (!GA_MEASUREMENT_ID) return null;
-  return (
-    <>
-      <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-        strategy="afterInteractive"
-      />
-      <Script id="ga4-init" strategy="afterInteractive">
-        {`window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', '${GA_MEASUREMENT_ID}');${ADS_CONVERSION_ID ? `\ngtag('config', '${ADS_CONVERSION_ID}');` : ""}`}
-      </Script>
-    </>
-  );
-}
-
-// Google タグマネージャー（コンテナスニペット）。beforeInteractive により Next.js が <head> の先頭付近に出力する。
+// Google タグマネージャー（コンテナスニペット）。beforeInteractive により Next.js が <head> に出力する。
+// GA4・Google 広告のタグは GTM コンテナ側で設定する（gtag.js の直接読込は 2026-10-22 に廃止）。
 // ルートレイアウトに置くこと。コンテナID未設定なら何も出力しない
 export function GoogleTagManager() {
   if (!GTM_CONTAINER_ID) return null;

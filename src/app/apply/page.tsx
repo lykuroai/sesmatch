@@ -3,7 +3,7 @@
 // 企業申込（§6.4）。自動審査（メール確認・重複チェック）を通過すると即時にコンソール開通。
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { reportApplyReachConversion, reportSignupConversion, trackEvent } from "@/lib/gtag";
+import { reportApplyReachConversion, reportSignupConversion } from "@/lib/gtag";
 
 const input = "w-full rounded border border-slate-300 px-3 py-2 text-sm";
 const label = "mb-1 block text-sm font-medium";
@@ -77,7 +77,7 @@ export default function ApplyPage() {
   const [warning, setWarning] = useState<{ matchedName: string; matchedField: string } | null>(null);
   const [pendingPayload, setPendingPayload] = useState<ApplyPayload | null>(null);
 
-  // Google 広告の「申し込み到達」コンバージョンを画面表示時に1回送信（開発時の Strict Mode による effect 二重実行も1回に抑える）
+  // 「申し込み到達」を画面表示時に1回送信（開発時の Strict Mode による effect 二重実行も1回に抑える）
   const reachReported = useRef(false);
   useEffect(() => {
     if (reachReported.current) return;
@@ -121,9 +121,7 @@ export default function ApplyPage() {
       setWarning(b.duplicateWarning);
       setPendingPayload(payload);
     } else if (res.ok) {
-      // 企業登録完了をGA4へ送信（GA4管理画面で sign_up をキーイベントに設定して計測する）
-      trackEvent("sign_up", { method: "company_application" });
-      // Google 広告の「申し込み登録完了」コンバージョンを送信
+      // 企業登録完了を送信（GTM 側で GA4 の sign_up と Google 広告「申し込み登録完了」コンバージョンを発火）
       reportSignupConversion();
       setDone(true);
     } else {

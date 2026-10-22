@@ -5,16 +5,8 @@ export const SITE_TITLE = "SES DirectMatch — AI人材・案件ダイレクト�
 export const SITE_DESCRIPTION =
   "SES企業向けのAI案件・人材マッチングサービス。案件票やスキルシートを貼り付け・ファイル取込するだけで登録でき、AIが最適な案件・人材を提案します。";
 
-// GA4 測定ID（例: "G-XXXXXXXXXX"）。空ならタグを出力しない。
-// 本番のDockerビルドは .env.production をビルド時に読まないため、IDが決まったらここに直接記載する
-export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-3PL6PCVBCX";
-
-// Google タグマネージャーのコンテナID（全ページの <head> 先頭付近に出力）。空ならタグを出力しない
+// 計測は Google タグマネージャー（GTM）に一本化（2026-10-22）。GA4 測定ID（G-3PL6PCVBCX）と
+// Google 広告のコンバージョン（AW-18224920135）は GTM コンテナ側のタグで設定し、コードは dataLayer へ
+// カスタムイベントを送るだけにする（src/lib/gtag.ts 参照）。
+// 本番のDockerビルドは .env.production をビルド時に読まないため、コンテナIDはここに直接記載する
 export const GTM_CONTAINER_ID = "GTM-KKX7RQN9";
-
-// Google 広告のコンバージョン計測ID（Google タグ）とコンバージョンラベル。空ならタグ・イベントを出力しない
-export const ADS_CONVERSION_ID = "AW-18224920135";
-// 「申し込み到達」コンバージョン（ホーム画面＝ログインLPの申込ボタン押下時、または企業申込画面 /apply を直接開いた時に送信。二重送信はしない）
-export const ADS_APPLY_REACH_CONVERSION_LABEL = "eCruCM_LoKUdEMfsqPJD";
-// 「申し込み登録完了」コンバージョン（企業登録完了時に送信）
-export const ADS_SIGNUP_CONVERSION_LABEL = "KmhRCP7NoKUdEMfsqPJD";

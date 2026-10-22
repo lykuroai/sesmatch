@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { Analytics, GoogleTagManager, GoogleTagManagerNoScript } from "@/components/Analytics";
+import { GoogleTagManager, GoogleTagManagerNoScript } from "@/components/Analytics";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -32,7 +32,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <GoogleTagManagerNoScript />
         {children}
-        <Analytics />
       </body>
     </html>
   );
