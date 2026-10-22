@@ -9,6 +9,9 @@ export const SITE_DESCRIPTION =
 // 本番のDockerビルドは .env.production をビルド時に読まないため、IDが決まったらここに直接記載する
 export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-3PL6PCVBCX";
 
+// Google タグマネージャーのコンテナID（全ページの <head> 先頭付近に出力）。空ならタグを出力しない
+export const GTM_CONTAINER_ID = "GTM-KKX7RQN9";
+
 // Google 広告のコンバージョン計測ID（Google タグ）とコンバージョンラベル。空ならタグ・イベントを出力しない
 export const ADS_CONVERSION_ID = "AW-18224920135";
 // 「申し込み到達」コンバージョン（ホーム画面＝ログインLPの申込ボタン押下時、または企業申込画面 /apply を直接開いた時に送信。二重送信はしない）
