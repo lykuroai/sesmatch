@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
 import { getDashboard, getSkillDistribution } from "@/server/services/dashboard";
 import { SkillDistributionChart } from "@/components/SkillDistributionChart";
+import { RevisionNotice } from "@/components/RevisionNotice";
+import { isRevisionNoticeActive } from "@/lib/revision-notice";
 
 // ホームKPI（§8.3）
 export default async function DashboardPage() {
@@ -26,6 +28,8 @@ export default async function DashboardPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">ホーム</h1>
+      {/* お知らせ: 規約改定（PRO版の提供開始 2026-12-04）の告知。ホームのみに表示し、適用開始日以降は表示されない（PRO版仕様書 §12、2026-11-05 郭指示で全画面バナーからホームのお知らせ欄へ変更） */}
+      <RevisionNotice active={isRevisionNoticeActive()} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((c) => {
           const inner = (
