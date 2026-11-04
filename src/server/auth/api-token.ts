@@ -7,7 +7,7 @@ import { createHash, randomBytes } from "crypto";
 import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
 import { hasPermission, type Permission } from "./rbac";
-import type { AuthContext } from "./session";
+import { effectiveIpAllowList, type AuthContext } from "./session";
 import { effectivePlan } from "@/server/plan/features";
 import { assertLimit } from "@/server/plan/limits";
 
@@ -49,7 +49,15 @@ export async function resolveApiToken(bearer: string | undefined): Promise<ApiTo
   if (!bearer || !bearer.startsWith(TOKEN_PREFIX)) return null;
   const token = await prisma.apiToken.findUnique({
     where: { tokenHash: hashToken(bearer) },
-    include: { member: { include: { userAccount: true, company: true, roles: true } } },
+    include: {
+      member: {
+        include: {
+          userAccount: true,
+          company: { include: { securitySettings: { select: { ipAllowList: true } } } },
+          roles: true,
+        },
+      },
+    },
   });
   if (!token || token.revokedAt) return null;
   if (token.expiresAt && token.expiresAt < new Date()) return null;
@@ -63,6 +71,7 @@ export async function resolveApiToken(bearer: string | undefined): Promise<ApiTo
   }
 
   const scopePermissions = TOKEN_SCOPES[token.scope] ?? [];
+  const plan = effectivePlan(token.member.company);
   return {
     auth: {
       userAccountId: token.member.userAccountId,
@@ -72,9 +81,11 @@ export async function resolveApiToken(bearer: string | undefined): Promise<ApiTo
       companyId: token.member.companyId,
       companyName: token.member.company.name,
       roles: token.member.roles.map((r) => r.role),
-      plan: effectivePlan(token.member.company),
+      plan,
       mfaEnabled: false, // API トークンは2要素の対象外（スコープで制限）
       mfaRequired: false,
+      // IP 制限は API トークンにも適用する（ローカルサーバの固定 IP を登録する運用 §4.12）
+      ipAllowList: effectiveIpAllowList(plan, token.member.company.securitySettings),
     },
     tokenPermissions: scopePermissions,
   };

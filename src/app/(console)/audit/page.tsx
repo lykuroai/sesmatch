@@ -7,11 +7,16 @@ import {
   AUDIT_TARGET_LABELS,
   formatAuditMetadata,
 } from "@/lib/audit-labels";
+import { hasFeature } from "@/server/plan/features";
+import { AuditExportPanel } from "@/components/AuditExport";
 
 // 追記型監査ログの閲覧（§31）。audit.read 権限が必要。
-export default async function AuditPage() {
+// エクスポート（CSV／JSON・月次送付リンク）は PRO（PRO版仕様書 §4.14）
+export default async function AuditPage({ searchParams }: { searchParams: Promise<{ month?: string; token?: string }> }) {
   const auth = await getAuth();
   if (!auth) redirect("/login");
+  const sp = await searchParams;
+  const monthly = sp.month && sp.token && /^\d{4}-\d{2}$/.test(sp.month) ? { month: sp.month, token: sp.token } : null;
   if (!hasPermission(auth.roles, "audit.read")) {
     return (
       <div>
@@ -36,6 +41,7 @@ export default async function AuditPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">監査ログ</h1>
+      <AuditExportPanel pro={hasFeature(auth, "audit_export")} monthly={monthly} />
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">

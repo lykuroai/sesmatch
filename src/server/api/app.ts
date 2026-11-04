@@ -2,8 +2,8 @@
 // 共通エラー（§29）
 
 import { timingSafeEqual, createHash, randomUUID } from "crypto";
-import { Hono } from "hono";
-import { hasFeature, PLAN_REQUIRED_MESSAGE, type ProFeature } from "@/server/plan/features";
+import { Hono, type Context } from "hono";
+import { effectivePlan, hasFeature, PLAN_REQUIRED_MESSAGE, type ProFeature } from "@/server/plan/features";
 import {
   createSavedSearch,
   deleteSavedSearch,
@@ -13,6 +13,20 @@ import {
   updateSavedSearch,
 } from "@/server/services/saved-searches";
 import { internalJobToken } from "@/server/plan/scheduler";
+import { runPeriodicJobs } from "@/server/services/periodic-jobs";
+import { clientIpFromHeaders, isIpAllowed } from "@/server/auth/ip";
+import {
+  getSecurityOverview,
+  samlSpMetadataXml,
+  setIpAllowList,
+  setSsoSettings,
+  unlockIpRestrictionByOperations,
+} from "@/server/auth/security";
+import { completeSso, startSso } from "@/server/auth/sso";
+import { SSO_STATE_COOKIE, SSO_STATE_TTL_MS } from "@/server/auth/sso/state";
+import { exportAuditEvents, monthRangeJst, verifyMonthlyExportToken } from "@/server/services/audit-export";
+import { constructStripeEvent } from "@/server/billing/stripe";
+import { createCheckoutSession, createPortalSession, getCardBillingStatus, handleStripeEvent } from "@/server/services/card-billing";
 import { createMeeting, joinMeeting, joinMeetingAsGuest, peekGuestMeeting, revokeMeeting } from "@/server/services/meetings";
 import {
   beginMfaSetup,
@@ -53,6 +67,7 @@ import { verifyPassword } from "@/server/auth/password";
 import {
   createSession,
   destroySession,
+  effectiveIpAllowList,
   resolveSession,
   SESSION_COOKIE,
   type AuthContext,
@@ -190,7 +205,14 @@ const statusFor = (code: string): 400 | 403 | 404 | 409 | 422 | 429 =>
     ? 429
     : code === "NOT_FOUND"
     ? 404
-    : code === "FORBIDDEN" || code === "PLAN_REQUIRED" || code === "PLAN_LIMIT_EXCEEDED" || code === "MFA_REQUIRED" || code === "MEETING_NOT_AVAILABLE"
+    : code === "FORBIDDEN" ||
+        code === "PLAN_REQUIRED" ||
+        code === "PLAN_LIMIT_EXCEEDED" ||
+        code === "MFA_REQUIRED" ||
+        code === "MEETING_NOT_AVAILABLE" ||
+        code === "IP_NOT_ALLOWED" ||
+        code === "SSO_REQUIRED" ||
+        code === "CARD_NOT_AVAILABLE"
       ? 403
       : code === "DUPLICATE_ENTRY" || code === "VERSION_CONFLICT"
         ? 409
@@ -240,6 +262,73 @@ app.post("/internal/jobs/alerts", async (c) => {
   if (!ok) return c.json(err("UNAUTHENTICATED"), 401);
   const summary = await evaluateSavedSearches({ force: c.req.query("force") === "1" });
   return c.json(summary);
+});
+
+// 月次処理（監査ログの月次送付・カード決済の使用量報告）。1時間ごとに呼ばれ、実行日時の条件は内部で判定する
+app.post("/internal/jobs/periodic", async (c) => {
+  if (!internalJobAuthorized(c.req.header("X-Internal-Job-Token"), c.req.header("X-Admin-Token"))) return c.json(err("UNAUTHENTICATED"), 401);
+  return c.json(await runPeriodicJobs(new Date(), { force: c.req.query("force") === "1" }));
+});
+
+function internalJobAuthorized(internal: string | undefined, admin: string | undefined): boolean {
+  const adminToken = process.env.PLATFORM_ADMIN_TOKEN;
+  return !!((internal && constantTimeEqual(internal, internalJobToken())) || (admin && adminToken && constantTimeEqual(admin, adminToken)));
+}
+
+// ---- Stripe からの受信 Webhook（PRO版仕様書 §4.15）: 未認証・署名検証必須。生のボディで検証する ----
+
+app.post("/webhooks/stripe", async (c) => {
+  const raw = await c.req.text();
+  const event = constructStripeEvent(raw, c.req.header("stripe-signature"));
+  if (!event) return c.json(err("WEBHOOK_SIGNATURE_INVALID", "署名検証に失敗しました"), 400);
+  const result = await handleStripeEvent(event);
+  return c.json({ received: true, ...result });
+});
+
+// ---- SSO（PRO版仕様書 §4.13）: 未認証。開始 → IdP → コールバックでセッション発行 ----
+
+const ssoFailRedirect = (c: { redirect: (u: string) => Response }, message: string) =>
+  c.redirect(`/login?error=sso&message=${encodeURIComponent(message)}`);
+
+app.get("/auth/sso/metadata", async (c) => c.body(samlSpMetadataXml(), 200, { "Content-Type": "application/xml; charset=utf-8" }));
+
+app.get("/auth/sso/:slug/start", async (c) => {
+  const result = await startSso(c.req.param("slug"), { loginHint: c.req.query("login_hint") || undefined });
+  if ("error" in result) return ssoFailRedirect(c, result.error);
+  setCookie(c, SSO_STATE_COOKIE, result.stateCookie, {
+    httpOnly: true,
+    sameSite: "Lax",
+    path: "/",
+    maxAge: Math.floor(SSO_STATE_TTL_MS / 1000),
+    secure: process.env.NODE_ENV === "production",
+  });
+  return c.redirect(result.redirectUrl);
+});
+
+async function finishSso(c: Context<Env>, form?: Record<string, string | undefined>) {
+  const query: Record<string, string | undefined> = { code: c.req.query("code"), state: c.req.query("state"), error: c.req.query("error") };
+  const result = await completeSso({ stateCookie: getCookie(c, SSO_STATE_COOKIE), query, form });
+  deleteCookie(c, SSO_STATE_COOKIE, { path: "/" });
+  if ("error" in result) return ssoFailRedirect(c, result.error);
+  // IP 制限（PRO）は SSO ログインにも適用する
+  const ipBlock = await loginIpCheck(result.userAccountId, clientIpFromHeaders((n) => c.req.header(n)));
+  if (ipBlock) return c.redirect("/login?error=ip");
+  const { token, expiresAt } = await createSession(result.userAccountId);
+  setCookie(c, SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "Lax",
+    path: "/",
+    expires: expiresAt,
+    secure: process.env.NODE_ENV === "production",
+  });
+  return c.redirect("/");
+}
+app.get("/auth/sso/callback", async (c) => finishSso(c));
+app.post("/auth/sso/callback", async (c) => {
+  const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+  const form: Record<string, string | undefined> = {};
+  for (const [k, v] of Object.entries(body)) if (typeof v === "string") form[k] = v;
+  return finishSso(c, form);
 });
 
 // ---- Web 会議の人材本人ゲスト参加（PRO版仕様書 §4.8）: 未認証。トークンは hash 照合、面談前後1時間のみ ----
@@ -436,6 +525,14 @@ app.put("/operations/plan-invoices/:id/void", requireAdminToken, async (c) => {
 // 運営: 担当者の2要素認証をリセット（サポート用。PRO版仕様書 §4.11）
 app.post("/operations/members/:id/mfa-reset", requireAdminToken, async (c) => {
   const result = await resetMfaByOperations(c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+// 運営: IP 制限の緊急解除（ロックアウト時。PRO版仕様書 §4.12）
+app.put("/operations/companies/:id/security/unlock", requireAdminToken, async (c) => {
+  const result = await unlockIpRestrictionByOperations(c.req.param("id"));
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);
@@ -756,6 +853,12 @@ app.post("/auth/login", async (c) => {
     return c.json(err("FORBIDDEN", "運営の承認待ちです。開通までお待ちください"), 403);
   if (!membership || membership.company.status !== "ACTIVE")
     return c.json(err("FORBIDDEN", "有効な企業所属がありません"), 403);
+  // IP 制限（PRO版仕様書 §4.12）: 許可外からはログインできない
+  const ipBlock = await loginIpCheck(account.id, clientIpFromHeaders((n) => c.req.header(n)));
+  if (ipBlock) return c.json(err("IP_NOT_ALLOWED", ipBlock), 403);
+  // SSO 必須化（§4.13）: 代表（OWNER）以外はパスワードログイン不可
+  const sso = await ssoRequirementFor(membership.companyId, membership.id);
+  if (sso) return c.json({ error: { code: "SSO_REQUIRED", message: "貴社は SSO ログインが必須です", ssoSlug: sso.slug } }, 403);
   // 2要素認証が有効なアカウントはコード入力（第2段階）を要求する（PRO版仕様書 §4.11）
   const mfa = await prisma.userMfa.findUnique({ where: { userAccountId: account.id }, select: { enabledAt: true } });
   if (mfa?.enabledAt) {
@@ -785,6 +888,8 @@ app.post("/auth/login/mfa", async (c) => {
     await audit({ action: "LoginFailed", metadata: { reason: "mfa" } });
     return c.json(err("UNAUTHENTICATED", "コードが一致しないか、有効期限が切れています。最初からやり直してください"), 401);
   }
+  const ipBlock = await loginIpCheck(userAccountId, clientIpFromHeaders((n) => c.req.header(n)));
+  if (ipBlock) return c.json(err("IP_NOT_ALLOWED", ipBlock), 403);
   const { token, expiresAt } = await createSession(userAccountId);
   setCookie(c, SESSION_COOKIE, token, {
     httpOnly: true,
@@ -796,6 +901,28 @@ app.post("/auth/login/mfa", async (c) => {
   await audit({ actorUserId: userAccountId, action: "LoginSucceeded", metadata: { mfa: true } });
   return c.json({ ok: true });
 });
+
+// ログイン時の IP 制限判定（企業が PRO かつ許可リストあり）。拒否ならメッセージを返す
+async function loginIpCheck(userAccountId: string, ip: string): Promise<string | null> {
+  const member = await prisma.companyMember.findFirst({
+    where: { userAccountId, status: "ACTIVE" },
+    include: { company: { include: { securitySettings: { select: { ipAllowList: true } } } } },
+  });
+  if (!member) return null;
+  const list = effectiveIpAllowList(effectivePlan(member.company), member.company.securitySettings);
+  if (isIpAllowed(ip, list)) return null;
+  await audit({ tenantCompanyId: member.companyId, action: "LoginBlockedByIp", metadata: { ip } });
+  return `この接続元（${ip}）からのログインは許可されていません（貴社の IP アドレス制限）`;
+}
+
+// SSO 必須化の判定（PRO・設定 ON・代表以外）。該当なら SSO 識別子を返す
+async function ssoRequirementFor(companyId: string, memberId: string): Promise<{ slug: string } | null> {
+  const s = await prisma.companySecuritySettings.findUnique({ where: { companyId }, include: { company: true } });
+  if (!s?.ssoRequired || s.ssoProvider === "NONE" || !s.ssoSlug) return null;
+  if (!hasFeature(s.company, "sso")) return null;
+  const owner = await prisma.companyMemberRole.findFirst({ where: { memberId, role: "OWNER" } });
+  return owner ? null : { slug: s.ssoSlug };
+}
 
 app.post("/auth/logout", async (c) => {
   const token = getCookie(c, SESSION_COOKIE);
@@ -813,12 +940,22 @@ app.use("*", async (c, next) => {
   if (authorization?.startsWith("Bearer ")) {
     const resolved = await resolveApiToken(authorization.slice("Bearer ".length));
     if (!resolved) return c.json(err("UNAUTHENTICATED", "APIトークンが無効です"), 401);
+    const ip = clientIpFromHeaders((n) => c.req.header(n));
+    if (!isIpAllowed(ip, resolved.auth.ipAllowList))
+      return c.json(err("IP_NOT_ALLOWED", `この接続元（${ip}）からの API 呼び出しは許可されていません（貴社の IP アドレス制限）`), 403);
     c.set("auth", resolved.auth);
     c.set("tokenPermissions", resolved.tokenPermissions);
     return next();
   }
   const auth = await resolveSession(getCookie(c, SESSION_COOKIE));
   if (!auth) return c.json(err("UNAUTHENTICATED"), 401);
+  // IP 制限（PRO版仕様書 §4.12）: 既存セッションも次回要求から拒否する（ログアウトは許可）
+  {
+    const ip = clientIpFromHeaders((n) => c.req.header(n));
+    const path = new URL(c.req.url).pathname;
+    if (path !== "/api/v1/auth/logout" && !isIpAllowed(ip, auth.ipAllowList))
+      return c.json(err("IP_NOT_ALLOWED", `この接続元（${ip}）からの操作は許可されていません（貴社の IP アドレス制限）`), 403);
+  }
   c.set("auth", auth);
   // 企業が2要素認証を必須化しているのに未設定なら、設定とログアウト以外は拒否（PRO版仕様書 §4.11）
   if (auth.mfaRequired && !auth.mfaEnabled) {
@@ -1112,11 +1249,59 @@ app.get("/analytics/export", requireFeature("analytics_export"), async (c) => {
 
 // ---- 企業のセキュリティ設定（2要素必須化は PRO）----
 
-app.get("/company/security", requirePermission("company.manage"), async (c) => c.json(await getSecuritySettings(c.get("auth"))));
+app.get("/company/security", requirePermission("company.manage"), async (c) => {
+  const auth = c.get("auth");
+  const [mfa, overview] = await Promise.all([getSecuritySettings(auth), getSecurityOverview(auth, clientIpFromHeaders((n) => c.req.header(n)))]);
+  return c.json({ ...mfa, ...overview });
+});
 app.put("/company/security", requirePermission("company.manage"), async (c) => {
   const parsed = z.object({ mfaRequired: z.boolean() }).safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
   const result = await setMfaRequired(c.get("auth"), parsed.data.mfaRequired);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+// IP 制限（PRO版仕様書 §4.12）。空配列で解除
+app.put("/company/security/ip", requirePermission("company.manage"), async (c) => {
+  const parsed = z.object({ ipAllowList: z.array(z.string().max(64)).max(50) }).safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await setIpAllowList(c.get("auth"), parsed.data.ipAllowList, clientIpFromHeaders((n) => c.req.header(n)));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+// SSO 設定（§4.13）
+app.put("/company/security/sso", requirePermission("company.manage"), async (c) => {
+  const parsed = z
+    .object({
+      provider: z.enum(["NONE", "OIDC", "SAML"]),
+      slug: z.string().max(40).nullable().optional(),
+      required: z.boolean().optional(),
+      oidc: z.object({ issuer: z.string().max(300), clientId: z.string().max(300), clientSecret: z.string().max(500).optional() }).optional(),
+      saml: z.object({ entryPoint: z.string().max(500), idpCert: z.string().max(10000), idpIssuer: z.string().max(300).optional() }).optional(),
+    })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR", "SSO 設定の入力内容を確認してください"), 400);
+  const result = await setSsoSettings(c.get("auth"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+// ---- カード決済（PRO版仕様書 §4.15）: Checkout／Customer Portal。billing.manage ----
+
+app.get("/billing/card", requirePermission("billing.read"), async (c) => c.json(await getCardBillingStatus(c.get("auth").companyId)));
+app.post("/billing/checkout", requirePermission("billing.manage"), async (c) => {
+  const parsed = z.object({ cycle: z.enum(["MONTHLY", "YEARLY"]).default("MONTHLY") }).safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await createCheckoutSession(c.get("auth"), parsed.data.cycle);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+app.get("/billing/portal", requirePermission("billing.manage"), async (c) => {
+  const result = await createPortalSession(c.get("auth"));
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);
@@ -2383,6 +2568,31 @@ app.post("/inquiries/:id/messages", async (c) => {
 });
 
 // ---- 監査（§28, §31）----
+
+// 監査ログのエクスポート（PRO版仕様書 §4.14）。期間指定（from/to は YYYY-MM-DD、JST）または月次リンク（month + token）
+app.get("/audit/export", requireFeature("audit_export"), requirePermission("audit.read"), async (c) => {
+  const auth = c.get("auth");
+  const format = c.req.query("format") === "json" ? "json" : "csv";
+  let range: { from: Date; to: Date } | null = null;
+  const month = c.req.query("month");
+  if (month) {
+    // 月次送付リンク: 署名付きトークン（7日間有効）を検証する
+    if (!verifyMonthlyExportToken(c.req.query("token"), auth.companyId)) return c.json(err("FORBIDDEN", "ダウンロードリンクが無効か期限切れです"), 403);
+    range = monthRangeJst(month);
+  } else {
+    const q = z
+      .object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })
+      .safeParse({ from: c.req.query("from"), to: c.req.query("to") });
+    if (!q.success) return c.json(err("VALIDATION_ERROR", "期間（from, to）を YYYY-MM-DD で指定してください"), 400);
+    range = { from: new Date(`${q.data.from}T00:00:00+09:00`), to: new Date(new Date(`${q.data.to}T00:00:00+09:00`).getTime() + 86_400_000) };
+  }
+  if (!range || isNaN(range.from.getTime()) || isNaN(range.to.getTime())) return c.json(err("VALIDATION_ERROR", "期間の指定が不正です"), 400);
+  const result = await exportAuditEvents(auth, { ...range, format });
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  const out = result as { filename: string; contentType: string; body: string };
+  return c.body(out.body, 200, { "Content-Type": out.contentType, "Content-Disposition": `attachment; filename="${out.filename}"` });
+});
 
 app.get("/audit-events", requirePermission("audit.read"), async (c) => {
   const auth = c.get("auth");

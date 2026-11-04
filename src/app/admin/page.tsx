@@ -521,6 +521,17 @@ function CompanyListSection({
     }
   }
 
+  // IP 制限の緊急解除（PRO版仕様書 §4.12。ロックアウト時のサポート用）
+  async function unlockIp(co: AdminCompany) {
+    if (!window.confirm(`${co.name} の IP アドレス制限を解除しますか？（監査に記録し、代表へメールします）`)) return;
+    setError(null);
+    const res = await fetch(`/api/v1/operations/companies/${co.id}/security/unlock`, { method: "PUT", headers: { "X-Admin-Token": token } });
+    if (!res.ok) {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "IP 制限の解除に失敗しました");
+    } else window.alert("IP アドレス制限を解除しました");
+  }
+
   async function deleteCompany(co: AdminCompany) {
     if (
       !window.confirm(
@@ -712,6 +723,13 @@ function CompanyListSection({
                             {expandedCompanyId === co.id ? "担当者を閉じる" : "担当者"}
                           </button>
                           <button
+                            onClick={() => unlockIp(co)}
+                            className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50"
+                            title="IP アドレス制限の緊急解除（ロックアウト時）"
+                          >
+                            IP解除
+                          </button>
+                          <button
                             onClick={() => deleteCompany(co)}
                             className="rounded border border-red-300 px-2 py-1 text-red-600 hover:bg-red-50"
                           >
@@ -776,12 +794,13 @@ function CompanyListSection({
                               className="w-full rounded border border-slate-300 px-2 py-1"
                             >
                               <option value="INVOICE">請求書払い</option>
-                              <option value="CARD">カード（未提供）</option>
+                              <option value="CARD">カード（Stripe）</option>
                             </select>
                           </label>
                         </div>
                         <p className="mt-2 text-xs text-slate-500">
                           期限切れの PRO／お試しは自動的に基本版として扱われます（データは保持）。開始当月は無料、翌月分から請求です。
+                          カード決済（Stripe）で契約中の企業はプランと決済方法を変更できません（Stripe 側で解約後に変更）。
                         </p>
                         <div className="mt-3 flex justify-end gap-2 text-xs">
                           <button onClick={() => savePlan(co.id)} className="rounded bg-emerald-600 px-3 py-1.5 font-medium text-white hover:bg-emerald-700">

@@ -16,7 +16,15 @@ export type AuthContext = {
   plan: CompanyPlan; // 実効プラン（期限切れの TRIAL/PRO は FREE。PRO版仕様書 §5）
   mfaEnabled: boolean; // 本人の2要素認証が有効か（§4.11）
   mfaRequired: boolean; // 企業が2要素認証を必須化しているか（PRO のときのみ実効）
+  ipAllowList: string[]; // 企業の IP 許可リスト（PRO のときのみ実効。空は制限なし §4.12）
 };
+
+// 企業のセキュリティ設定から実効の IP 許可リストを取り出す（PRO 以外は制限しない）
+export function effectiveIpAllowList(plan: CompanyPlan, settings: { ipAllowList: unknown } | null | undefined): string[] {
+  if (plan === "FREE" || !settings) return [];
+  const raw = settings.ipAllowList;
+  return Array.isArray(raw) ? raw.filter((v): v is string => typeof v === "string") : [];
+}
 
 export async function createSession(userAccountId: string): Promise<{ token: string; expiresAt: Date }> {
   const token = randomBytes(32).toString("hex");
@@ -40,7 +48,7 @@ export async function resolveSession(token: string | undefined): Promise<AuthCon
   // ログイン後、所属企業コンソールを自動表示（§8.1）。MVPでは1ユーザー=1企業所属を前提とする。
   const member = await prisma.companyMember.findFirst({
     where: { userAccountId: session.userAccountId, status: "ACTIVE" },
-    include: { company: { include: { securitySettings: { select: { mfaRequired: true } } } }, roles: true },
+    include: { company: { include: { securitySettings: { select: { mfaRequired: true, ipAllowList: true } } } }, roles: true },
   });
   if (!member || member.company.status !== "ACTIVE") return null;
   const mfa = await prisma.userMfa.findUnique({ where: { userAccountId: session.userAccountId }, select: { enabledAt: true } });
@@ -57,5 +65,6 @@ export async function resolveSession(token: string | undefined): Promise<AuthCon
     plan,
     mfaEnabled: !!mfa?.enabledAt,
     mfaRequired: plan !== "FREE" && !!member.company.securitySettings?.mfaRequired,
+    ipAllowList: effectiveIpAllowList(plan, member.company.securitySettings),
   };
 }

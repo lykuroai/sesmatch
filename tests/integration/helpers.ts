@@ -93,6 +93,7 @@ export async function makeCompany(name: string, roles: string[] = ["OWNER"]): Pr
     plan: "FREE",
     mfaEnabled: false,
     mfaRequired: false,
+    ipAllowList: [],
   };
 }
 
@@ -122,7 +123,7 @@ export async function addMemberWithRoles(base: AuthContext, roles: string[]): Pr
   await prisma.companyMemberRole.createMany({
     data: roles.map((role) => ({ memberId: member.id, role: role as never })),
   });
-  return { ...base, userAccountId: account.id, memberId: member.id, roles };
+  return { ...base, userAccountId: account.id, userName: account.name, email: account.email, memberId: member.id, roles, mfaEnabled: false };
 }
 
 export const futureDate = (days: number) => new Date(Date.now() + days * 86_400_000);

@@ -4,7 +4,7 @@
 // 2026-10-23 デザイン刷新: 白ベースの明るい配色に変更。上部ナビ（ログイン／無料で始める）、
 // ヒーロー（大見出し＋0円バッジ＋CTA、右にログインカード）、マッチングのイメージ、流れ、選ばれる理由の順。
 // モバイルではログインカードを最上部に出す（ホーム/成約系はモバイル導線に出さない方針は従来どおり）
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { reportHomeApplyClick } from "@/lib/gtag";
@@ -90,6 +90,26 @@ export default function LoginPage() {
   // 2要素認証の第2段階（PRO版仕様書 §4.11）: コード入力
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState("");
+  // SSO（§4.13）: 識別子を入力して IdP へ。IP 制限（§4.12）や SSO の失敗は ?error= で戻る
+  const [ssoMode, setSsoMode] = useState(false);
+  const [ssoSlug, setSsoSlug] = useState("");
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const e = q.get("error");
+    if (e === "ip") setError("この接続元 IP からの利用は許可されていません（貴社の IP アドレス制限）。社内ネットワークから接続するか、代表にご確認ください");
+    else if (e === "sso") setError(q.get("message") || "SSO ログインに失敗しました");
+    const sso = q.get("sso");
+    if (sso) {
+      setSsoMode(true);
+      setSsoSlug(sso);
+    }
+  }, []);
+  function startSso(e: React.FormEvent) {
+    e.preventDefault();
+    const slug = ssoSlug.trim().toLowerCase();
+    if (!slug) return;
+    window.location.href = `/api/v1/auth/sso/${encodeURIComponent(slug)}/start`;
+  }
 
   function goConsole() {
     // モバイルはホーム（KPI）を案内しないため案件一覧を起点にする
@@ -112,6 +132,9 @@ export default function LoginPage() {
       setChallengeId(body.challengeId);
     } else if (res.ok) {
       goConsole();
+    } else if (body?.error?.code === "SSO_REQUIRED" && body.error.ssoSlug) {
+      // 企業が SSO を必須化している: IdP へ誘導する
+      window.location.href = `/api/v1/auth/sso/${encodeURIComponent(body.error.ssoSlug)}/start?login_hint=${encodeURIComponent(email)}`;
     } else {
       setError(body?.error?.message ?? "ログインに失敗しました");
     }
@@ -209,7 +232,27 @@ export default function LoginPage() {
                 案件と人材を、余計な商流なしで直接つなぐ。
               </p>
             </div>
-            {challengeId ? (
+            {ssoMode ? (
+            <form onSubmit={startSso} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/10 lg:p-8">
+              <h2 className="text-xl font-bold">SSO でログイン</h2>
+              <p className="mb-6 mt-1 text-sm text-slate-500">貴社の SSO 識別子を入力してください（PRO 版・管理者が設定）</p>
+              {error && <p className="mb-4 rounded-lg bg-red-50 p-2.5 text-sm text-red-700">{error}</p>}
+              <input
+                value={ssoSlug}
+                onChange={(e) => setSsoSlug(e.target.value)}
+                required
+                autoFocus
+                placeholder="例: example-inc"
+                className="mb-6 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+              <button type="submit" className="w-full rounded-full bg-slate-900 py-3 text-sm font-bold text-white transition hover:bg-slate-800">
+                IdP へ進む
+              </button>
+              <button type="button" onClick={() => { setSsoMode(false); setError(null); }} className="mt-3 w-full text-xs text-slate-500 hover:underline">
+                メールアドレスとパスワードでログイン
+              </button>
+            </form>
+            ) : challengeId ? (
             <form onSubmit={submitMfa} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/10 lg:p-8">
               <h2 className="text-xl font-bold">2要素認証</h2>
               <p className="mb-6 mt-1 text-sm text-slate-500">認証アプリに表示された6桁のコード（またはバックアップコード）を入力してください</p>
@@ -260,6 +303,9 @@ export default function LoginPage() {
                 className="w-full rounded-full bg-slate-900 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
               >
                 {loading ? "ログイン中..." : "ログイン"}
+              </button>
+              <button type="button" onClick={() => { setSsoMode(true); setError(null); }} className="mt-3 w-full text-xs text-slate-500 hover:underline">
+                SSO（Google Workspace／Microsoft Entra ID 等）でログイン
               </button>
               <div className="mt-6 rounded-xl bg-gradient-to-br from-sky-50 to-emerald-50 p-4 text-center">
                 <p className="text-sm font-bold text-slate-800">はじめてのご利用ですか？</p>

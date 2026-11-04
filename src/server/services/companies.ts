@@ -1178,6 +1178,14 @@ export async function updateCompanyPlanByOperations(
 ) {
   const company = await prisma.company.findUnique({ where: { id: companyId } });
   if (!company) return { error: { code: "NOT_FOUND" as const } };
+  // カード決済（Stripe）で契約中の企業は、プラン・決済方法を運営側で変えない（二重請求・請求漏れを防ぐ。§4.15）
+  if (company.stripeSubscriptionId && (input.plan !== company.plan || (input.paymentMethod && input.paymentMethod !== "CARD")))
+    return {
+      error: {
+        code: "VERSION_CONFLICT" as const,
+        message: "カード決済（Stripe）で契約中のため、プランと決済方法は変更できません。先に Stripe 側のサブスクリプションを解約してください（席数・期限は変更可）",
+      },
+    };
 
   let planExpiresAt: Date | null = null;
   if (input.plan !== "FREE") {

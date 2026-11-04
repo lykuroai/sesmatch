@@ -1,6 +1,6 @@
-# SES DirectMatch PRO版（有料プラン）企画・仕様書 v1.5
+# SES DirectMatch PRO版（有料プラン）企画・仕様書 v1.6
 
-作成日: 2026-11-04 ／ 最終更新: 2026-11-04 ／ 状態: **企画確定・段階A/B 実装済み（§14 A-1〜A-6、B-1〜B-6。2026-11-04。Jitsi 基盤の構築は未）**
+作成日: 2026-11-04 ／ 最終更新: 2026-11-04 ／ 状態: **企画確定・段階A/B/C 実装済み（§14 A-1〜C-4。2026-11-04。Jitsi 基盤の構築と Stripe・IdP の実環境接続は未）**
 本書は `ses_matching_platform_complete_spec_v2_0.md`（本体仕様書）の追加仕様（有料プラン編）であり、**PRO版の全機能**を対象とする。契約事務（注文書 PDF・月次一括確認・外部契約台帳）と電子署名連携は 2026-11-04 の郭判断で対象外とした。本体仕様書と矛盾する場合は本体仕様書を優先する。本体仕様書への反映（§23.0 改定、§39 新設等）は実装着手時に行う。
 
 ---
@@ -505,14 +505,16 @@
 | GET /m/:guestToken | 人材本人のゲスト参加ページ（公開、hash 照合） | 認証なし |
 | GET/POST/PUT/DELETE /webhooks, POST /webhooks/:id/test | Webhook | webhook_notify |
 | POST /auth/mfa/setup, /auth/mfa/verify, DELETE /auth/mfa | 2要素認証（基本版にも提供） | 全ロール |
-| GET /auth/sso/:companySlug/start, POST /auth/sso/callback | SSO | sso |
-| GET /audit/export | 監査ログ出力 | audit_export、OWNER／ADMIN |
+| GET /auth/sso/:slug/start, GET|POST /auth/sso/callback, GET /auth/sso/metadata | SSO（開始・OIDC/SAML コールバック・SP メタデータ） | 認証なし |
+| PUT /company/security/ip, PUT /company/security/sso | IP 制限・SSO 設定（`/company/security` の GET に状態を含める） | ip_restriction／sso、company.manage |
+| GET /audit/export?from=&to=&format= ／ ?month=&token= | 監査ログ出力（期間指定・月次リンク） | audit_export、audit.read |
 | POST /webhooks/stripe | Stripe からの受信（署名検証必須） | 認証なし・署名検証 |
+| GET /billing/card, POST /billing/checkout, GET /billing/portal | カード決済の状態・Checkout 開始・Customer Portal | billing.read／billing.manage |
 | PUT /operations/companies/:id/plan | プラン変更（運営） | X-Admin-Token |
 | POST /operations/plan-invoices/generate?month=, PUT /operations/plan-invoices/:id/paid, /void | 請求書生成・消込・取消（運営） | X-Admin-Token |
 | POST /operations/members/:id/mfa-reset, PUT /operations/companies/:id/security/unlock | 2要素リセット・IP 制限の緊急解除（運営） | X-Admin-Token |
 
-内部処理: 新着アラート評価（15分）、Webhook 再試行、監査ログ月次送付（毎月1日）は `instrumentation.ts` の `register()` でプロセス内タイマーとして起動する。
+内部処理: 新着アラート評価（15分、`POST /internal/jobs/alerts`）と月次処理（1時間ごとに `POST /internal/jobs/periodic`。毎月1日の監査ログ送付、月末のカード決済の追加担当者報告）は `instrumentation.ts` の `register()` → `scheduler.ts` のプロセス内タイマーから内部 API を呼ぶ。Webhook 再試行は配信時のプロセス内タイマー。
 
 ---
 
@@ -527,6 +529,8 @@
 | SCOUT_DAILY_LIMIT | 429 | 一斉スカウトの1日上限超過 |
 | MEETING_NOT_AVAILABLE | 403 | Web 会議の有効時間外、無効化済み、または Jitsi 基盤の停止中 |
 | WEBHOOK_SIGNATURE_INVALID | 400 | Stripe からの受信 Webhook の署名検証失敗 |
+| SSO_REQUIRED | 403 | SSO 必須化企業の代表以外がパスワードでログインした（応答に `ssoSlug` を含め、画面は IdP へ誘導） |
+| CARD_NOT_AVAILABLE | 403 | Stripe 未設定でカード決済を呼び出した |
 
 ---
 
@@ -638,6 +642,14 @@
 - Web 会議は Jitsi の JWT 認証（HS256）を前提に、参加 JWT・ゲスト URL（SHA-256 保存、面談前後1時間）・会議室名の生成を実装した。**Jitsi 本体（別インスタンス、coturn、`meet.lykuro.ai`）は未構築**で、環境変数未設定の間は画面に出ない。面談のキャンセル機能が本体に無いため、無効化は手動（商談詳細の「無効化」）
 - API トークン上限は有効（未失効・未期限切れ）トークン数で判定し、既存の超過分は削除しない
 
+## 14.3 段階C の実装メモ（2026-11-04）
+
+- **IP 制限**: 接続元 IP は `X-Forwarded-For` の右端から環境変数 `TRUSTED_PROXY_HOPS`（既定 1。本番の ALB + nginx は 2）だけ遡った位置で決める（左側の偽装を無視）。ヘッダが無ければ直接接続（開発）とみなす。判定は API 認証ミドルウェア（セッション・API トークン）、ログイン（パスワード・2要素第2段階・SSO）、RSC の `getAuth()`（許可外は `/login?error=ip` へ）で行い、ログアウトだけは許可外からも可。PRO でなくなれば制限は効かない（`AuthContext.ipAllowList` は実効プランで空にする）。運営の緊急解除は `PUT /operations/companies/:id/security/unlock`（監査・代表へメール）
+- **SSO**: OIDC は Authorization Code + PKCE を自前実装（Discovery → 認可 → トークン交換 → JWKS で ID トークン署名・iss・aud・exp・nonce を検証）。SAML は `@node-saml/node-saml` でアサーション署名を検証（`wantAssertionsSigned`、InResponseTo は照合せず RelayState を署名付き Cookie の state と突き合わせる）。往復状態（企業・state・nonce・PKCE）は HMAC 署名付き Cookie `sesmatch_sso`（10分）に保持し、サーバ側テーブルは持たない。企業識別子 `ssoSlug` は `company_security_settings` に追加（§8.8）。SP 側の値は固定: Entity ID `…/api/v1/auth/sso/metadata`、ACS／リダイレクト URI `…/api/v1/auth/sso/callback`。SSO ログインでは認証アプリのコード入力を求めない（IdP に委ねる）が、企業の2要素必須化ゲートは従来どおり効く。**Google Workspace・Entra ID との実接続は未検証**（模擬 IdP での自動テストのみ）
+- **監査ログ出力**: 期間は1年以内・最大 50,000 件。月次送付のリンクは署名付きトークン（7日間有効）付きの `/audit?month=&token=` で、ダウンロードにはログイン（audit.read）も必要。送付済みは監査ログ（`AuditMonthlyExportSent`）で判定
+- **カード決済**: Stripe Checkout（サブスクリプション）で、請求周期は `billing_cycle_anchor` を翌月1日 0:00 JST に固定し `proration_behavior: none`（開始当月無料・日割りなし）。追加担当者は月末（JST 最終日 12 時以降）に有効担当者数を数え、超過分 × 4,000円を保留中の請求項目として送る。月払いは翌月1日の更新請求書に合算され、年払いの非更新月は単独の請求書を起こす（Billing Meter は使わない）。消費税は `STRIPE_TAX_RATE_ID`（任意）で付与。`invoice.paid` で `plan_invoices` に同期（`stripeInvoiceId`・`stripeHostedUrl` 列を追加）。決済失敗は `planExpiresAt` を失敗日 +14 日に設定する方式（既存の期限切れ判定で自動的に基本版扱いになり、降格バッチを持たない）。解約は `customer.subscription.deleted` で FREE。カード決済の Checkout は基本版の企業が自分で開始でき（`card_billing` の機能ゲートは PRO 判定に使わない）、請求書払いで契約中の企業は二重請求防止のため Checkout 不可。運営のプラン変更は Stripe 契約中の企業では席数・期限のみ可。**Stripe の実環境（Price・Tax Rate・Webhook エンドポイントの登録）は未設定**で、環境変数が揃うまで画面に出ない
+- 今後の案: SSO の実 IdP 検証、Stripe のテストモードでの通し確認（Checkout → Webhook → 請求書同期）、年払いカードの途中解約時の扱い（§15-3）
+
 ## 15. 未決定事項
 
 1. 消費税の端数処理・支払期限の最終確認（本体 §36-5 と合わせて確定）
@@ -650,6 +662,8 @@
 8. 段階B・C 内の優先順位
 9. Web 会議の録画・文字起こし・LLM 要約を将来提供するか（初版は録画なし・文字起こしなしで確定。提供する場合は人材本人の同意と保存期限の設計が必要）
 10. Jitsi 用インスタンスの構成（インスタンス種別、リージョン、月額費用）とドメイン名（案: meet.lykuro.ai）
+11. Stripe アカウント（事業者情報・Price・Tax Rate・Webhook）の準備時期と、カード決済の年払いの途中解約時の返金有無
+12. SSO の動作確認に使う IdP テナント（Google Workspace／Entra ID）の用意
 
 ---
 
@@ -660,6 +674,7 @@
 | 2026-11-04 | v1.0 初版。課金モデル（月額固定）、価格（39,800円・5名込み・追加4,000円）、請求書払い、日割りなし、基本版上限の予約を郭決定として確定。機能比較一覧（完全版）を追加。相手企業名の明示（PRO）を追加（郭指示。掲載側オプトアウトなし・片方向で確定） |
 | 2026-11-04 | v1.1 段階A 中心の構成を改め、PRO 全機能（16機能）を §4 で同じ深さで仕様化。§8 データモデル・§9 API・§10 エラー・§11 画面・§13 テスト・§14 リリース計画を全機能分に拡張。2要素認証（TOTP）は基本版にも任意提供とし、必須化のみ PRO とした |
 | 2026-11-04 | v1.2 契約事務（注文書・注文請書 PDF、月次確認の一括処理、外部契約台帳）と電子署名連携を対象外とした（郭指示）。機能数は14。関連するデータモデル・API・画面・テスト・リリース計画を削除し、合計目安を約9週間に更新 |
+| 2026-11-04 | v1.6 段階C（C-1〜C-4）を実装。§14.3 に実装メモ（IP 判定の信頼段数、SSO の自前 OIDC と node-saml、監査ログの月次リンク、Stripe の請求周期固定・追加担当者の請求項目方式・決済失敗の猶予方式）を追記。§9・§10 に実装した API・エラーコード（SSO_REQUIRED、CARD_NOT_AVAILABLE）を反映 |
 | 2026-11-04 | v1.5 段階B（B-1〜B-6）を実装。§14.2 に実装メモ（スカウト本文の扱い、スキルシート PDF の方式、Webhook 暗号化、TOTP 自前実装、Jitsi 本体は未構築）を追記 |
 | 2026-11-04 | v1.4 段階A（A-1〜A-6）を実装。§14.1 に実装メモ（アラート評価の内部 API 方式、人材分割の方式、請求の担当者数算定など）を追記 |
 | 2026-11-04 | v1.3 Web 会議を PRO 機能として追加（§4.8、郭指示）: 基本版には提供せず、PRO 版はコンソール組込みの自前 Jitsi（別インスタンス、JWT 認証）。人材本人はログイン不要のゲスト URL で参加。初版は録画・文字起こしなし。機能数は15、合計目安を約11週間に更新 |

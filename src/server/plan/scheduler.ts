@@ -9,6 +9,7 @@
 // （"crypto" "fs" 等）を import しない。乱数は Web Crypto（globalThis.crypto）を使う
 
 const INTERVAL_MS = 15 * 60 * 1000; // 新着アラートの評価間隔
+const PERIODIC_INTERVAL_MS = 60 * 60 * 1000; // 月次処理（監査ログ送付・カード決済の使用量報告）の確認間隔
 const FIRST_DELAY_MS = 60 * 1000; // 起動直後の負荷を避ける
 
 type SchedulerGlobal = typeof globalThis & {
@@ -29,18 +30,22 @@ export function startScheduler(): void {
   if (process.env.ALERT_SCHEDULER === "0") return;
   g.__sesmatchSchedulerStarted = true;
   const port = process.env.PORT || "3000";
-  const url = `http://127.0.0.1:${port}/api/v1/internal/jobs/alerts`;
+  const base = `http://127.0.0.1:${port}/api/v1/internal/jobs`;
 
-  const tick = async () => {
+  const call = async (job: "alerts" | "periodic") => {
     try {
-      const res = await fetch(url, { method: "POST", headers: { "X-Internal-Job-Token": internalJobToken() } });
-      if (!res.ok) console.error(`[alerts] 内部ジョブ API が失敗: ${res.status}`);
+      const res = await fetch(`${base}/${job}`, { method: "POST", headers: { "X-Internal-Job-Token": internalJobToken() } });
+      if (!res.ok) console.error(`[${job}] 内部ジョブ API が失敗: ${res.status}`);
     } catch (e) {
-      console.error("[alerts] 内部ジョブ API の呼び出しに失敗", e);
+      console.error(`[${job}] 内部ジョブ API の呼び出しに失敗`, e);
     }
   };
   setTimeout(() => {
-    void tick();
-    setInterval(() => void tick(), INTERVAL_MS).unref();
+    void call("alerts");
+    setInterval(() => void call("alerts"), INTERVAL_MS).unref();
   }, FIRST_DELAY_MS).unref();
+  setTimeout(() => {
+    void call("periodic");
+    setInterval(() => void call("periodic"), PERIODIC_INTERVAL_MS).unref();
+  }, FIRST_DELAY_MS * 2).unref();
 }

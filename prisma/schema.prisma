@@ -57,6 +57,10 @@ model Company {
   planSeats        Int              @default(5) // 月額に含まれる担当者数
   planBillingCycle PlanBillingCycle @default(MONTHLY)
   paymentMethod    PaymentMethod    @default(INVOICE)
+  // カード決済（PRO版仕様書 §4.15。Stripe）。カード情報は保存しない
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  cardPaymentFailedAt  DateTime? // 決済失敗の初回日時（14日猶予の起点。入金で解消）
   // 労働者派遣事業の許可情報（基本契約第4条）。労働者派遣契約の案件へ提案する供給側企業に必須
   dispatchLicenseNumber String? // 労働者派遣事業許可番号（例: 派13-123456）
   dispatchLicenseExpiry DateTime? // 許可有効期限
@@ -805,7 +809,8 @@ model PlanInvoice {
   dueAt           DateTime // 支払期限（翌月末）
   paidAt          DateTime?
   voidedAt        DateTime?
-  stripeInvoiceId String? // カード決済（§4.15）
+  stripeInvoiceId String?           @unique // カード決済（§4.15）: Stripe の請求書と同期
+  stripeHostedUrl String? // Stripe の請求書・領収書ページ
   createdAt       DateTime          @default(now())
 
   @@unique([companyId, month])
@@ -917,10 +922,11 @@ enum SsoProvider {
 model CompanySecuritySettings {
   companyId          String      @id
   mfaRequired        Boolean     @default(false) // 全担当者に2要素認証を必須化（PRO）
-  ipAllowList        Json        @default("[]") // 許可 IP/CIDR（PRO。段階C）
-  ssoProvider        SsoProvider @default(NONE) // 段階C
-  ssoConfigEncrypted String?
-  ssoRequired        Boolean     @default(false)
+  ipAllowList        Json        @default("[]") // 許可 IP/CIDR（PRO §4.12。最大20件。空なら制限なし）
+  ssoProvider        SsoProvider @default(NONE) // SSO（PRO §4.13）
+  ssoSlug            String?     @unique // SSO 開始 URL の企業識別子（/api/v1/auth/sso/:slug/start）
+  ssoConfigEncrypted String? // IdP 設定（JSON を AES-GCM 暗号化。クライアントシークレット等を含む）
+  ssoRequired        Boolean     @default(false) // パスワードログイン禁止（代表は非常用に可）
   updatedByMemberId  String?
   updatedAt          DateTime    @updatedAt
 

@@ -8,14 +8,18 @@ import { listOwnPlanInvoices } from "@/server/services/plan-billing";
 import { PLAN_LABELS } from "@/server/plan/features";
 import { calcTax } from "@/server/billing/fee";
 import { ActionButton } from "@/components/ActionButton";
+import { CardBillingActions } from "@/components/CardBilling";
+import { getCardBillingStatus } from "@/server/services/card-billing";
 
 // 請求（成約手数料 §23）: 月ごとに明細（日付・タイトル・契約金額・手数料・確認用消費税）と
 // 月計・請求合計を表示し、請求書の発行・PDF再ダウンロードを行う。
 // 明細行の消費税は確認用。正式な税額は請求書単位で月計に対して1回だけ端数処理する
 // （インボイス制度の税率ごと・請求書1枚につき1回の端数処理ルール）
-export default async function BillingPage() {
+export default async function BillingPage({ searchParams }: { searchParams: Promise<{ checkout?: string }> }) {
   const auth = await getAuth();
   if (!auth) redirect("/login");
+  const sp = await searchParams;
+  const checkoutResult = sp.checkout === "success" ? "success" : sp.checkout === "cancel" ? "cancel" : null;
   if (!hasPermission(auth.roles, "billing.read")) {
     return (
       <div>
@@ -24,11 +28,12 @@ export default async function BillingPage() {
       </div>
     );
   }
-  const [fees, invoices, plan, planInvoices] = await Promise.all([
+  const [fees, invoices, plan, planInvoices, card] = await Promise.all([
     listFeesDetailed(auth),
     listInvoices(auth),
     getOwnPlan(auth),
     listOwnPlanInvoices(auth),
+    getCardBillingStatus(auth.companyId),
   ]);
   const planStatusLabel: Record<string, string> = { ISSUED: "未入金", PAID: "入金済み", VOID: "取消" };
   const canManage = hasPermission(auth.roles, "billing.manage");
@@ -74,9 +79,16 @@ export default async function BillingPage() {
           <dt className="text-xs text-slate-500">支払</dt>
           <dd>{plan.planBillingCycle === "YEARLY" ? "年払い" : "月払い"} / {plan.paymentMethod === "CARD" ? "カード" : "請求書払い"}</dd>
         </dl>
+        {/* カード決済（PRO版仕様書 §4.15）。Stripe 未設定なら表示しない */}
+        <CardBillingActions
+          status={{ ...card, paymentFailedAt: card.paymentFailedAt?.toISOString() ?? null, graceUntil: card.graceUntil?.toISOString() ?? null }}
+          canManage={canManage}
+          currentPlanFree={plan.effectivePlan === "FREE"}
+          checkoutResult={checkoutResult}
+        />
         {plan.effectivePlan === "FREE" ? (
           <p className="mt-3 text-xs text-slate-500">
-            PRO 版（月額 39,800円・税別）のお申込は「お問合せ」から。
+            PRO 版（月額 39,800円・税別）の請求書払いでのお申込は「お問合せ」から。
             <Link href="/pricing" className="ml-1 text-blue-700 hover:underline">料金を見る</Link>
           </p>
         ) : (
@@ -110,6 +122,11 @@ export default async function BillingPage() {
                       </td>
                       <td className="py-1.5 text-right">
                         <Link href={`/billing/plan-invoices/${inv.id}`} className="text-blue-700 hover:underline">請求書</Link>
+                        {inv.stripeHostedUrl && (
+                          <a href={inv.stripeHostedUrl} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-700 hover:underline">
+                            Stripe
+                          </a>
+                        )}
                       </td>
                     </tr>
                   ))}

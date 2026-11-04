@@ -291,6 +291,7 @@ export async function evaluateOne(savedSearchId: string, now = new Date()): Prom
     plan: effectivePlan(company, now),
     mfaEnabled: false,
     mfaRequired: false,
+    ipAllowList: [],
   };
   if (!hasFeature(auth, "saved_search_alert", now)) return { notified: false, items: 0 };
 
