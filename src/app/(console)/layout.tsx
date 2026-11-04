@@ -5,6 +5,8 @@ import { MfaRequiredGate } from "@/components/MfaSetup";
 import { LogoutButton } from "@/components/LogoutButton";
 import { ResizableSidebar } from "@/components/ResizableSidebar";
 import { MobileNav } from "@/components/MobileNav";
+import { RevisionNotice } from "@/components/RevisionNotice";
+import { isRevisionNoticeActive } from "@/lib/revision-notice";
 
 // 企業専用コンソール（§8）: ログイン後、所属企業コンソールを自動表示
 // アイコンは自己完結のインラインSVG（heroicons outline 相当のパス）
@@ -172,7 +174,11 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
             </div>
           </div>
         </ResizableSidebar>
-        <main className="min-w-0 flex-1 p-4 md:p-8 print:p-0">{content}</main>
+        <main className="min-w-0 flex-1 p-4 md:p-8 print:p-0">
+          {/* 規約改定（PRO版の提供開始 2026-12-04）の告知。適用開始日以降は表示されない（PRO版仕様書 §12） */}
+          <RevisionNotice active={isRevisionNoticeActive()} />
+          {content}
+        </main>
       </div>
     </div>
   );

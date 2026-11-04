@@ -52,6 +52,23 @@ services:
       # EC2 インスタンスロールを使う場合は以下2つは不要
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      # --- PRO 版（ses_directmatch_pro_spec_v1_0.md）。値は .env.production で管理（雛形 .env.production.example）---
+      # 保存データの暗号鍵（Webhook URL・2要素の秘密鍵・SSO 設定）。未設定なら SESSION_SECRET から派生
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:-}
+      # IP 制限の接続元判定: X-Forwarded-For の右端から数える信頼段数。ALB + nginx なので 2
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-2}
+      # 新着アラート・定期処理のスケジューラ（0 で停止）
+      ALERT_SCHEDULER: ${ALERT_SCHEDULER:-1}
+      # Web 会議（Jitsi 本体は別インスタンス。未設定なら機能停止）
+      JITSI_DOMAIN: ${JITSI_DOMAIN:-}
+      JITSI_APP_ID: ${JITSI_APP_ID:-}
+      JITSI_APP_SECRET: ${JITSI_APP_SECRET:-}
+      # カード決済（Stripe。4つ揃うまで機能停止）
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_MONTHLY: ${STRIPE_PRICE_MONTHLY:-}
+      STRIPE_PRICE_YEARLY: ${STRIPE_PRICE_YEARLY:-}
+      STRIPE_TAX_RATE_ID: ${STRIPE_TAX_RATE_ID:-}
     volumes:
       - storage:/data/storage # 原本ファイル（§9.2）
     depends_on:

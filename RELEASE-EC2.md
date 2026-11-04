@@ -95,6 +95,41 @@ cp scripts/release-ec2.env.example scripts/release-ec2.env   # 初回のみ。EC
 
 DB（`pgdata`）と原本ファイル（`storage`）は名前付きボリュームなので、リリースを繰り返しても消えない。
 
+## 2-1. PRO 版（段階A〜C）リリースの手順・確認（2026-11-04 準備）
+
+PRO 版（`ses_directmatch_pro_spec_v1_0.md`）を本番に入れる最初のリリース向けの追加手順。
+方針（2026-11-04 郭決定）: **機能は先に本番反映し、規約の適用開始日 2026-12-04 までは企業に PRO プランを付与しない**（基本版のまま。告知バナーで改定を周知）。
+
+### 事前（開発機）
+
+1. `.env.production` に PRO 版の環境変数が入っていることを確認（2026-11-04 追記済み。雛形 `.env.production.example`）:
+   `DATA_ENCRYPTION_KEY`（hex 64桁。**一度本番に入れたら変更しない**。Webhook URL・2要素の秘密鍵・SSO 設定の暗号鍵）、`TRUSTED_PROXY_HOPS=2`（ALB + nginx。nginx は `proxy_add_x_forwarded_for` で追記しているため右端が ALB、右から2番目が接続元）。
+   `JITSI_*`・`STRIPE_*` は基盤が未準備のためコメントのまま（未設定なら該当機能は画面に出ない）
+2. `docker-compose.ec2.yml` に上記変数の受け渡しが入っていること（2026-11-04 追記済み。compose は列挙した変数しかコンテナに渡さない）
+3. 本番 DB へ適用されるマイグレーションは 10 件（`20261104055236_add_company_plan` 〜 `20261104180633_add_stage_c_security_and_card`）。すべて追加のみ（新テーブル・既定値付き列）で、旧イメージへ戻しても動作する。
+   本番のスキーマ（schema-only ダンプ＋`_prisma_migrations`）を手元に復元して `prisma migrate deploy` → `prisma migrate diff` で差分なしを確認済み（2026-11-04）
+4. **AWS でインスタンスの手動スナップショットを取る**（日次スナップショットとは別に、リリース直前の状態を残す）
+5. 手元の Docker ビルド（`--target migrate` / `--target runner`）が通ること（2026-11-04 確認済み）
+
+### リリース
+
+`./scripts/release-ec2.sh`（従来どおり）。`.env.production` は同期時にバックアップが残る。
+
+### 直後の確認（本番）
+
+- `https://ses.lykuro.ai/api/v1/health` が 200
+- ログイン → コンソール上部に「利用規約等の改定のお知らせ」バナー（2026-12-03 まで表示、12-04 以降は自動で消える）
+- `/pricing`・`/tokushoho`・`/terms`・`/agreement`・`/privacy-policy` が開き、適用開始日 2026年12月4日 の記載があること
+- 運営コンソール `/admin` の「企業一覧 > プラン」「PRO請求」「IP解除」が表示されること（**12-04 までプランは変更しない**）
+- アプリのログに 15 分ごとの `alerts`、毎時の `periodic` ジョブ呼び出しがあり、エラーが出ていないこと
+  （`docker compose -f docker-compose.ec2.yml --env-file .env.production logs --since 30m app`）
+- `/settings/security`（会社マイページ > セキュリティ）で IP 制限の「現在の接続元」が自分のグローバル IP になっていること（`TRUSTED_PROXY_HOPS` の検証。ALB の内部 IP が出る場合は値が合っていない）
+
+### 12-04 以降（PRO の提供開始）
+
+- PRO の申込を受けたら運営コンソール「企業一覧 > プラン」で PRO（請求書払い・席数・有効期限）を付与。請求は「PRO請求」で月次生成
+- Stripe を使う場合は `STRIPE_*` を `.env.production` に設定してリリースし直し、Stripe 側に Webhook（`POST https://ses.lykuro.ai/api/v1/webhooks/stripe`）を登録する
+
 ## 3. ロールバック
 
 EC2 には過去5世代のイメージが残っている。旧タグを指定して起動し直すだけ:
