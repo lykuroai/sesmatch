@@ -6,6 +6,8 @@
 // 名称の照合は企業重複判定と同じ正規化（法人格表記・全半角等のゆれ吸収）で行う。
 
 import { prisma } from "@/server/db";
+import type { AuthContext } from "@/server/auth/session";
+import { hasFeature } from "@/server/plan/features";
 import { normalizeCompanyName } from "./company-duplicate";
 
 // 企業間関係に登録済みの取引先テナントの Map（tenantCompanyId → 企業名）を返す。
@@ -28,4 +30,19 @@ export async function registeredPartnerNames(companyId: string): Promise<Map<str
       .filter((c) => myTargets.has(normalizeCompanyName(c.name)))
       .map((c) => [c.id, c.name])
   );
+}
+
+// 閲覧企業に表示してよい掲載企業名の Map（tenantCompanyId → 企業名）。
+// - PRO 版（機能 company_name_display。PRO版仕様書 §4.1）: 開通済みの全他社。
+//   取引先登録の有無にかかわらず他社の公開案件・公開人材に掲載企業名を明示する（片方向。
+//   掲載側のオプトアウトは設けない。2026-11-04 郭決定）
+// - 基本版: 企業間関係に登録済みの取引先のみ（本体 §10.1）
+// いずれも開示するのは掲載企業名のみで、人材本人の氏名・実額単価等（Level 2）は双方承認後に限る
+export async function visibleCompanyNames(auth: AuthContext): Promise<Map<string, string>> {
+  if (!hasFeature(auth, "company_name_display")) return registeredPartnerNames(auth.companyId);
+  const companies = await prisma.company.findMany({
+    where: { id: { not: auth.companyId }, status: "ACTIVE" },
+    select: { id: true, name: true },
+  });
+  return new Map(companies.map((c) => [c.id, c.name]));
 }

@@ -3,6 +3,13 @@
 // notFound() / redirect() は Next が処理するためここには来ない
 import type { Instrumentation } from "next";
 
+// サーバー起動時に1回呼ばれる。PRO 機能の定期処理（新着アラートの評価 15分間隔）を起動する（PRO版仕様書 §9）
+export async function register() {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  const { startScheduler } = await import("@/server/plan/scheduler");
+  startScheduler();
+}
+
 export const onRequestError: Instrumentation.onRequestError = async (error, request, context) => {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   const { reportSystemError, errorMessageOf } = await import("@/server/system-error");

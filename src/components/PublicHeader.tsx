@@ -18,6 +18,7 @@ export default function PublicHeader({ showApply = true }: { showApply?: boolean
           <Link href="/login#flow" className="hover:text-blue-700">ご利用の流れ</Link>
           <Link href="/login#features" className="hover:text-blue-700">選ばれる理由</Link>
           <Link href="/about" className="hover:text-blue-700">サービス紹介</Link>
+          <Link href="/pricing" className="hover:text-blue-700">料金</Link>
         </nav>
         <div className="flex items-center gap-2">
           <Link

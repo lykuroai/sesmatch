@@ -25,8 +25,20 @@ type AdminCompany = {
   dispatchManagerName: string | null;
   status: string;
   createdAt: string;
+  // 利用プラン（PRO版仕様書 §2）
+  plan: "FREE" | "TRIAL" | "PRO";
+  planStartedAt: string | null;
+  planExpiresAt: string | null;
+  planSeats: number;
+  planBillingCycle: "MONTHLY" | "YEARLY";
+  paymentMethod: "INVOICE" | "CARD";
   _count: { members: number };
 };
+
+const PLAN_LABEL: Record<AdminCompany["plan"], string> = { FREE: "基本版", TRIAL: "PRO お試し", PRO: "PRO" };
+// 期限切れの TRIAL/PRO は実効 FREE（サーバ側 effectivePlan と同じ判定）
+const planExpired = (co: AdminCompany) =>
+  co.plan !== "FREE" && !!co.planExpiresAt && new Date(co.planExpiresAt).getTime() < Date.now();
 
 type AdminMember = {
   id: string;
@@ -51,6 +63,7 @@ type AdminInquiry = {
   id: string;
   code: string;
   companyName: string;
+  priority?: boolean; // PRO 版からの問合せ（優先対応）
   category: string;
   body: string;
   status: string;
@@ -76,6 +89,7 @@ const MENU = [
   { key: "review", label: "企業承認" },
   { key: "companies", label: "企業一覧" },
   { key: "contracts", label: "契約・手数料" },
+  { key: "plan", label: "PRO請求" },
   { key: "engineers", label: "人材稼働状況" },
   { key: "mail", label: "メール配信" },
   { key: "aliases", label: "用語辞書" },
@@ -233,6 +247,7 @@ export default function AdminPage() {
               <CompanyListSection token={token} companies={allCompanies} reload={() => load(token)} />
             )}
             {tab === "contracts" && <ContractMonitorSection token={token} />}
+            {tab === "plan" && <PlanInvoiceSection token={token} />}
             {tab === "engineers" && <EngineerMonitorSection token={token} />}
             {tab === "mail" && <MailBroadcastSection token={token} />}
             {tab === "aliases" && <SkillAliasSection token={token} />}
@@ -452,6 +467,34 @@ function CompanyListSection({
   const [error, setError] = useState<string | null>(null);
   const [editCompanyId, setEditCompanyId] = useState<string | null>(null);
   const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
+  const [planCompanyId, setPlanCompanyId] = useState<string | null>(null);
+  const [editPlan, setEditPlan] = useState({
+    plan: "FREE" as AdminCompany["plan"],
+    planExpiresAt: "",
+    planSeats: 5,
+    planBillingCycle: "MONTHLY" as AdminCompany["planBillingCycle"],
+    paymentMethod: "INVOICE" as AdminCompany["paymentMethod"],
+  });
+
+  async function savePlan(id: string) {
+    setError(null);
+    const res = await fetch(`/api/v1/operations/companies/${id}/plan`, {
+      method: "PUT",
+      headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...editPlan,
+        planExpiresAt: editPlan.plan === "FREE" ? null : editPlan.planExpiresAt || null,
+        planSeats: Number(editPlan.planSeats),
+      }),
+    });
+    if (res.ok) {
+      setPlanCompanyId(null);
+      await reload();
+    } else {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "プランの更新に失敗しました");
+    }
+  }
   const [editCo, setEditCo] = useState({
     name: "",
     companyType: "CORPORATION",
@@ -504,7 +547,8 @@ function CompanyListSection({
         <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-1 font-bold">企業一覧（{allCompanies.length}社）</h2>
           <p className="mb-3 text-xs text-slate-500">
-            企業情報の全項目（企業名・種別・法人番号・所在地・派遣許可情報）をここで修正できます。
+            企業情報の全項目（企業名・種別・法人番号・所在地・派遣許可情報）と利用プラン（基本版／PRO お試し／PRO）をここで修正できます。
+            PRO の請求は月額 39,800円（税別・5名込み）、お試しは既定30日です。
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -514,6 +558,7 @@ function CompanyListSection({
                   <th className="px-3 py-2">種別</th>
                   <th className="px-3 py-2">法人番号</th>
                   <th className="px-3 py-2">状態</th>
+                  <th className="px-3 py-2">プラン</th>
                   <th className="px-3 py-2">担当者数</th>
                   <th className="px-3 py-2" />
                 </tr>
@@ -523,7 +568,7 @@ function CompanyListSection({
                   <Fragment key={co.id}>
                   {editCompanyId === co.id ? (
                     <tr className="border-t border-slate-100 bg-slate-50">
-                      <td colSpan={6} className="px-3 py-3">
+                      <td colSpan={7} className="px-3 py-3">
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                           <label className="block text-xs">
                             <span className="mb-1 block font-medium text-slate-600">企業名</span>
@@ -605,7 +650,25 @@ function CompanyListSection({
                       <td className="px-3 py-2 text-xs">{co.companyType === "CORPORATION" ? "法人" : "個人事業者"}</td>
                       <td className="px-3 py-2 text-xs">{co.corporateNumber ?? <span className="text-amber-600">未登録</span>}</td>
                       <td className="px-3 py-2 text-xs">{co.status === "ACTIVE" ? "開通" : co.status === "APPLIED" ? "承認待ち" : "停止"}</td>
-                      <td className="px-3 py-2 text-xs">{co._count.members}</td>
+                      <td className="px-3 py-2 text-xs">
+                        {co.plan === "FREE" ? (
+                          <span className="text-slate-500">基本版</span>
+                        ) : (
+                          <span className={planExpired(co) ? "text-amber-600" : "font-medium text-emerald-700"}>
+                            {PLAN_LABEL[co.plan]}
+                            {planExpired(co) ? "（期限切れ）" : ""}
+                            {co.planExpiresAt && (
+                              <span className="ml-1 text-slate-500">〜{co.planExpiresAt.slice(0, 10)}</span>
+                            )}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        {co._count.members}
+                        {co.plan !== "FREE" && co._count.members > co.planSeats && (
+                          <span className="ml-1 text-amber-600">（追加 {co._count.members - co.planSeats}名）</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-right text-xs">
                         <div className="flex justify-end gap-2">
                           <button
@@ -628,6 +691,21 @@ function CompanyListSection({
                             修正
                           </button>
                           <button
+                            onClick={() => {
+                              setPlanCompanyId(planCompanyId === co.id ? null : co.id);
+                              setEditPlan({
+                                plan: co.plan,
+                                planExpiresAt: co.planExpiresAt ? co.planExpiresAt.slice(0, 10) : "",
+                                planSeats: co.planSeats,
+                                planBillingCycle: co.planBillingCycle,
+                                paymentMethod: co.paymentMethod,
+                              });
+                            }}
+                            className="rounded border border-emerald-300 px-2 py-1 text-emerald-700 hover:bg-emerald-50"
+                          >
+                            プラン
+                          </button>
+                          <button
                             onClick={() => setExpandedCompanyId(expandedCompanyId === co.id ? null : co.id)}
                             className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50"
                           >
@@ -643,9 +721,82 @@ function CompanyListSection({
                       </td>
                     </tr>
                   )}
+                  {planCompanyId === co.id && (
+                    <tr className="bg-emerald-50/40">
+                      <td colSpan={7} className="px-3 py-3">
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                          <label className="block text-xs">
+                            <span className="mb-1 block font-medium text-slate-600">プラン</span>
+                            <select
+                              value={editPlan.plan}
+                              onChange={(e) => setEditPlan({ ...editPlan, plan: e.target.value as AdminCompany["plan"] })}
+                              className="w-full rounded border border-slate-300 px-2 py-1"
+                            >
+                              <option value="FREE">基本版</option>
+                              <option value="TRIAL">PRO お試し</option>
+                              <option value="PRO">PRO</option>
+                            </select>
+                          </label>
+                          <label className="block text-xs">
+                            <span className="mb-1 block font-medium text-slate-600">期限（空欄: お試し30日／PRO 無期限）</span>
+                            <input
+                              type="date"
+                              value={editPlan.planExpiresAt}
+                              disabled={editPlan.plan === "FREE"}
+                              onChange={(e) => setEditPlan({ ...editPlan, planExpiresAt: e.target.value })}
+                              className="w-full rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
+                            />
+                          </label>
+                          <label className="block text-xs">
+                            <span className="mb-1 block font-medium text-slate-600">席数（月額に含む担当者数）</span>
+                            <input
+                              type="number"
+                              min={1}
+                              value={editPlan.planSeats}
+                              onChange={(e) => setEditPlan({ ...editPlan, planSeats: Number(e.target.value) })}
+                              className="w-full rounded border border-slate-300 px-2 py-1"
+                            />
+                          </label>
+                          <label className="block text-xs">
+                            <span className="mb-1 block font-medium text-slate-600">支払周期</span>
+                            <select
+                              value={editPlan.planBillingCycle}
+                              onChange={(e) => setEditPlan({ ...editPlan, planBillingCycle: e.target.value as AdminCompany["planBillingCycle"] })}
+                              className="w-full rounded border border-slate-300 px-2 py-1"
+                            >
+                              <option value="MONTHLY">月払い</option>
+                              <option value="YEARLY">年払い</option>
+                            </select>
+                          </label>
+                          <label className="block text-xs">
+                            <span className="mb-1 block font-medium text-slate-600">決済方法</span>
+                            <select
+                              value={editPlan.paymentMethod}
+                              onChange={(e) => setEditPlan({ ...editPlan, paymentMethod: e.target.value as AdminCompany["paymentMethod"] })}
+                              className="w-full rounded border border-slate-300 px-2 py-1"
+                            >
+                              <option value="INVOICE">請求書払い</option>
+                              <option value="CARD">カード（未提供）</option>
+                            </select>
+                          </label>
+                        </div>
+                        <p className="mt-2 text-xs text-slate-500">
+                          期限切れの PRO／お試しは自動的に基本版として扱われます（データは保持）。開始当月は無料、翌月分から請求です。
+                        </p>
+                        <div className="mt-3 flex justify-end gap-2 text-xs">
+                          <button onClick={() => savePlan(co.id)} className="rounded bg-emerald-600 px-3 py-1.5 font-medium text-white hover:bg-emerald-700">
+                            プランを保存
+                          </button>
+                          <button onClick={() => setPlanCompanyId(null)} className="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-100">
+                            取消
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {expandedCompanyId === co.id && (
                     <tr className="bg-slate-50">
-                      <td colSpan={6} className="px-3 py-3">
+                      <td colSpan={7} className="px-3 py-3">
                         <CompanyMembersPanel companyId={co.id} token={token} />
                       </td>
                     </tr>
@@ -656,6 +807,134 @@ function CompanyListSection({
             </table>
           </div>
         </section>
+    </div>
+  );
+}
+
+// PRO 版の月額請求（PRO版仕様書 §6.1）: 月次の一括生成・一覧・入金消込・取消
+type AdminPlanInvoice = {
+  id: string;
+  companyId: string;
+  companyName: string;
+  month: string;
+  invoiceNumber: string;
+  billingCycle: string;
+  seats: number;
+  activeMembers: number;
+  extraSeats: number;
+  amountExTaxYen: number;
+  taxYen: number;
+  totalYen: number;
+  status: "ISSUED" | "PAID" | "VOID";
+  dueAt: string;
+  paidAt: string | null;
+};
+
+function PlanInvoiceSection({ token }: { token: string }) {
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const [month, setMonth] = useState(thisMonth);
+  const [items, setItems] = useState<AdminPlanInvoice[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const headers = { "X-Admin-Token": token, "Content-Type": "application/json" };
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/v1/operations/plan-invoices`, { headers });
+    if (res.ok) setItems(((await res.json()) as { items: AdminPlanInvoice[] }).items);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function generate() {
+    if (!window.confirm(`${month} 分の PRO 請求書を一括生成しますか？（対象企業の代表へメール通知されます）`)) return;
+    setError(null);
+    setMessage(null);
+    const res = await fetch(`/api/v1/operations/plan-invoices/generate?month=${month}`, { method: "POST", headers });
+    const b = await res.json().catch(() => null);
+    if (res.ok) {
+      setMessage(`${b.month} 分: ${b.created}件発行、${b.skipped}件スキップ（発行済み・対象外）`);
+      await load();
+    } else setError(b?.error?.message ?? "生成に失敗しました");
+  }
+  async function act(id: string, action: "paid" | "void") {
+    if (!window.confirm(action === "paid" ? "入金済みにしますか？" : "この請求書を取消しますか？")) return;
+    setError(null);
+    const res = await fetch(`/api/v1/operations/plan-invoices/${id}/${action}`, { method: "PUT", headers });
+    if (res.ok) await load();
+    else {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "更新に失敗しました");
+    }
+  }
+  const yen = (v: number) => `${v.toLocaleString()}円`;
+  const statusLabel = { ISSUED: "未入金", PAID: "入金済み", VOID: "取消" } as const;
+  return (
+    <div>
+      {error && <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+      {message && <p className="mb-4 rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p>}
+      <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-1 font-bold">PRO 版の月額請求</h2>
+        <p className="mb-3 text-xs text-slate-500">
+          対象月の1日時点で PRO・請求書払い・開始月が対象月より前の企業に請求書を発行します（企業×月で1枚。再実行は発行済みをスキップ）。
+          金額は 39,800円 ＋ 追加担当者 4,000円/名（年払いは更新月のみ 398,000円）。日割りなし。
+        </p>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
+          <button onClick={generate} className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">
+            この月の請求書を一括生成
+          </button>
+        </div>
+      </section>
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-3 font-bold">請求書一覧（{items.length}件）</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-left text-xs text-slate-500">
+              <tr>
+                <th className="px-3 py-2">対象月</th>
+                <th className="px-3 py-2">番号</th>
+                <th className="px-3 py-2">企業</th>
+                <th className="px-3 py-2">担当者/席</th>
+                <th className="px-3 py-2 text-right">税込</th>
+                <th className="px-3 py-2">期限</th>
+                <th className="px-3 py-2">状態</th>
+                <th className="px-3 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((i) => (
+                <tr key={i.id} className="border-t border-slate-100">
+                  <td className="px-3 py-2">{i.month}</td>
+                  <td className="px-3 py-2 text-xs">{i.invoiceNumber}</td>
+                  <td className="px-3 py-2">{i.companyName}</td>
+                  <td className="px-3 py-2 text-xs">
+                    {i.activeMembers}/{i.seats}
+                    {i.extraSeats > 0 && <span className="ml-1 text-amber-600">+{i.extraSeats}</span>}
+                    {i.billingCycle === "YEARLY" && <span className="ml-1 text-slate-500">年</span>}
+                  </td>
+                  <td className="px-3 py-2 text-right">{yen(i.totalYen)}</td>
+                  <td className="px-3 py-2 text-xs">{i.dueAt.slice(0, 10)}</td>
+                  <td className="px-3 py-2 text-xs">
+                    <span className={i.status === "PAID" ? "text-emerald-700" : i.status === "VOID" ? "text-slate-400 line-through" : "text-amber-700"}>
+                      {statusLabel[i.status]}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-right text-xs">
+                    {i.status === "ISSUED" && (
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => act(i.id, "paid")} className="rounded border border-emerald-300 px-2 py-1 text-emerald-700 hover:bg-emerald-50">入金消込</button>
+                        <button onClick={() => act(i.id, "void")} className="rounded border border-red-300 px-2 py-1 text-red-600 hover:bg-red-50">取消</button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }
@@ -696,6 +975,7 @@ function InquiriesSection({
             <div key={q.id} className="rounded border border-slate-100 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">
+                  {q.priority && <span className="mr-2 rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">PRO 優先</span>}
                   {q.code}　{q.category}
                   <span className="ml-2 text-xs font-normal text-slate-500">
                     {q.companyName} ／ {new Date(q.createdAt).toLocaleString("ja-JP")}

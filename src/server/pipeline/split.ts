@@ -112,3 +112,51 @@ export function splitFilename(filename: string, index: number, totalCount: numbe
   const ext = m?.[2] ?? "";
   return `${base}（${index}/${totalCount}）${ext}`;
 }
+
+// ---- 人材書類の複数件分割（PRO版仕様書 §4.2）----
+// スキルシート1枚に複数名が含まれる場合、LLM が「人数」と「2人目以降の記載が始まる行（原文のまま）」を
+// 判定し（llm.ts splitEngineerSheets）、ここでその行を境界にローカルで分割する。
+// LLM に全文を書き直させない（原文の欠落・改変を防ぐ）ため、境界行の照合だけを行う。
+// 境界行は行頭の装飾・空白・全半角のゆれを吸収して照合し、1人目の冒頭（表紙・挨拶文）は1件目に含める
+
+function normalizeBoundary(line: string): string {
+  return line.normalize("NFKC").replace(/\s+/g, "").replace(/^[【\[〔（(●■◆◇▼△★☆※＊*・〇○◎>＞\-ー―－]+/, "");
+}
+
+// count: LLM が判定した人数。boundaries が人数分あれば先頭の境界は1人目の開始（＝文書先頭に含める）とみなし、
+// 人数より少なければ「2人目以降の開始行だけが返された」とみなして全てを切れ目にする
+export function splitEngineerSegments(text: string, boundaries: string[], count?: number): string[] {
+  const lines = text.split(/\r?\n/);
+  const normalizedLines = lines.map(normalizeBoundary);
+  const indices: number[] = [];
+  let from = 0;
+  for (const b of boundaries) {
+    const nb = normalizeBoundary(b);
+    if (!nb) continue;
+    // 前の境界より後ろで、正規化後に一致（または前方一致）する最初の行を探す
+    let found = -1;
+    for (let i = from; i < lines.length; i++) {
+      const nl = normalizedLines[i];
+      if (nl && (nl === nb || nl.startsWith(nb) || nb.startsWith(nl) && nl.length >= 4)) {
+        found = i;
+        break;
+      }
+    }
+    if (found < 0) continue;
+    indices.push(found);
+    from = found + 1;
+  }
+  // 1人目の開始は常に文書の先頭（最初に見つかった境界が先頭でなくても、表紙・挨拶文はその人に含める）
+  const includesFirstPerson = count == null || boundaries.length >= count;
+  const cuts = (includesFirstPerson ? indices.slice(1) : indices).filter((i) => i > 0);
+  const heads = [0, ...cuts];
+  if (heads.length < 2) return [text];
+  const capped = heads.slice(0, MAX_SPLIT_ITEMS);
+  const segments: string[] = [];
+  for (let i = 0; i < capped.length; i++) {
+    const end = i + 1 < capped.length ? capped[i + 1] : lines.length;
+    const seg = lines.slice(capped[i], end).join("\n").trim();
+    if (seg) segments.push(seg);
+  }
+  return segments.length >= 2 ? segments : [text];
+}

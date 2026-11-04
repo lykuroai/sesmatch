@@ -372,7 +372,7 @@ export default async function EntriesPage({
 
       <Pager total={groups.length} page={page} basePath="/entries" params={{ ...filterParams, tab: tab !== "all" ? tab : undefined }} />
       <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
-        <DirectionIcon own={true} />：自社が提案を開始 ／ <DirectionIcon own={false} />：他社が提案を開始 ／ 商談先の企業名は双方合意後に表示されます
+        <DirectionIcon own={true} />：自社が提案を開始 ／ <DirectionIcon own={false} />：他社が提案を開始 ／ {auth.plan === "FREE" ? "商談先の企業名は双方合意後に表示されます" : "PRO 版のため商談先の掲載企業名を表示しています（担当者名・人材氏名は双方合意後）"}
       </p>
     </div>
   );

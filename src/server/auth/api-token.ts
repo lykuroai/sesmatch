@@ -8,6 +8,7 @@ import { prisma } from "@/server/db";
 import { audit } from "@/server/audit";
 import { hasPermission, type Permission } from "./rbac";
 import type { AuthContext } from "./session";
+import { effectivePlan } from "@/server/plan/features";
 
 export const TOKEN_PREFIX = "ses_pat_";
 
@@ -70,6 +71,7 @@ export async function resolveApiToken(bearer: string | undefined): Promise<ApiTo
       companyId: token.member.companyId,
       companyName: token.member.company.name,
       roles: token.member.roles.map((r) => r.role),
+      plan: effectivePlan(token.member.company),
     },
     tokenPermissions: scopePermissions,
   };

@@ -11,7 +11,8 @@ async function main() {
 
   // ---- A社（案件を多く持つ企業）----
   const companyA = await prisma.company.create({
-    data: { name: "株式会社アルファシステムズ", companyType: "CORPORATION", status: "ACTIVE" },
+    // デモ用に A社 は PRO 版（相手企業名の明示など PRO 機能を確認できる）。B社 は基本版
+    data: { name: "株式会社アルファシステムズ", companyType: "CORPORATION", status: "ACTIVE", plan: "PRO", planStartedAt: new Date() },
   });
   const ownerA = await prisma.userAccount.create({
     data: { email: "owner-a@example.com", passwordHash, name: "青山 一郎" },

@@ -19,10 +19,12 @@ export default function PublicFooter() {
         </div>
         <nav className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600">
           <Link href="/about" className="hover:text-blue-700">サービス紹介</Link>
+          <Link href="/pricing" className="hover:text-blue-700">料金</Link>
           <Link href="/apply/rules" className="hover:text-blue-700">企業登録のルール</Link>
           <Link href="/terms" className="hover:text-blue-700">利用規約</Link>
           <Link href="/agreement" className="hover:text-blue-700">基本契約</Link>
           <Link href="/privacy-policy" className="hover:text-blue-700">プライバシーポリシー</Link>
+          <Link href="/tokushoho" className="hover:text-blue-700">特定商取引法に基づく表記</Link>
         </nav>
       </div>
     </footer>

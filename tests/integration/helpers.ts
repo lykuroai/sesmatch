@@ -14,6 +14,11 @@ export async function truncateAll() {
   }
   // 追記型監査を含め全テーブルを初期化（テストDB専用）
   const tables = [
+    "inquiry_messages",
+    "inquiries",
+    "plan_invoices",
+    "saved_search_hits",
+    "saved_searches",
     "api_tokens",
     "audit_events",
     "reports",
@@ -79,7 +84,22 @@ export async function makeCompany(name: string, roles: string[] = ["OWNER"]): Pr
     companyId: company.id,
     companyName: company.name,
     roles,
+    plan: "FREE",
   };
+}
+
+// 企業のプランを変更し、更新後の AuthContext を返す（PRO版仕様書 §5 のテスト用）
+export async function setPlan(
+  base: AuthContext,
+  plan: "FREE" | "TRIAL" | "PRO",
+  planExpiresAt: Date | null = null
+): Promise<AuthContext> {
+  await prisma.company.update({
+    where: { id: base.companyId },
+    data: { plan, planExpiresAt, planStartedAt: plan === "FREE" ? null : new Date() },
+  });
+  const effective = plan !== "FREE" && planExpiresAt && planExpiresAt < new Date() ? "FREE" : plan;
+  return { ...base, plan: effective };
 }
 
 // 同一企業に別ロールの担当者を追加した AuthContext

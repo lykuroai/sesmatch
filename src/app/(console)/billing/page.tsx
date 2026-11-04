@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
 import { hasPermission } from "@/server/auth/rbac";
 import { listFeesDetailed, listInvoices } from "@/server/services/billing";
+import { getOwnPlan } from "@/server/services/companies";
+import { listOwnPlanInvoices } from "@/server/services/plan-billing";
+import { PLAN_LABELS } from "@/server/plan/features";
 import { calcTax } from "@/server/billing/fee";
 import { ActionButton } from "@/components/ActionButton";
 
@@ -21,7 +24,13 @@ export default async function BillingPage() {
       </div>
     );
   }
-  const [fees, invoices] = await Promise.all([listFeesDetailed(auth), listInvoices(auth)]);
+  const [fees, invoices, plan, planInvoices] = await Promise.all([
+    listFeesDetailed(auth),
+    listInvoices(auth),
+    getOwnPlan(auth),
+    listOwnPlanInvoices(auth),
+  ]);
+  const planStatusLabel: Record<string, string> = { ISSUED: "未入金", PAID: "入金済み", VOID: "取消" };
   const canManage = hasPermission(auth.roles, "billing.manage");
   const invoiceByMonth = new Map(invoices.map((inv) => [inv.month, inv]));
 
@@ -38,6 +47,78 @@ export default async function BillingPage() {
         現在、基本版は完全無料のため成約手数料は発生しません（全稼働月0円）。
         この画面には過去に請求が発生した場合の明細・請求書のみ表示されます。
       </p>
+
+      {/* プラン・請求（PRO版仕様書 §6.1, §11） */}
+      <section className="mb-6 rounded-xl border border-emerald-200 bg-white p-5 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-bold">プラン・請求</h2>
+          <span className={`rounded px-2 py-0.5 text-xs font-bold ${plan.effectivePlan === "FREE" ? "bg-slate-100 text-slate-600" : "bg-emerald-600 text-white"}`}>
+            {PLAN_LABELS[plan.effectivePlan]}
+          </span>
+        </div>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
+          <dt className="text-xs text-slate-500">現在のプラン</dt>
+          <dd>
+            {PLAN_LABELS[plan.plan]}
+            {plan.plan !== "FREE" && plan.effectivePlan === "FREE" && <span className="ml-1 text-xs text-amber-600">（期限切れ）</span>}
+          </dd>
+          <dt className="text-xs text-slate-500">期限</dt>
+          <dd>{plan.planExpiresAt ? new Date(plan.planExpiresAt).toLocaleDateString("ja-JP") : plan.plan === "FREE" ? "-" : "無期限"}</dd>
+          <dt className="text-xs text-slate-500">担当者数 / 席数</dt>
+          <dd>
+            {plan.activeMembers} / {plan.planSeats}名
+            {plan.plan === "PRO" && plan.activeMembers > plan.planSeats && (
+              <span className="ml-1 text-xs text-amber-600">（追加 {plan.activeMembers - plan.planSeats}名）</span>
+            )}
+          </dd>
+          <dt className="text-xs text-slate-500">支払</dt>
+          <dd>{plan.planBillingCycle === "YEARLY" ? "年払い" : "月払い"} / {plan.paymentMethod === "CARD" ? "カード" : "請求書払い"}</dd>
+        </dl>
+        {plan.effectivePlan === "FREE" ? (
+          <p className="mt-3 text-xs text-slate-500">
+            PRO 版（月額 39,800円・税別）のお申込は「お問合せ」から。
+            <Link href="/pricing" className="ml-1 text-blue-700 hover:underline">料金を見る</Link>
+          </p>
+        ) : (
+          <div className="mt-4">
+            <h3 className="mb-2 text-sm font-bold">PRO 版の請求書</h3>
+            {planInvoices.length === 0 ? (
+              <p className="text-sm text-slate-400">請求書はまだありません（開始当月は無料、翌月分から月初に発行されます）</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs text-slate-500">
+                  <tr>
+                    <th className="py-1.5">対象月</th>
+                    <th className="py-1.5">請求書番号</th>
+                    <th className="py-1.5 text-right">金額（税込）</th>
+                    <th className="py-1.5">支払期限</th>
+                    <th className="py-1.5">状態</th>
+                    <th className="py-1.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {planInvoices.map((inv) => (
+                    <tr key={inv.id} className="border-t border-slate-100">
+                      <td className="py-1.5">{inv.month}</td>
+                      <td className="py-1.5">{inv.invoiceNumber}</td>
+                      <td className="py-1.5 text-right">{yen(inv.totalYen)}</td>
+                      <td className="py-1.5">{new Date(inv.dueAt).toLocaleDateString("ja-JP")}</td>
+                      <td className="py-1.5">
+                        <span className={`rounded px-1.5 py-0.5 text-xs ${inv.status === "PAID" ? "bg-emerald-50 text-emerald-700" : inv.status === "VOID" ? "bg-slate-100 text-slate-500 line-through" : "bg-amber-50 text-amber-700"}`}>
+                          {planStatusLabel[inv.status]}
+                        </span>
+                      </td>
+                      <td className="py-1.5 text-right">
+                        <Link href={`/billing/plan-invoices/${inv.id}`} className="text-blue-700 hover:underline">請求書</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+      </section>
 
       {months.length === 0 && (
         <p className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-400 shadow-sm">

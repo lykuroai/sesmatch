@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { prisma } from "@/server/db";
+import { effectivePlan, type CompanyPlan } from "@/server/plan/features";
 
 export const SESSION_COOKIE = "sesmatch_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 8; // 8時間
@@ -12,6 +13,7 @@ export type AuthContext = {
   companyId: string; // 企業IDは認証情報から確定し、入力値を信用しない（§31）
   companyName: string;
   roles: string[];
+  plan: CompanyPlan; // 実効プラン（期限切れの TRIAL/PRO は FREE。PRO版仕様書 §5）
 };
 
 export async function createSession(userAccountId: string): Promise<{ token: string; expiresAt: Date }> {
@@ -48,5 +50,6 @@ export async function resolveSession(token: string | undefined): Promise<AuthCon
     companyId: member.companyId,
     companyName: member.company.name,
     roles: member.roles.map((r) => r.role),
+    plan: effectivePlan(member.company),
   };
 }

@@ -14,6 +14,7 @@ import {
   REMOTE_LEVEL_LABELS,
 } from "@/lib/constants";
 import { IngestPanel } from "@/components/IngestPanel";
+import { SavedSearchPanel } from "@/components/SavedSearchPanel";
 import { PendingIngestions } from "@/components/PendingIngestions";
 import { Pager, parsePage, slicePage } from "@/components/Pager";
 import { NewBadge } from "@/components/NewBadge";
@@ -218,7 +219,12 @@ export default async function EngineersPage({
         expectedKind="ENGINEER_SHEET"
         label="スキルシート・紹介メールから取込"
         hint="人材のスキルシートや紹介メールの本文を貼り付け・アップロードするだけで登録できます。"
-        note="複数人材の同時取込には対応していません。1回の取込で登録できる人材は1名です。1つのファイル・貼り付けに複数名が含まれていても分割されず、先頭の1名分として抽出されることがあります。人材ごとにファイルや貼り付けを分けて取り込んでください（複数ページの書類・撮影画像を1名分としてまとめる取込は可能です）。"
+        bulkEnabled={auth.plan !== "FREE"}
+        note={
+          auth.plan !== "FREE"
+            ? "PRO 版の複数人材取込: 複数のスキルシートファイルを選んで一括取込（最大20ファイル）できます。また、1つのファイル・貼り付けに複数名が含まれる場合は AI が人数を判定して人材ごとに自動分割します（最大10名。2名以上と判定された場合のみ）。書式によっては分割位置がずれることがあるため、取込履歴の確認画面で各人の内容を確認し、不要な分は削除してください。"
+            : "複数人材の同時取込には対応していません。1回の取込で登録できる人材は1名です。1つのファイル・貼り付けに複数名が含まれていても分割されず、先頭の1名分として抽出されることがあります。人材ごとにファイルや貼り付けを分けて取り込んでください（複数ページの書類・撮影画像を1名分としてまとめる取込は可能です）。複数ファイルの一括取込と複数名の自動分割は PRO 版の機能です。"
+        }
         action={
           <Link
             href="/engineers/new"
@@ -343,6 +349,24 @@ export default async function EngineersPage({
           </Link>
         </div>
       </form>
+
+      {/* PRO: 保存した検索条件と新着アラート（PRO版仕様書 §4.3）。判定はサーバー側でも行う */}
+      {auth.plan !== "FREE" && (
+        <SavedSearchPanel
+          kind="ENGINEER"
+          basePath="/engineers"
+          currentCriteria={{
+            q: sp.q || undefined,
+            skills: skills.length > 0 ? skills : undefined,
+            rateMin: rateMin ?? undefined,
+            rateMax: rateMax ?? undefined,
+            remote: remote !== "all" ? remote : undefined,
+            location: location !== "all" ? location : undefined,
+            start: startWithin !== "all" ? startWithin : undefined,
+          }}
+          currentQuery={[sp.q, skills.join(","), sp.rateMin, sp.rateMax, remote !== "all" ? remote : "", location !== "all" ? location : "", startWithin !== "all" ? startWithin : ""].filter(Boolean).join("&")}
+        />
+      )}
 
       {/* 対象案件選択時: 対象の表示とマッチ条件チップ */}
       {targetProject && (

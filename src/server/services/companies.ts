@@ -8,6 +8,10 @@ import { randomBytes } from "crypto";
 import { sendMail, appBaseUrl } from "@/server/mail";
 import { checkCompanyDuplicate } from "@/server/pipeline/llm-company-check";
 import { judgeCompanyDuplicate, registryJurisdiction } from "@/server/services/company-duplicate";
+import { effectivePlan } from "@/server/plan/features";
+
+// PRO お試し期間（PRO版仕様書 §2）
+export const TRIAL_DAYS = 30;
 
 // 企業IDから現在の企業名を引くマップ（社名変更を表示へ即時反映するため。開示スナップショットの代替表示に使う）
 export async function companyNameMap(ids: string[]): Promise<Map<string, string>> {
@@ -1128,4 +1132,96 @@ export async function deleteMember(auth: AuthContext, memberId: string) {
     targetId: memberId, // 監査ログに氏名・メール等の PII は含めない
   });
   return { ok: true as const };
+}
+
+// ---- 利用プラン（PRO版仕様書 §2, §5, §8.1）----
+
+// 自社のプラン情報（企業コンソール表示用）
+export async function getOwnPlan(auth: AuthContext) {
+  const c = await prisma.company.findUniqueOrThrow({
+    where: { id: auth.companyId },
+    select: {
+      plan: true,
+      planStartedAt: true,
+      planExpiresAt: true,
+      planSeats: true,
+      planBillingCycle: true,
+      paymentMethod: true,
+    },
+  });
+  const activeMembers = await prisma.companyMember.count({
+    where: { companyId: auth.companyId, status: "ACTIVE" },
+  });
+  return {
+    plan: c.plan,
+    effectivePlan: effectivePlan(c),
+    planStartedAt: c.planStartedAt,
+    planExpiresAt: c.planExpiresAt,
+    planSeats: c.planSeats,
+    planBillingCycle: c.planBillingCycle,
+    paymentMethod: c.paymentMethod,
+    activeMembers,
+  };
+}
+
+// 運営: プラン変更（TRIAL 付与・PRO 開始・期限・席数・決済方法）。企業側からは変更できない。
+// 期限は FREE では持たない。TRIAL は期限必須（既定 30日）。監査に記録する（個人情報は含めない）
+export async function updateCompanyPlanByOperations(
+  companyId: string,
+  input: {
+    plan: "FREE" | "TRIAL" | "PRO";
+    planExpiresAt?: string | null; // "YYYY-MM-DD"（その日の終わり JST まで有効）または null
+    planSeats?: number;
+    planBillingCycle?: "MONTHLY" | "YEARLY";
+    paymentMethod?: "INVOICE" | "CARD";
+  }
+) {
+  const company = await prisma.company.findUnique({ where: { id: companyId } });
+  if (!company) return { error: { code: "NOT_FOUND" as const } };
+
+  let planExpiresAt: Date | null = null;
+  if (input.plan !== "FREE") {
+    if (input.planExpiresAt) {
+      // 日付のみの指定はその日の 23:59:59 JST（= 翌日 00:00 JST の直前）まで有効とする
+      const d = new Date(`${input.planExpiresAt}T23:59:59+09:00`);
+      if (isNaN(d.getTime()))
+        return { error: { code: "VALIDATION_ERROR" as const, message: "期限の日付が不正です" } };
+      planExpiresAt = d;
+    } else if (input.plan === "TRIAL") {
+      planExpiresAt = new Date(Date.now() + TRIAL_DAYS * 86_400_000);
+    }
+  }
+  const planSeats = input.planSeats ?? company.planSeats;
+  if (!Number.isInteger(planSeats) || planSeats < 1)
+    return { error: { code: "VALIDATION_ERROR" as const, message: "席数は1以上の整数で入力してください" } };
+
+  const startedAt =
+    input.plan === "FREE" ? null : company.plan === "FREE" || company.plan !== input.plan ? new Date() : company.planStartedAt;
+  const updated = await prisma.company.update({
+    where: { id: companyId },
+    data: {
+      plan: input.plan,
+      planExpiresAt,
+      planStartedAt: startedAt,
+      planSeats,
+      planBillingCycle: input.planBillingCycle ?? company.planBillingCycle,
+      paymentMethod: input.paymentMethod ?? company.paymentMethod,
+    },
+  });
+  await audit({
+    tenantCompanyId: companyId,
+    action: "company.plan.update",
+    targetType: "Company",
+    targetId: companyId,
+    metadata: {
+      from: company.plan,
+      to: updated.plan,
+      planExpiresAt: updated.planExpiresAt?.toISOString() ?? null,
+      planSeats: updated.planSeats,
+      planBillingCycle: updated.planBillingCycle,
+      paymentMethod: updated.paymentMethod,
+      by: "operations",
+    },
+  });
+  return { ok: true, plan: updated.plan, planExpiresAt: updated.planExpiresAt, planStartedAt: updated.planStartedAt };
 }

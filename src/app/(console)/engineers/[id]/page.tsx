@@ -52,9 +52,9 @@ export default async function EngineerDetailPage({
             {e.name && <span className="ml-2">{e.name}</span>}
             {!e.own &&
               (e.partnerCompanyName ? (
-                // 登録済み取引先の人材は掲載企業名を表示（人材本人の氏名等は匿名のまま）
+                // 掲載企業名を表示（基本版は登録済み取引先のみ、PRO 版は全他社。人材本人の氏名等は匿名のまま）
                 <span className="ml-3 rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
-                  取引先: {e.partnerCompanyName}
+                  掲載企業: {e.partnerCompanyName}
                 </span>
               ) : (
                 <span className="ml-3 rounded bg-indigo-50 px-2 py-1 text-xs text-indigo-600">他社（匿名表示）</span>

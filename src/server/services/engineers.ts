@@ -4,9 +4,9 @@ import type { AuthContext } from "@/server/auth/session";
 import { hasPermission } from "@/server/auth/rbac";
 import { ageBandLabel, rateBand, remoteLevelToOnsiteDays, LIST_PAGE_SIZE } from "@/lib/constants";
 import { expandSearchTerms, registerNewTermAliases } from "./skill-aliases";
-import { registeredPartnerNames } from "./partners";
-import { STORAGE_DIR, truncateFilenameBytes } from "@/server/pipeline/ingest";
-import { extractDocumentText, isSkillSheetFile } from "@/server/pipeline/extract-text";
+import { visibleCompanyNames } from "./partners";
+// OCR（sharp 等）を含む extract-text は使う関数内で動的 import する（定期処理の import 連鎖に重い依存を入れない）
+import { STORAGE_DIR, truncateFilenameBytes } from "@/server/pipeline/storage";
 import { llmGateway } from "@/server/pipeline/llm";
 import { mkdir, writeFile, readFile } from "fs/promises";
 import path from "path";
@@ -33,7 +33,7 @@ type EngineerWithRels = Engineer & { skills: EngineerSkill[]; consents: PersonCo
 export function serializeEngineer(
   e: EngineerWithRels,
   auth: AuthContext,
-  partnerNames?: Map<string, string> // 登録済み取引先の実名表示（partners.ts）
+  partnerNames?: Map<string, string> // 表示してよい掲載企業名（partners.ts visibleCompanyNames）
 ) {
   const own = e.tenantCompanyId === auth.companyId;
   const canPii = own && hasPermission(auth.roles, "engineer.read.pii");
@@ -41,7 +41,7 @@ export function serializeEngineer(
     id: e.id,
     code: e.code,
     own,
-    // 企業間関係に登録済みの取引先の他社人材のみ掲載企業名を開示（人材本人の氏名等は開示しない）
+    // 他社人材の掲載企業名: 基本版は登録済み取引先のみ、PRO 版は全他社（人材本人の氏名等は開示しない）
     partnerCompanyName: own ? undefined : partnerNames?.get(e.tenantCompanyId),
     createdAt: e.createdAt.toISOString(), // 一覧のNEW表示用
     ageBand: ageBandLabel(e.ageBand),
@@ -131,7 +131,7 @@ export async function listEngineers(
       orderBy: { createdAt: "desc" },
       ...(page ? { skip: (page - 1) * LIST_PAGE_SIZE, take: LIST_PAGE_SIZE } : {}),
     }),
-    scope === "public" ? registeredPartnerNames(auth.companyId) : undefined,
+    scope === "public" ? visibleCompanyNames(auth) : undefined,
   ]);
   return { items: engineers.map((e) => serializeEngineer(e, auth, partnerNames)), total };
 }
@@ -146,7 +146,7 @@ export async function getEngineer(auth: AuthContext, id: string) {
   if (e.deletedAt && e.tenantCompanyId !== auth.companyId) return null; // 論理削除済み（§26）
   if (e.tenantCompanyId !== auth.companyId && e.status !== "PUBLISHED") return null;
   const partnerNames =
-    e.tenantCompanyId === auth.companyId ? undefined : await registeredPartnerNames(auth.companyId);
+    e.tenantCompanyId === auth.companyId ? undefined : await visibleCompanyNames(auth);
   return {
     ...serializeEngineer(e, auth, partnerNames),
     // 職務経歴書（原本・PII含む）: 自社のみファイル名を返す。取得はPII権限で別途制御
@@ -167,6 +167,7 @@ export async function attachSkillSheet(
     include: { skills: true },
   });
   if (!engineer) return { error: { code: "NOT_FOUND" as const } };
+  const { isSkillSheetFile } = await import("@/server/pipeline/extract-text");
   if (!isSkillSheetFile(file.filename))
     return {
       error: {
@@ -258,6 +259,7 @@ async function extractSheetIntoEngineer(
   let updatedMonths = 0;
   let extractWarning: string | null = null;
   try {
+    const { extractDocumentText } = await import("@/server/pipeline/extract-text");
     const text = await extractDocumentText(filename, content);
     const extracted = await llmGateway.extract(text, "ENGINEER_SHEET");
     if (extracted.kind === "ENGINEER_SHEET") {

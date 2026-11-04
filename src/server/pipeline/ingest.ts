@@ -8,7 +8,7 @@ import path from "path";
 import { prisma } from "@/server/db";
 import { llmGateway } from "./llm";
 import { extractDocumentText } from "./extract-text";
-import { splitFilename, splitProjectItems } from "./split";
+import { splitEngineerSegments, splitFilename, splitProjectItems } from "./split";
 import { demoteLearnableSkills } from "./skill-rules";
 import { audit } from "@/server/audit";
 import {
@@ -18,7 +18,9 @@ import {
   reportSystemError,
 } from "@/server/system-error";
 
-export const STORAGE_DIR = process.env.STORAGE_DIR ?? "./storage";
+// STORAGE_DIR / truncateFilenameBytes は storage.ts に分離（互換のため再エクスポート）
+export { STORAGE_DIR, truncateFilenameBytes } from "./storage";
+import { STORAGE_DIR, truncateFilenameBytes } from "./storage";
 
 // 取込パネルで指定される期待種別（案件取込 / 人材取込）
 export type ExpectedKind = "ENGINEER_SHEET" | "PROJECT_DESCRIPTION";
@@ -28,26 +30,6 @@ const KIND_LABELS: Record<ExpectedKind, string> = {
   PROJECT_DESCRIPTION: "案件",
 };
 
-// 保存用ファイル名をUTF-8のバイト長で安全に切り詰める（ext4等の255バイト制限対策。拡張子は保持）。
-// 表示用の filename（DB）は切り詰めず、ディスク上のパスだけを短くする。
-// パストラバーサル対策（§31）: ディレクトリ区切り・先頭ドットを除去し、保存先ディレクトリの
-// 脱出（`../` 等による他テナント領域や任意パスへの書き込み）を防ぐ。
-export function truncateFilenameBytes(filename: string, maxBytes: number): string {
-  const safe = path
-    .basename(filename) // ディレクトリ部を除去（posixのセパレータ）
-    .replace(/[/\\]/g, "_") // 残存する区切り（Windows形式等）も無効化
-    .replace(/^\.+/, ""); // 先頭ドット（`..` 等）を除去
-  const ext = path.extname(safe).slice(0, 20);
-  const base = safe.slice(0, safe.length - ext.length);
-  const budget = maxBytes - Buffer.byteLength(ext, "utf-8");
-  let out = "";
-  for (const ch of base) {
-    if (Buffer.byteLength(out + ch, "utf-8") > budget) break;
-    out += ch;
-  }
-  return (out || "document") + ext;
-}
-
 export async function startIngestion(params: {
   tenantCompanyId: string;
   memberId: string;
@@ -56,6 +38,8 @@ export async function startIngestion(params: {
   mimeType: string;
   content: Buffer; // MVP はテキスト系ファイルのみ対応
   expectedKind?: ExpectedKind; // 取込元パネルの期待種別。指定時はLLM分類との不一致を失敗にする
+  batchId?: string; // 一括取込のまとまり（PRO版仕様書 §4.2）
+  splitEngineers?: boolean; // 人材書類の複数件分割（PRO）。LLM が人数を判定し人材ごとに分割する
 }) {
   // 原本保存
   await mkdir(path.join(STORAGE_DIR, params.tenantCompanyId), { recursive: true });
@@ -81,6 +65,7 @@ export async function startIngestion(params: {
       tenantCompanyId: params.tenantCompanyId,
       sourceDocumentId: doc.id,
       expectedKind: params.expectedKind ?? null,
+      batchId: params.batchId ?? null,
     },
   });
   await audit({
@@ -89,7 +74,11 @@ export async function startIngestion(params: {
     action: "DocumentReceived",
     targetType: "SourceDocument",
     targetId: doc.id,
-    metadata: { filename: params.filename, expectedKind: params.expectedKind ?? null },
+    metadata: {
+      filename: params.filename,
+      expectedKind: params.expectedKind ?? null,
+      batchId: params.batchId ?? null,
+    },
   });
 
   // 非同期実行（§5, §32）: 受付後すぐジョブを返し、テキスト抽出（OCR含む）〜LLM正規化は裏で進める。
@@ -104,6 +93,7 @@ export async function startIngestion(params: {
     filename: params.filename,
     content: params.content,
     expectedKind: params.expectedKind,
+    splitEngineers: params.splitEngineers,
   });
 
   return prisma.ingestionJob.findUniqueOrThrow({
@@ -141,6 +131,7 @@ async function processDocument(params: {
   filename: string;
   content: Buffer;
   expectedKind?: ExpectedKind;
+  splitEngineers?: boolean;
 }) {
   let text: string;
   try {
@@ -152,11 +143,17 @@ async function processDocument(params: {
 
   // 複数案件が含まれる場合（【案件名】見出しが2つ以上）は案件ごとに分割し、
   // それぞれ別の取込（原本・ジョブ・人手確認）として処理する。
-  // 人材取込（期待種別=ENGINEER_SHEET）では分割しない: スキルシートの職務経歴は
+  // 人材取込（期待種別=ENGINEER_SHEET）では案件分割を適用しない: スキルシートの職務経歴は
   // 「案件名」「期間」「業務内容」等が経歴ごとに繰り返される構造のため、案件分割の
-  // 見出し判定に誤ヒットして1名分の経歴が裁断されるのを防ぐ
+  // 見出し判定に誤ヒットして1名分の経歴が裁断されるのを防ぐ。
+  // PRO 版（splitEngineers）の人材取込では、LLM が人数と各人の開始行を判定し人材ごとに分割する
+  // （PRO版仕様書 §4.2。2名以上と判定された場合のみ）
   const segments =
-    params.expectedKind === "ENGINEER_SHEET" ? [text] : splitProjectItems(text);
+    params.expectedKind === "ENGINEER_SHEET"
+      ? params.splitEngineers
+        ? await splitEngineerText(params, text)
+        : [text]
+      : splitProjectItems(text);
 
   // 分割済み（ファイル名に（i/N）付き）のジョブの再実行では分割し直さない。
   // 1件目の原本には全文が保存されているため、自分の担当分（先頭セグメント）のみ処理する
@@ -169,6 +166,12 @@ async function processDocument(params: {
       text: segments[0],
       expectedKind: params.expectedKind,
     });
+    return;
+  }
+
+  if (segments.length > 1 && params.expectedKind === "ENGINEER_SHEET") {
+    // 人材の複数件分割（PRO）: LLM の人数判定を信頼し、人材ごとに別ジョブとして処理する
+    await processSegments(params, segments);
     return;
   }
 
@@ -229,7 +232,30 @@ async function processDocument(params: {
   });
 }
 
-// 分割された案件テキストを順に処理する。
+// 人材書類の複数件分割（PRO版仕様書 §4.2）: LLM が人数と各人の開始行を判定し、ローカルで分割する。
+// LLM 障害・不正応答は分割しない（1名として処理）。障害は運営が追跡できるよう記録する
+async function splitEngineerText(
+  params: { tenantCompanyId: string; jobId: string },
+  text: string
+): Promise<string[]> {
+  try {
+    const split = await llmGateway.splitEngineerSheets(text);
+    if (split.count < 2 || split.boundaries.length < 2) return [text];
+    return splitEngineerSegments(text, split.boundaries, split.count);
+  } catch (e) {
+    await reportSystemError({
+      source: "LLM",
+      message: `人材書類の分割判定に失敗: ${errorMessageOf(e)}`,
+      error: e,
+      tenantCompanyId: params.tenantCompanyId,
+      targetType: "IngestionJob",
+      targetId: params.jobId,
+    });
+    return [text];
+  }
+}
+
+// 分割された案件・人材テキストを順に処理する。
 // 1件目は元の原本・ジョブを使い、2件目以降は分割分の原本（PII置換表を分離するため）とジョブを作成する
 async function processSegments(
   params: {
@@ -251,6 +277,8 @@ async function processSegments(
       data: { filename: splitFilename(params.filename, 1, total) },
     })
     .catch(() => {});
+  // 一括取込のまとまりは分割後のジョブにも引き継ぐ
+  const parentJob = await prisma.ingestionJob.findUnique({ where: { id: params.jobId }, select: { batchId: true } });
 
   for (let i = 0; i < total; i++) {
     let docId = params.docId;
@@ -280,6 +308,7 @@ async function processSegments(
           tenantCompanyId: params.tenantCompanyId,
           sourceDocumentId: doc.id,
           expectedKind: params.expectedKind ?? null,
+          batchId: parentJob?.batchId ?? null,
         },
       });
       await audit({
@@ -376,6 +405,7 @@ export async function retryIngestion(params: {
   tenantCompanyId: string;
   actorUserId: string;
   jobId: string;
+  splitEngineers?: boolean; // PRO: 人材書類の複数件分割を再実行でも適用
 }) {
   const job = await prisma.ingestionJob.findFirst({
     where: { id: params.jobId, tenantCompanyId: params.tenantCompanyId },
@@ -406,6 +436,7 @@ export async function retryIngestion(params: {
     content,
     // 再実行でも取込時の期待種別チェックを維持する（UNKNOWN は旧データ用の未指定扱い）
     expectedKind: job.expectedKind === "UNKNOWN" ? undefined : (job.expectedKind ?? undefined),
+    splitEngineers: params.splitEngineers,
   });
   return prisma.ingestionJob.findUniqueOrThrow({
     where: { id: job.id },

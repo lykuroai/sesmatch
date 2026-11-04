@@ -22,6 +22,9 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             <Link href="/privacy-policy" className="hover:underline">
               プライバシーポリシー
             </Link>
+            <Link href="/tokushoho" className="hover:underline">
+              特定商取引法
+            </Link>
           </nav>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">{children}</div>

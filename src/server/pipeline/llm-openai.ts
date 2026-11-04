@@ -14,6 +14,7 @@ import {
   termProposalSchema,
   type ExtractionDraft,
   type LlmGateway,
+  engineerSplitSchema,
 } from "./llm";
 
 // zod エラーを人が読める1行に要約する（取込履歴に表示される）
@@ -201,6 +202,23 @@ ${PROJECT_SCHEMA}`;
 
   // 用語辞書の候補提案（Phase 2 名寄せ）: 新語の正規形を提案する。
   // 失敗しても取込は成立させるため、呼び出し側でエラーを握りつぶす前提の補助機能
+  // 人材書類の複数件分割（PRO版仕様書 §4.2）。失敗・不正な応答は「1名」扱い（分割しない）
+  async splitEngineerSheets(text: string) {
+    const prompt = `次の文書に含まれる技術者（人材）の人数を判定し、2人以上含まれる場合は各人の記載が始まる行を原文のまま返してください。次の形式のJSONのみを出力してください。
+{"count": 人数, "boundaries": ["1人目の記載が始まる行", "2人目の記載が始まる行", ...]}
+
+ルール:
+- 1人の職務経歴に複数の案件・プロジェクトが並ぶのは「1人」である（案件の数を人数と誤認しない）
+- 複数名の場合、boundaries には各人の最初の行（氏名・イニシャル・「技術者1」などの見出し行）を文書の表記どおり1行ずつ入れる（要約・改変しない）
+- 1人以下なら boundaries は空配列にする
+
+---
+${text}`;
+    const raw = await this.call("split-engineers", prompt, 4096);
+    const parsed = engineerSplitSchema.safeParse(raw);
+    return parsed.success ? parsed.data : { count: 1, boundaries: [] };
+  }
+
   async proposeCanonicalTerms(terms: string[], canonicals: string[]) {
     const prompt = `SES業界のスキル・工程・業種の用語について、新しく現れた各用語の「正規形」を提案し、次の形式のJSONのみを出力してください。
 {"proposals": [{"term": "入力した用語", "canonical": "正規形"}]}

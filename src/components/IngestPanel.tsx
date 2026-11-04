@@ -14,6 +14,7 @@ export function IngestPanel({
   title,
   action,
   expectedKind,
+  bulkEnabled = false,
 }: {
   label: string;
   hint: string;
@@ -23,6 +24,7 @@ export function IngestPanel({
   // 取込の期待種別（案件画面=PROJECT_DESCRIPTION / 人材画面=ENGINEER_SHEET）。
   // サーバー側でAI判定結果と突き合わせ、不一致の書類は取り込まない
   expectedKind: "ENGINEER_SHEET" | "PROJECT_DESCRIPTION";
+  bulkEnabled?: boolean; // PRO 版: 複数ファイルの一括取込（PRO版仕様書 §4.2）
 }) {
   const [open, setOpen] = useState(false);
   const toggle = (
@@ -65,7 +67,7 @@ export function IngestPanel({
           </div>
           <div>
             <h3 className="mb-2 text-sm font-bold">ファイル取込</h3>
-            <IngestUpload expectedKind={expectedKind} />
+            <IngestUpload expectedKind={expectedKind} bulkEnabled={bulkEnabled} />
           </div>
           <p className="text-xs text-slate-500">
             取込後の確認・確定は{" "}

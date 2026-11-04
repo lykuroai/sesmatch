@@ -43,6 +43,12 @@ const MENU: { href: string; label: string; icon: string }[] = [
     label: "成約手数料",
     icon: "M9 7.5l3 4.5m0 0l3-4.5M12 12v5.25M15 12H9m6 3H9m12-3a9 9 0 11-18 0 9 9 0 0118 0z",
   },
+  {
+    // 分析・エクスポート（PRO版仕様書 §4.4）。基本版には案内を表示。PC専用
+    href: "/analytics",
+    label: "分析",
+    icon: "M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z",
+  },
 ];
 
 // 操作マニュアル・お問合せは画面最下部（ログアウトの上）に固定表示する
@@ -86,7 +92,7 @@ function MenuLink({ item }: { item: { href: string; label: string; icon: string 
 
 // モバイルのドロワーメニューではホーム（KPI）・成約・稼働／成約手数料は案内しない（PC専用画面）。
 // モバイルの起点は案件一覧
-const MOBILE_MENU = MENU.filter((m) => !["/", "/contracts", "/billing"].includes(m.href));
+const MOBILE_MENU = MENU.filter((m) => !["/", "/contracts", "/billing", "/analytics"].includes(m.href));
 
 export default async function ConsoleLayout({ children }: { children: React.ReactNode }) {
   const auth = await getAuth();
@@ -134,6 +140,12 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
             <Link href="/company" className="font-bold hover:underline" title="会社マイページ">
               {auth.companyName}
             </Link>
+            {/* PRO 版（お試し含む）の印。判定はサーバ側の実効プラン（PRO版仕様書 §5） */}
+            {auth.plan !== "FREE" && (
+              <span className="ml-2 rounded bg-emerald-600 px-1.5 py-0.5 align-middle text-[10px] font-bold tracking-wide text-white">
+                PRO
+              </span>
+            )}
             <span className="ml-3 hidden text-slate-500 sm:inline">{auth.userName}</span>
           </p>
         </div>

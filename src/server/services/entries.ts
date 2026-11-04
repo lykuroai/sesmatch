@@ -19,6 +19,7 @@ import { detectContactInfo } from "@/server/pipeline/pii";
 import { DISPATCH_CONTRACT_TYPE } from "@/lib/constants";
 import { hasValidConsent, serializeEngineer } from "./engineers";
 import { companyNameMap } from "./companies";
+import { hasFeature } from "@/server/plan/features";
 import { serializeProject } from "./projects";
 
 const ENTRY_INCLUDE = {
@@ -93,7 +94,11 @@ export function serializeEntry(
       ? side === "DEMAND"
         ? (companyNames?.get(e.supplyCompanyId) ?? payload?.supplyCompanyName)
         : (companyNames?.get(e.demandCompanyId) ?? payload?.demandCompanyName)
-      : null, // 承認前は非開示
+      : hasFeature(auth, "company_name_display")
+        ? // PRO 版は承認前でも相手の掲載企業名を明示（片方向。PRO版仕様書 §4.1）。
+          // 人材氏名・実額等の Level 2 情報は従来どおり双方承認後のみ
+          (companyNames?.get(side === "DEMAND" ? e.supplyCompanyId : e.demandCompanyId) ?? null)
+        : null, // 基本版は承認前は非開示
     messages: e.messages.map((m) => ({
       id: m.id,
       own: m.senderCompanyId === auth.companyId,

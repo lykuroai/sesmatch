@@ -83,3 +83,13 @@ export function csvToCompanyRows(lines: string[][]): CompanyCsvRow[] {
     email: pick(cols, idx.email),
   }));
 }
+
+// CSV 生成（RFC 4180: カンマ・引用符・改行を含む値は引用符で囲み、引用符は "" にエスケープ）。
+// Excel で開けるよう先頭に BOM を付ける
+export function toCsv(rows: (string | number | null | undefined)[][]): string {
+  const esc = (v: string | number | null | undefined) => {
+    const s = v == null ? "" : String(v);
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return "﻿" + rows.map((r) => r.map(esc).join(",")).join("\r\n") + "\r\n";
+}

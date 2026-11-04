@@ -24,6 +24,24 @@ enum CompanyStatus {
   SUSPENDED
 }
 
+// 利用プラン（PRO版仕様書 §2, §5）。FREE=基本版（無料）、TRIAL=PRO お試し（30日）、PRO=有料プラン。
+// 期限切れ（planExpiresAt < now）の TRIAL/PRO は要求ごとに FREE として扱う（src/server/plan/features.ts）
+enum CompanyPlan {
+  FREE
+  TRIAL
+  PRO
+}
+
+enum PlanBillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum PaymentMethod {
+  INVOICE // 請求書払い（段階A）
+  CARD // カード決済（段階C）
+}
+
 model Company {
   id              String        @id @default(cuid())
   name            String
@@ -32,6 +50,13 @@ model Company {
   address         String? // 企業所在地（重複判定・審査に使用）
   status          CompanyStatus @default(APPLIED)
   approvedAt      DateTime? // 運営承認（利用開始）日時。新規企業30日間手数料無料の起点
+  // 利用プラン（PRO版仕様書 §8.1）。変更は運営コンソールのみ
+  plan             CompanyPlan      @default(FREE)
+  planStartedAt    DateTime? // PRO/TRIAL 開始日時
+  planExpiresAt    DateTime? // 期限。null は無期限（PRO 継続中）
+  planSeats        Int              @default(5) // 月額に含まれる担当者数
+  planBillingCycle PlanBillingCycle @default(MONTHLY)
+  paymentMethod    PaymentMethod    @default(INVOICE)
   // 労働者派遣事業の許可情報（基本契約第4条）。労働者派遣契約の案件へ提案する供給側企業に必須
   dispatchLicenseNumber String? // 労働者派遣事業許可番号（例: 派13-123456）
   dispatchLicenseExpiry DateTime? // 許可有効期限
@@ -425,6 +450,8 @@ model IngestionJob {
   // 取込元パネルで指定された期待種別（案件取込=PROJECT_DESCRIPTION / 人材取込=ENGINEER_SHEET）。
   // LLM分類の結果と不一致の場合はジョブを失敗させ、誤った種別での登録を防ぐ
   expectedKind     DocumentKind?
+  // 一括取込（PRO版仕様書 §4.2）のまとまり。同時アップロードされたファイル群と、そこから分割されたジョブが同じ値を持つ
+  batchId          String?
   error            String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
@@ -432,6 +459,7 @@ model IngestionJob {
   sourceDocument SourceDocument    @relation(fields: [sourceDocumentId], references: [id])
   extraction     ExtractionResult?
 
+  @@index([tenantCompanyId, batchId])
   @@map("ingestion_jobs")
 }
 
@@ -687,6 +715,85 @@ model Invoice {
   @@map("invoices")
 }
 
+// ---- 保存検索と新着アラート（PRO版仕様書 §4.3, §8.2）----
+
+enum SavedSearchKind {
+  PROJECT
+  ENGINEER
+}
+
+enum SavedSearchNotify {
+  IMMEDIATE // 15分間隔の評価で新着があれば都度通知
+  DAILY // 1日1回（9:00 JST）まとめて通知
+  OFF // 条件の保存のみ
+}
+
+model SavedSearch {
+  id              String            @id @default(cuid())
+  tenantCompanyId String
+  memberId        String // 作成者（通知の宛先。停止・退職で通知も止まる）
+  kind            SavedSearchKind
+  name            String
+  criteria        Json // 検索画面の条件と同形式（q / skills / rateMin / rateMax / remote / location / start）
+  notify          SavedSearchNotify @default(IMMEDIATE)
+  lastEvaluatedAt DateTime? // 評価カーソル（これ以降に公開・更新された対象のみ評価）
+  lastNotifiedAt  DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  hits SavedSearchHit[]
+
+  @@index([tenantCompanyId])
+  @@map("saved_searches")
+}
+
+// 通知済みの対象（同一対象を二重通知しないための記録）
+model SavedSearchHit {
+  savedSearchId String
+  targetId      String // Project.id または Engineer.id
+  notifiedAt    DateTime @default(now())
+
+  savedSearch SavedSearch @relation(fields: [savedSearchId], references: [id], onDelete: Cascade)
+
+  @@id([savedSearchId, targetId])
+  @@map("saved_search_hits")
+}
+
+// ---- PRO 版の月額請求（PRO版仕様書 §6, §8.3）。成約手数料の invoices とは別テーブル ----
+
+enum PlanInvoiceStatus {
+  ISSUED
+  PAID
+  VOID
+}
+
+model PlanInvoice {
+  id              String            @id @default(cuid())
+  companyId       String
+  month           String // 対象月 YYYY-MM
+  invoiceNumber   String            @unique // 例: P-202611-0001
+  plan            CompanyPlan // 請求時点のスナップショット
+  billingCycle    PlanBillingCycle
+  seats           Int // 月額に含まれる担当者数
+  activeMembers   Int // 算定時点の有効担当者数
+  extraSeats      Int // 追加担当者数（activeMembers - seats、下限0）
+  baseYen         Int // 基本料金（月額 or 年払い。年払いの非更新月は 0）
+  extraYen        Int // 追加担当者料金
+  amountExTaxYen  Int
+  taxYen          Int
+  totalYen        Int
+  status          PlanInvoiceStatus @default(ISSUED)
+  issuedAt        DateTime          @default(now())
+  dueAt           DateTime // 支払期限（翌月末）
+  paidAt          DateTime?
+  voidedAt        DateTime?
+  stripeInvoiceId String? // カード決済（§4.15）
+  createdAt       DateTime          @default(now())
+
+  @@unique([companyId, month])
+  @@map("plan_invoices")
+}
+
 // ---- 本人同意・訂正・削除 (§26) ----
 
 enum PrivacyRequestKind {
@@ -779,6 +886,7 @@ model Inquiry {
   memberId        String?
   category        String // 操作方法 / 不具合 / 取込・AI解析 / 商談・契約 / 手数料・請求 / その他
   body            String
+  priority        Boolean      @default(false) // PRO 版からの問合せ（優先対応。PRO版仕様書 §4.5）
   status          ReportStatus @default(OPEN)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt

@@ -73,11 +73,21 @@ export const termProposalSchema = z.object({
   proposals: z.array(z.object({ term: z.string(), canonical: z.string() })),
 });
 
+// 人材書類の複数件分割（PRO版仕様書 §4.2）: 文書に含まれる人数と、2人目以降の記載が始まる行（原文のまま）
+export const engineerSplitSchema = z.object({
+  count: z.number().int().min(0),
+  boundaries: z.array(z.string()).default([]),
+});
+export type EngineerSplit = z.infer<typeof engineerSplitSchema>;
+
 export interface LlmGateway {
   classify(maskedText: string): Promise<"ENGINEER_SHEET" | "PROJECT_DESCRIPTION" | "UNKNOWN">;
   extract(maskedText: string, kind: "ENGINEER_SHEET" | "PROJECT_DESCRIPTION"): Promise<ExtractionDraft>;
   // 新語（terms）の正規形候補を提案する。既存の正規形（canonicals）に同義があればそれへ寄せる
   proposeCanonicalTerms(terms: string[], canonicals: string[]): Promise<{ term: string; canonical: string }[]>;
+  // スキルシート等に含まれる人材の人数と、各人の記載が始まる行（原文のまま）を判定する（PRO 一括取込）。
+  // 分割そのものは split.ts の splitEngineerSegments がローカルで行う
+  splitEngineerSheets(text: string): Promise<EngineerSplit>;
 }
 
 // ---- モック実装 ----
@@ -136,6 +146,12 @@ function findSkills(text: string) {
 }
 
 export class MockLlmGateway implements LlmGateway {
+  // モック: 「氏名」「名前」等のラベル行を1人の開始とみなす（2行以上あれば複数名）
+  async splitEngineerSheets(text: string) {
+    const lines = text.split(/\r?\n/).filter((l) => /^[\s【\[（(●■◆・]*(氏名|名前|お名前|Name)\s*[：:]/i.test(l));
+    return lines.length >= 2 ? { count: lines.length, boundaries: lines } : { count: Math.min(lines.length, 1), boundaries: [] };
+  }
+
   async classify(maskedText: string) {
     const engineerHints = ["スキルシート", "経歴", "氏名", "稼働可能", "希望単価"];
     const projectHints = ["案件", "募集", "単価上限", "商流", "面談"];
@@ -259,4 +275,5 @@ export const llmGateway: LlmGateway = {
   extract: (text, kind) => getLlmGateway().extract(text, kind),
   proposeCanonicalTerms: (terms, canonicals) =>
     getLlmGateway().proposeCanonicalTerms(terms, canonicals),
+  splitEngineerSheets: (text) => getLlmGateway().splitEngineerSheets(text),
 };

@@ -63,6 +63,11 @@ export default async function IngestionsPage({
           <p className="break-all font-medium">{job.sourceDocument.filename}</p>
           <p className="mt-1 text-xs text-slate-500">
             {new Date(job.createdAt).toLocaleString("ja-JP")} / {kindLabel(job)}
+            {job.batchId && (
+              <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700" title={`一括取込 ${job.batchId}`}>
+                一括 #{job.batchId.slice(0, 6)}
+              </span>
+            )}
           </p>
         </div>
         <span className="flex items-center gap-2">

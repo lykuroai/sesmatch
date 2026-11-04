@@ -8,6 +8,7 @@ import { passingProjectMatchesForEngineer } from "@/server/services/matching";
 import { expandSearchTerms } from "@/server/services/skill-aliases";
 import { isNew, PROJECT_WORKFLOW_LABELS, PUBLISH_STATUS_LABELS, REMOTE_LEVEL_LABELS } from "@/lib/constants";
 import { IngestPanel } from "@/components/IngestPanel";
+import { SavedSearchPanel } from "@/components/SavedSearchPanel";
 import { PendingIngestions } from "@/components/PendingIngestions";
 import { Pager, parsePage, slicePage } from "@/components/Pager";
 import { NewBadge } from "@/components/NewBadge";
@@ -220,7 +221,11 @@ export default async function ProjectsPage({
         expectedKind="PROJECT_DESCRIPTION"
         label="案件票・紹介メールから取込"
         hint="案件票や紹介メールの本文を貼り付け・アップロードするだけで登録できます。"
-        note="複数案件の同時取込について: 1つのファイル・貼り付けに複数の案件が含まれる場合、「案件名」「概要」などの見出しを検出して案件ごとに自動分割します（最大10件）。見出しの書式が特殊な資料や、スキャン・撮影書類のOCR読み取り精度によっては、うまく分割できず1件にまとまる・件数が合わないことがあります。その場合は取込履歴で該当の取込を削除し、案件ごとにファイルや貼り付けを分けて取り込み直してください。"
+        bulkEnabled={auth.plan !== "FREE"}
+        note={
+          "複数案件の同時取込について: 1つのファイル・貼り付けに複数の案件が含まれる場合、「案件名」「概要」などの見出しを検出して案件ごとに自動分割します（最大10件）。見出しの書式が特殊な資料や、スキャン・撮影書類のOCR読み取り精度によっては、うまく分割できず1件にまとまる・件数が合わないことがあります。その場合は取込履歴で該当の取込を削除し、案件ごとにファイルや貼り付けを分けて取り込み直してください。" +
+          (auth.plan !== "FREE" ? " PRO 版では複数の案件票ファイルを選んで一括取込（最大20ファイル）できます。" : "")
+        }
         action={
           <Link
             href="/projects/new"
@@ -346,6 +351,24 @@ export default async function ProjectsPage({
           </Link>
         </div>
       </form>
+
+      {/* PRO: 保存した検索条件と新着アラート（PRO版仕様書 §4.3）。判定はサーバー側でも行う */}
+      {auth.plan !== "FREE" && (
+        <SavedSearchPanel
+          kind="PROJECT"
+          basePath="/projects"
+          currentCriteria={{
+            q: sp.q || undefined,
+            skills: skills.length > 0 ? skills : undefined,
+            rateMin: rateMin ?? undefined,
+            rateMax: rateMax ?? undefined,
+            remote: remote !== "all" ? remote : undefined,
+            location: location !== "all" ? location : undefined,
+            start: startWithin !== "all" ? startWithin : undefined,
+          }}
+          currentQuery={[sp.q, skills.join(","), sp.rateMin, sp.rateMax, remote !== "all" ? remote : "", location !== "all" ? location : "", startWithin !== "all" ? startWithin : ""].filter(Boolean).join("&")}
+        />
+      )}
 
       {/* 対象人材選択時: 対象の表示とマッチ条件チップ */}
       {targetEngineer && (

@@ -14,6 +14,7 @@ import {
   termProposalSchema,
   type ExtractionDraft,
   type LlmGateway,
+  engineerSplitSchema,
 } from "./llm";
 
 const MODEL = "claude-opus-5";
@@ -241,6 +242,35 @@ export class ClaudeLlmGateway implements LlmGateway {
     }
   }
   // 用語辞書の候補提案（Phase 2 名寄せ）: 新語の正規形を提案する
+  // 人材書類の複数件分割（PRO版仕様書 §4.2）。失敗・不正な応答は「1名」扱い（分割しない）
+  async splitEngineerSheets(text: string) {
+    const schema = {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        count: { type: "integer", description: "文書に含まれる技術者（人材）の人数。1人の経歴に複数案件が並ぶのは1人" },
+        boundaries: {
+          type: "array",
+          items: { type: "string" },
+          description: "2人以上の場合、各人の記載が始まる行（氏名・イニシャル・見出し行）を文書の表記どおり1行ずつ。1人以下なら空",
+        },
+      },
+      required: ["count", "boundaries"],
+    } as unknown as Record<string, unknown>;
+    try {
+      const raw = await this.call(
+        "split-engineers",
+        schema,
+        `次の文書に含まれる技術者（人材）の人数を判定し、2人以上含まれる場合は各人の記載が始まる行を原文のまま返してください。\n\n---\n${text}`,
+        4096
+      );
+      const parsed = engineerSplitSchema.safeParse(raw);
+      return parsed.success ? parsed.data : { count: 1, boundaries: [] };
+    } catch {
+      return { count: 1, boundaries: [] };
+    }
+  }
+
   async proposeCanonicalTerms(terms: string[], canonicals: string[]) {
     const schema = {
       type: "object",

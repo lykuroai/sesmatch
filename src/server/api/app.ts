@@ -1,8 +1,27 @@
 // REST API（§28）: ベースパス /api/v1、JSON、UTF-8、日時 ISO 8601 UTC、金額は円整数
 // 共通エラー（§29）
 
-import { timingSafeEqual, createHash } from "crypto";
+import { timingSafeEqual, createHash, randomUUID } from "crypto";
 import { Hono } from "hono";
+import { hasFeature, PLAN_REQUIRED_MESSAGE, type ProFeature } from "@/server/plan/features";
+import {
+  createSavedSearch,
+  deleteSavedSearch,
+  evaluateSavedSearches,
+  listSavedSearches,
+  searchCriteriaSchema,
+  updateSavedSearch,
+} from "@/server/services/saved-searches";
+import { internalJobToken } from "@/server/plan/scheduler";
+import { exportCsv, getFunnel, getMarketRates, getResponseStats, rangeOfMonths } from "@/server/services/analytics";
+import {
+  generatePlanInvoices,
+  getOwnPlanInvoice,
+  listOwnPlanInvoices,
+  listPlanInvoicesByOperations,
+  markPlanInvoicePaid,
+  voidPlanInvoice,
+} from "@/server/services/plan-billing";
 import { HTTPException } from "hono/http-exception";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { z } from "zod";
@@ -114,6 +133,8 @@ import {
   updateMemberByOperations,
   updateMemberProfile,
   updateMemberRoles,
+  getOwnPlan,
+  updateCompanyPlanByOperations,
 } from "@/server/services/companies";
 import {
   listContractsForOperations,
@@ -144,7 +165,7 @@ const svcError = (result: object): SvcErr | null =>
 const statusFor = (code: string): 400 | 403 | 404 | 409 | 422 =>
   code === "NOT_FOUND"
     ? 404
-    : code === "FORBIDDEN"
+    : code === "FORBIDDEN" || code === "PLAN_REQUIRED" || code === "PLAN_LIMIT_EXCEEDED"
       ? 403
       : code === "DUPLICATE_ENTRY" || code === "VERSION_CONFLICT"
         ? 409
@@ -178,6 +199,22 @@ app.get("/health", async (c) => {
   } catch {
     return c.json({ ok: false }, 503);
   }
+});
+
+// ---- 内部ジョブ（PRO版仕様書 §4.3, §9）: プロセス内タイマー（src/server/plan/scheduler.ts）から呼ばれる ----
+// 認証はプロセス内で生成した内部トークン、または運営トークン（外部 cron・手動実行用）。
+// 保存検索の評価と新着アラートの通知を行う。force=1 で DAILY も時刻に関係なく評価する
+
+app.post("/internal/jobs/alerts", async (c) => {
+  const internal = c.req.header("X-Internal-Job-Token");
+  const admin = c.req.header("X-Admin-Token");
+  const adminToken = process.env.PLATFORM_ADMIN_TOKEN;
+  const ok =
+    (internal && constantTimeEqual(internal, internalJobToken())) ||
+    (admin && adminToken && constantTimeEqual(admin, adminToken));
+  if (!ok) return c.json(err("UNAUTHENTICATED"), 401);
+  const summary = await evaluateSavedSearches({ force: c.req.query("force") === "1" });
+  return c.json(summary);
 });
 
 // ---- 企業申込（§6.4, §28）: 未認証で受け付ける ----
@@ -308,6 +345,48 @@ app.put("/operations/companies/:id", requireAdminToken, async (c) => {
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
   const result = await updateCompanyByOperations(c.req.param("id"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+// 運営: 利用プランの変更（PRO版仕様書 §2, §9）。TRIAL 付与・PRO 開始・期限・席数・決済方法
+app.put("/operations/companies/:id/plan", requireAdminToken, async (c) => {
+  const parsed = z
+    .object({
+      plan: z.enum(["FREE", "TRIAL", "PRO"]),
+      planExpiresAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+      planSeats: z.number().int().min(1).optional(),
+      planBillingCycle: z.enum(["MONTHLY", "YEARLY"]).optional(),
+      paymentMethod: z.enum(["INVOICE", "CARD"]).optional(),
+    })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR", "プランの入力内容を確認してください"), 400);
+  const result = await updateCompanyPlanByOperations(c.req.param("id"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+// 運営: PRO 版の月額請求（PRO版仕様書 §6.1）。月次の一括生成・一覧・入金消込・取消
+app.post("/operations/plan-invoices/generate", requireAdminToken, async (c) => {
+  const month = c.req.query("month") ?? "";
+  const result = await generatePlanInvoices(month);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result, 201);
+});
+app.get("/operations/plan-invoices", requireAdminToken, async (c) =>
+  c.json({ items: await listPlanInvoicesByOperations(c.req.query("month") || undefined) })
+);
+app.put("/operations/plan-invoices/:id/paid", requireAdminToken, async (c) => {
+  const result = await markPlanInvoicePaid(c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+app.put("/operations/plan-invoices/:id/void", requireAdminToken, async (c) => {
+  const result = await voidPlanInvoice(c.req.param("id"));
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);
@@ -504,9 +583,10 @@ app.delete("/operations/skill-aliases/:id", requireAdminToken, async (c) => {
 
 // お問合せ（運営側）: 一覧・対応状況の更新・スレッド回答
 app.get("/operations/inquiries", requireAdminToken, async (c) => {
+  // PRO 版からの問合せ（priority）を先頭に表示する（PRO版仕様書 §4.5）
   const inquiries = await prisma.inquiry.findMany({
     include: { messages: { orderBy: { createdAt: "asc" } } },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
     take: 200,
   });
   const companies = await prisma.company.findMany({
@@ -685,6 +765,111 @@ const requirePermission =
     }
     await next();
   };
+
+// PRO 限定機能のゲート（PRO版仕様書 §5）。プラン外は 403 PLAN_REQUIRED。
+// 判定はサーバ側（hasFeature）に集約し、画面側の出し分けだけに頼らない
+const requireFeature =
+  (feature: ProFeature) =>
+  async (c: { get(k: "auth"): AuthContext; json: (o: object, s: 403) => Response }, next: () => Promise<void>) => {
+    if (!hasFeature(c.get("auth"), feature)) return c.json(err("PLAN_REQUIRED", PLAN_REQUIRED_MESSAGE), 403);
+    await next();
+  };
+
+// 自社の利用プラン（企業コンソール表示用。変更は運営のみ）
+app.get("/company/plan", async (c) => c.json(await getOwnPlan(c.get("auth"))));
+
+// ---- PRO 版の請求書（企業側の閲覧。PRO版仕様書 §6.1）----
+
+app.get("/plan-invoices", requirePermission("billing.read"), async (c) =>
+  c.json({ items: await listOwnPlanInvoices(c.get("auth")) })
+);
+app.get("/plan-invoices/:id", requirePermission("billing.read"), async (c) => {
+  const inv = await getOwnPlanInvoice(c.get("auth"), c.req.param("id"));
+  if (!inv) return c.json(err("NOT_FOUND"), 404);
+  return c.json(inv);
+});
+
+// ---- 分析・エクスポート（PRO版仕様書 §4.4）----
+
+const monthsParam = (v: string | undefined) => {
+  const n = parseInt(v ?? "3");
+  return [1, 3, 6, 12].includes(n) ? n : 3;
+};
+
+app.get("/analytics/funnel", requireFeature("analytics_export"), requirePermission("dashboard.read"), async (c) => {
+  const range = rangeOfMonths(monthsParam(c.req.query("months")));
+  const auth = c.get("auth");
+  const [funnel, response] = await Promise.all([getFunnel(auth, range), getResponseStats(auth, range)]);
+  return c.json({ range, funnel, response });
+});
+
+app.get("/analytics/market-rates", requireFeature("analytics_export"), requirePermission("dashboard.read"), async (c) =>
+  c.json(await getMarketRates())
+);
+
+app.get("/analytics/export", requireFeature("analytics_export"), async (c) => {
+  const kind = z.enum(["projects", "engineers", "entries"]).safeParse(c.req.query("kind"));
+  if (!kind.success) return c.json(err("VALIDATION_ERROR", "kind が不正です"), 400);
+  const auth = c.get("auth");
+  // 種別ごとの閲覧権限（人材の氏名・実額は engineer.read.pii を持つ場合のみ serializer が返す）
+  const needed: Permission = kind.data === "projects" ? "project.read" : kind.data === "engineers" ? "engineer.read.masked" : "entry.read";
+  if (!hasPermission(auth.roles, needed)) return c.json(err("FORBIDDEN", `権限がありません: ${needed}`), 403);
+  const { filename, csv } = await exportCsv(auth, kind.data);
+  return new Response(csv, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "no-store",
+    },
+  });
+});
+
+// ---- 保存検索と新着アラート（PRO版仕様書 §4.3）----
+
+app.get("/saved-searches", requireFeature("saved_search_alert"), async (c) => {
+  const kind = z.enum(["PROJECT", "ENGINEER"]).optional().safeParse(c.req.query("kind") || undefined);
+  if (!kind.success) return c.json(err("VALIDATION_ERROR", "kind が不正です"), 400);
+  return c.json({ items: await listSavedSearches(c.get("auth"), kind.data) });
+});
+
+app.post("/saved-searches", requireFeature("saved_search_alert"), async (c) => {
+  const parsed = z
+    .object({
+      kind: z.enum(["PROJECT", "ENGINEER"]),
+      name: z.string().min(1).max(100),
+      criteria: searchCriteriaSchema,
+      notify: z.enum(["IMMEDIATE", "DAILY", "OFF"]).optional(),
+    })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR", "保存する条件の内容を確認してください"), 400);
+  const result = await createSavedSearch(c.get("auth"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result, 201);
+});
+
+app.put("/saved-searches/:id", requireFeature("saved_search_alert"), async (c) => {
+  const parsed = z
+    .object({
+      name: z.string().min(1).max(100).optional(),
+      notify: z.enum(["IMMEDIATE", "DAILY", "OFF"]).optional(),
+      criteria: searchCriteriaSchema.optional(),
+    })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await updateSavedSearch(c.get("auth"), c.req.param("id"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+app.delete("/saved-searches/:id", requireFeature("saved_search_alert"), async (c) => {
+  const result = await deleteSavedSearch(c.get("auth"), c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
 
 // ---- APIトークン（PAT §4.1: ローカルサーバ等の機械連携）----
 // トークンの発行・管理はセッション認証のみ（PATでPATを管理させない）
@@ -1170,8 +1355,63 @@ app.post("/ingestions", requirePermission("ingestion.create"), async (c) => {
     mimeType,
     content,
     expectedKind,
+    // PRO: 人材書類に複数名が含まれる場合は人材ごとに分割する（PRO版仕様書 §4.2）
+    splitEngineers: hasFeature(auth, "bulk_ingest"),
   });
   return c.json(job, 201);
+});
+
+// 一括取込（PRO版仕様書 §4.2）: 複数の書類ファイルを同時にアップロードし、ファイルごとに取込ジョブを作る。
+// 1回に最大20ファイル・合計100MB。各ファイルは既存のパイプラインを個別に通り、1件の失敗は他に影響しない。
+// 基本版は 403 PLAN_REQUIRED（1ファイル/回の POST /ingestions を使う）
+const MAX_BULK_FILES = 20;
+const MAX_BULK_TOTAL_BYTES = 100 * 1024 * 1024;
+app.post("/ingestions/bulk", requirePermission("ingestion.create"), requireFeature("bulk_ingest"), async (c) => {
+  const auth = c.get("auth");
+  const form = await c.req.formData().catch(() => null);
+  const parsedKind = z
+    .enum(["ENGINEER_SHEET", "PROJECT_DESCRIPTION"])
+    .optional()
+    .safeParse(form?.get("expectedKind") ?? undefined);
+  if (!parsedKind.success) return c.json(err("VALIDATION_ERROR", "expectedKind が不正です"), 400);
+  const files = (form?.getAll("file") ?? []).filter((f): f is File => f instanceof File);
+  if (files.length === 0) return c.json(err("VALIDATION_ERROR", "file が必要です"), 400);
+  if (files.length > MAX_BULK_FILES)
+    return c.json(err("VALIDATION_ERROR", `一括取込は1回に${MAX_BULK_FILES}ファイルまでです`), 400);
+  let total = 0;
+  for (const f of files) {
+    if (f.size > MAX_INGEST_BYTES)
+      return c.json(err("VALIDATION_ERROR", `ファイルは1件20MB以下にしてください（${f.name}）`), 400);
+    total += f.size;
+  }
+  if (total > MAX_BULK_TOTAL_BYTES)
+    return c.json(err("VALIDATION_ERROR", "一括取込は合計100MB以下にしてください"), 400);
+
+  const batchId = randomUUID();
+  const jobs: { id: string; filename: string; status: string }[] = [];
+  for (const file of files) {
+    const job = await startIngestion({
+      tenantCompanyId: auth.companyId,
+      memberId: auth.memberId,
+      actorUserId: auth.userAccountId,
+      filename: file.name,
+      mimeType: file.type || "text/plain",
+      content: Buffer.from(await file.arrayBuffer()),
+      expectedKind: parsedKind.data,
+      batchId,
+      splitEngineers: true,
+    });
+    jobs.push({ id: job.id, filename: job.sourceDocument.filename, status: job.status });
+  }
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "BulkIngestionReceived",
+    targetType: "IngestionBatch",
+    targetId: batchId,
+    metadata: { files: jobs.length, expectedKind: parsedKind.data ?? null },
+  });
+  return c.json({ batchId, jobs }, 201);
 });
 
 app.get("/ingestions", requirePermission("ingestion.create"), async (c) => {
@@ -1202,6 +1442,7 @@ app.post("/ingestions/:id/retry", requirePermission("ingestion.create"), async (
     tenantCompanyId: auth.companyId,
     actorUserId: auth.userAccountId,
     jobId: c.req.param("id"),
+    splitEngineers: hasFeature(auth, "bulk_ingest"),
   });
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
@@ -1769,6 +2010,7 @@ app.post("/inquiries", async (c) => {
       tenantCompanyId: auth.companyId,
       memberId: auth.memberId,
       ...parsed.data,
+      priority: hasFeature(auth, "priority_support"), // PRO 版は優先対応（PRO版仕様書 §4.5）
     },
   });
   await audit({
