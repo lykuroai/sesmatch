@@ -80,6 +80,22 @@ export const engineerSplitSchema = z.object({
 });
 export type EngineerSplit = z.infer<typeof engineerSplitSchema>;
 
+// スカウト文の AI 下書き（PRO版仕様書 §4.6）に渡す Level 1 情報。氏名・実額単価・企業名は渡さない
+export type ScoutDraftInput = {
+  project: {
+    name: string;
+    summary: string;
+    requiredSkills: string[];
+    preferredSkills: string[];
+    rateMaxYen: number;
+    locationCity: string | null;
+    remoteLabel: string;
+    startDate: string;
+  };
+  engineers: { code: string; ageBand: string; rateBand: string; skills: string[]; processes: string[] }[];
+};
+export const scoutDraftSchema = z.object({ body: z.string().min(1).max(2000) });
+
 export interface LlmGateway {
   classify(maskedText: string): Promise<"ENGINEER_SHEET" | "PROJECT_DESCRIPTION" | "UNKNOWN">;
   extract(maskedText: string, kind: "ENGINEER_SHEET" | "PROJECT_DESCRIPTION"): Promise<ExtractionDraft>;
@@ -88,6 +104,8 @@ export interface LlmGateway {
   // スキルシート等に含まれる人材の人数と、各人の記載が始まる行（原文のまま）を判定する（PRO 一括取込）。
   // 分割そのものは split.ts の splitEngineerSegments がローカルで行う
   splitEngineerSheets(text: string): Promise<EngineerSplit>;
+  // 一斉スカウトの本文下書き。送信前に人手確認が必須（LLM だけで送信しない）
+  draftScoutMessage(input: ScoutDraftInput): Promise<string>;
 }
 
 // ---- モック実装 ----
@@ -146,6 +164,17 @@ function findSkills(text: string) {
 }
 
 export class MockLlmGateway implements LlmGateway {
+  // モック: 案件情報を埋めた定型文
+  async draftScoutMessage(input: ScoutDraftInput) {
+    const p = input.project;
+    return [
+      "はじめまして。貴社の人材のご経歴を拝見し、弊社案件「{案件名}」をご紹介したくご連絡しました。",
+      `業務概要: ${p.summary}`,
+      `必須スキル: ${p.requiredSkills.join("・") || "-"} / 勤務地: {勤務地} / {在宅} / 開始: {開始時期} / 単価上限: {単価上限}`,
+      "ご興味をお持ちいただけましたら、本商談を承認のうえ詳細をご相談できれば幸いです。",
+    ].join("\n");
+  }
+
   // モック: 「氏名」「名前」等のラベル行を1人の開始とみなす（2行以上あれば複数名）
   async splitEngineerSheets(text: string) {
     const lines = text.split(/\r?\n/).filter((l) => /^[\s【\[（(●■◆・]*(氏名|名前|お名前|Name)\s*[：:]/i.test(l));
@@ -276,4 +305,5 @@ export const llmGateway: LlmGateway = {
   proposeCanonicalTerms: (terms, canonicals) =>
     getLlmGateway().proposeCanonicalTerms(terms, canonicals),
   splitEngineerSheets: (text) => getLlmGateway().splitEngineerSheets(text),
+  draftScoutMessage: (input) => getLlmGateway().draftScoutMessage(input),
 };

@@ -36,6 +36,25 @@ describe("APIトークン発行", () => {
   });
 });
 
+describe("本数上限（PRO版仕様書 §4.10）", () => {
+  it("基本版は有効トークン2本まで。失効させれば再発行でき、PRO は10本まで", async () => {
+    const owner = await makeCompany("上限A社");
+    const a = await issueApiToken(owner, { name: "1", scope: "ingest", expiresInDays: null });
+    await issueApiToken(owner, { name: "2", scope: "ingest", expiresInDays: null });
+    const third = await issueApiToken(owner, { name: "3", scope: "ingest", expiresInDays: null });
+    expect("error" in third && third.error?.code).toBe("PLAN_LIMIT_EXCEEDED");
+    if ("error" in a) throw new Error("issue");
+    await revokeApiToken(owner, a.item.id);
+    const again = await issueApiToken(owner, { name: "3", scope: "ingest", expiresInDays: null });
+    expect("token" in again).toBe(true);
+    const { setPlan } = await import("./helpers");
+    const pro = await setPlan(owner, "PRO");
+    for (let i = 0; i < 8; i++) expect("token" in (await issueApiToken(pro, { name: `p${i}`, scope: "ingest", expiresInDays: null }))).toBe(true);
+    const eleventh = await issueApiToken(pro, { name: "11", scope: "ingest", expiresInDays: null });
+    expect("error" in eleventh && eleventh.error?.code).toBe("PLAN_LIMIT_EXCEEDED");
+  });
+});
+
 describe("Bearer認証とスコープ制限", () => {
   it("ingest スコープ: 取込APIは通り、案件登録・エントリー閲覧はスコープ外で403", async () => {
     const owner = await makeCompany("PAT-C社");

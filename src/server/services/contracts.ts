@@ -1,6 +1,8 @@
 // 契約・稼働・手数料（§22, §23）
 
 import { prisma } from "@/server/db";
+import { dispatchWebhooks } from "./webhooks";
+import { appBaseUrl } from "@/server/mail";
 import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
 import { decideCurrentFee, isNewCompanyFreeMonth, isWithinRefundWindow } from "@/server/billing/fee";
@@ -335,6 +337,13 @@ export async function createContract(
     action: "ContractCreated",
     targetType: "Contract",
     targetId: contract.id,
+  });
+  // PRO: 供給側へ署名依頼を Slack/Teams 通知（金額は含めない。PRO版仕様書 §4.9）
+  dispatchWebhooks(contract.supplyCompanyId, {
+    event: "contract.sign_requested",
+    title: "条件確認書が作成されました（署名をご確認ください）",
+    text: `人材 ${entry.engineer.code} の条件確認書`,
+    url: `${appBaseUrl()}/contracts/${contract.id}`,
   });
   return {
     contract: serializeContract(

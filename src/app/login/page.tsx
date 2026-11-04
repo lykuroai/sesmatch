@@ -87,6 +87,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // 2要素認証の第2段階（PRO版仕様書 §4.11）: コード入力
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+
+  function goConsole() {
+    // モバイルはホーム（KPI）を案内しないため案件一覧を起点にする
+    router.push(window.innerWidth < 768 ? "/projects" : "/");
+    router.refresh();
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -98,13 +107,34 @@ export default function LoginPage() {
       body: JSON.stringify({ email, password }),
     });
     setLoading(false);
-    if (res.ok) {
-      // モバイルはホーム（KPI）を案内しないため案件一覧を起点にする
-      router.push(window.innerWidth < 768 ? "/projects" : "/");
-      router.refresh();
+    const body = await res.json().catch(() => null);
+    if (res.ok && body?.mfaRequired) {
+      setChallengeId(body.challengeId);
+    } else if (res.ok) {
+      goConsole();
     } else {
-      const body = await res.json().catch(() => null);
       setError(body?.error?.message ?? "ログインに失敗しました");
+    }
+  }
+
+  async function submitMfa(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    const res = await fetch("/api/v1/auth/login/mfa", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ challengeId, code: mfaCode }),
+    });
+    setLoading(false);
+    if (res.ok) goConsole();
+    else {
+      const body = await res.json().catch(() => null);
+      setError(body?.error?.message ?? "コードを確認できませんでした");
+      if (res.status === 401 && body?.error?.message?.includes("最初から")) {
+        setChallengeId(null);
+        setMfaCode("");
+      }
     }
   }
 
@@ -179,6 +209,29 @@ export default function LoginPage() {
                 案件と人材を、余計な商流なしで直接つなぐ。
               </p>
             </div>
+            {challengeId ? (
+            <form onSubmit={submitMfa} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/10 lg:p-8">
+              <h2 className="text-xl font-bold">2要素認証</h2>
+              <p className="mb-6 mt-1 text-sm text-slate-500">認証アプリに表示された6桁のコード（またはバックアップコード）を入力してください</p>
+              {error && <p className="mb-4 rounded-lg bg-red-50 p-2.5 text-sm text-red-700">{error}</p>}
+              <input
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value)}
+                required
+                autoFocus
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="123456"
+                className="mb-6 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-center text-lg tracking-widest focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+              <button type="submit" disabled={loading} className="w-full rounded-full bg-slate-900 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50">
+                {loading ? "確認中..." : "ログイン"}
+              </button>
+              <button type="button" onClick={() => { setChallengeId(null); setMfaCode(""); setError(null); }} className="mt-3 w-full text-xs text-slate-500 hover:underline">
+                最初からやり直す
+              </button>
+            </form>
+            ) : (
             <form onSubmit={submit} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/10 lg:p-8">
               <h2 className="text-xl font-bold">企業コンソール</h2>
               <p className="mb-6 mt-1 text-sm text-slate-500">登録済みの企業アカウントでログイン</p>
@@ -222,6 +275,7 @@ export default function LoginPage() {
                 </Link>
               </div>
             </form>
+            )}
           </div>
         </div>
       </section>

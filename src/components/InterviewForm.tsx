@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function InterviewForm({ entryId }: { entryId: string }) {
+export function InterviewForm({ entryId, webMeeting = false }: { entryId: string; webMeeting?: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -41,6 +41,7 @@ export function InterviewForm({ entryId }: { entryId: string }) {
       <div>
         <label className="mb-1 block text-xs text-slate-500">方法</label>
         <select name="method" className="rounded border border-slate-300 px-2 py-1.5">
+          {webMeeting && <option>Web会議（組込み）</option>}
           <option>オンライン</option>
           <option>対面</option>
         </select>

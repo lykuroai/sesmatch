@@ -33,16 +33,16 @@ const GROUPS: Group[] = [
       { label: "公開案件・公開人材の検索、AI マッチング", free: "○", pro: "○" },
       { label: "相手企業名の明示（他社の公開案件・人材に掲載企業名を表示）", free: "取引先登録済みのみ", pro: "すべての他社" },
       { label: "保存検索と新着アラート（メール通知）", free: "−", pro: "10件/社" },
-      { label: "Slack／Teams 通知", free: "−", pro: "○", soon: true },
+      { label: "Slack／Teams 通知（Incoming Webhook、5件/社）", free: "−", pro: "○" },
     ],
   },
   {
     title: "商談・面談",
     rows: [
       { label: "商談申込み・スカウト、双方承認、メッセージ、面談", free: "○", pro: "○" },
-      { label: "一斉スカウト、スカウト文の AI 下書き、既読表示", free: "−", pro: "○", soon: true },
-      { label: "スキルシート再生成（自社書式 PDF／Excel）", free: "−", pro: "○", soon: true },
-      { label: "Web 会議（コンソール内。人材本人はゲスト URL で参加）", free: "−", pro: "○", soon: true },
+      { label: "一斉スカウト（最大20名/回）、スカウト文の AI 下書き、既読表示・反応率", free: "−", pro: "○" },
+      { label: "スキルシート再生成（自社書式。印刷用 PDF／Excel）", free: "−", pro: "○" },
+      { label: "Web 会議（コンソール内。人材本人はゲスト URL で参加）", free: "−", pro: "○" },
     ],
   },
   {
@@ -57,7 +57,10 @@ const GROUPS: Group[] = [
     rows: [
       { label: "ホーム KPI", free: "○", pro: "○" },
       { label: "商談ファネル、市場単価レンジ、CSV エクスポート", free: "−", pro: "○" },
-      { label: "2要素認証の必須化、IP 制限、SSO、監査ログ出力", free: "−", pro: "○", soon: true },
+      { label: "2要素認証（認証アプリ）", free: "○", pro: "○" },
+      { label: "2要素認証の全員必須化", free: "−", pro: "○" },
+      { label: "API トークン本数", free: "2本", pro: "10本" },
+      { label: "IP 制限、SSO、監査ログ出力", free: "−", pro: "○", soon: true },
       { label: "お問合せ", free: "通常対応", pro: "優先対応（目安1営業日）" },
       { label: "導入オンボーディング（オンライン60分）", free: "−", pro: "○" },
     ],

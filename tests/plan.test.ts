@@ -43,11 +43,16 @@ describe("hasFeature / assertFeature", () => {
 });
 
 describe("limits（基本版の上限は予約・現時点は無制限）", () => {
-  it("FREE の数量上限は保存検索を除き無制限", () => {
+  it("FREE の数量上限は保存検索・API トークン・Webhook・書式を除き無制限", () => {
     expect(limitFor("FREE", "ingestions_per_month")).toBeNull();
     expect(limitFor("FREE", "members")).toBeNull();
     expect(limitFor("FREE", "published_projects")).toBeNull();
     expect(assertLimit("FREE", "members", 100)).toBeNull();
+    expect(limitFor("FREE", "api_tokens")).toBe(2);
+    expect(limitFor("PRO", "api_tokens")).toBe(10);
+    expect(assertLimit("FREE", "api_tokens", 2)?.error.code).toBe("PLAN_LIMIT_EXCEEDED");
+    expect(assertLimit("FREE", "webhooks", 0)?.error.code).toBe("PLAN_LIMIT_EXCEEDED");
+    expect(assertLimit("PRO", "webhooks", 4)).toBeNull();
   });
   it("保存検索は FREE 0件、PRO/TRIAL 10件", () => {
     expect(assertLimit("FREE", "saved_searches", 0)?.error.code).toBe("PLAN_LIMIT_EXCEEDED");

@@ -15,6 +15,7 @@ import {
 } from "@/lib/constants";
 import { IngestPanel } from "@/components/IngestPanel";
 import { SavedSearchPanel } from "@/components/SavedSearchPanel";
+import { BulkScoutPanel, ScoutCheckbox } from "@/components/ScoutSelect";
 import { PendingIngestions } from "@/components/PendingIngestions";
 import { Pager, parsePage, slicePage } from "@/components/Pager";
 import { NewBadge } from "@/components/NewBadge";
@@ -381,6 +382,15 @@ export default async function EngineersPage({
         </div>
       )}
 
+      {/* PRO: 一斉スカウト（他社人材を選択して自社案件へまとめてスカウト。PRO版仕様書 §4.6） */}
+      {auth.plan !== "FREE" && engineers.some((e) => !e.own) && (
+        <BulkScoutPanel
+          projects={ownProjects.items
+            .filter((p) => p.status === "PUBLISHED" && p.workflowStatus !== "ENDED")
+            .map((p) => ({ id: p.id, label: `${p.code} ${p.name}` }))}
+        />
+      )}
+
       <p className="mb-3 text-xs text-slate-500">{filtered.length}件が該当</p>
 
       {/* モバイル: カード表示（md 未満） */}
@@ -429,6 +439,7 @@ export default async function EngineersPage({
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
+              {auth.plan !== "FREE" && <th className="px-3 py-3" title="一斉スカウトの対象を選択">選択</th>}
               <th className="px-4 py-3">人材ID</th>
               <th className="px-4 py-3">掲載元</th>
               <th className="px-4 py-3">年代</th>
@@ -443,6 +454,9 @@ export default async function EngineersPage({
           <tbody>
             {engineers.map((e) => (
               <tr key={e.id} className="border-t border-slate-100 hover:bg-slate-50">
+                {auth.plan !== "FREE" && (
+                  <td className="px-3 py-2 text-center">{!e.own && e.status === "PUBLISHED" && <ScoutCheckbox id={e.id} code={e.code} />}</td>
+                )}
                 <td className="whitespace-nowrap px-4 py-2">
                   <span className="flex items-center gap-2.5">
                     <ProjectImage kind={classifyEngineerImage(e)} size={32} />
@@ -477,7 +491,7 @@ export default async function EngineersPage({
             ))}
             {engineers.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={auth.plan !== "FREE" ? 10 : 9} className="px-4 py-8 text-center text-slate-400">
                   該当する人材がありません
                 </td>
               </tr>

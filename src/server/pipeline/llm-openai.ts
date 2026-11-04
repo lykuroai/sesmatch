@@ -15,6 +15,8 @@ import {
   type ExtractionDraft,
   type LlmGateway,
   engineerSplitSchema,
+  scoutDraftSchema,
+  type ScoutDraftInput,
 } from "./llm";
 
 // zod エラーを人が読める1行に要約する（取込履歴に表示される）
@@ -81,6 +83,18 @@ const PROJECT_SCHEMA = `{
   "preferredSkills": string[],         // 尚可スキル。「尚可」「歓迎」とされた技術要素、参画後に習得予定の技術要素、必須から溢れた技術要素
   "summary": string                    // 匿名要約。自然な日本語で書く。エンド企業名は「大手金融機関」等の抽象カテゴリに置換
 }`;
+
+const scoutDraftPrompt = (input: ScoutDraftInput) => `SES 営業担当として、他社の技術者（人材）へ自社案件を紹介するスカウト文を日本語で作成し、次の形式のJSONのみを出力してください。
+{"body": "スカウト文"}
+
+ルール:
+- 丁寧なビジネス文体。300〜500字。冒頭の挨拶、案件の魅力（業務内容・技術・環境）、人材の経歴との接点、結びの順
+- 案件名・勤務地・在宅・開始時期・単価上限は本文中で変数 {案件名} {勤務地} {在宅} {開始時期} {単価上限} のまま書く（送信時に展開される）
+- 氏名・企業名・メールアドレス・電話番号・URL は一切書かない（連絡先は禁止）
+- 複数名に送る前提のため、特定の1名だけに当てはまる表現は避ける
+
+案件: ${JSON.stringify(input.project)}
+対象人材（匿名）: ${JSON.stringify(input.engineers.slice(0, 20))}`;
 
 export class OpenAiCompatGateway implements LlmGateway {
   private baseUrl = (process.env.LLM_BASE_URL ?? "").replace(/\/+$/, "");
@@ -202,6 +216,15 @@ ${PROJECT_SCHEMA}`;
 
   // 用語辞書の候補提案（Phase 2 名寄せ）: 新語の正規形を提案する。
   // 失敗しても取込は成立させるため、呼び出し側でエラーを握りつぶす前提の補助機能
+
+  // 一斉スカウトの AI 下書き（PRO版仕様書 §4.6）
+  async draftScoutMessage(input: ScoutDraftInput) {
+    const raw = await this.call("scout-draft", scoutDraftPrompt(input), 4096);
+    const parsed = scoutDraftSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("スカウト文の生成結果が不正です");
+    return parsed.data.body;
+  }
+
   // 人材書類の複数件分割（PRO版仕様書 §4.2）。失敗・不正な応答は「1名」扱い（分割しない）
   async splitEngineerSheets(text: string) {
     const prompt = `次の文書に含まれる技術者（人材）の人数を判定し、2人以上含まれる場合は各人の記載が始まる行を原文のまま返してください。次の形式のJSONのみを出力してください。

@@ -2000,6 +2000,12 @@ function CompanyMembersPanel({ companyId, token }: { companyId: string; token: s
     }
   }
 
+  async function mfaReset(m: AdminMember) {
+    if (!window.confirm(`${m.name} さんの2要素認証をリセットしますか？（本人が再設定するまで2要素なしでログインできます）`)) return;
+    const res = await fetch(`/api/v1/operations/members/${m.id}/mfa-reset`, { method: "POST", headers: { "X-Admin-Token": token } });
+    if (!res.ok) setError("2要素認証のリセットに失敗しました");
+  }
+
   async function reinvite(m: AdminMember) {
     if (!window.confirm(`${m.name} に個別の初期パスワードを再発行して招待メールを送りますか？`)) return;
     setError(null);
@@ -2104,6 +2110,11 @@ function CompanyMembersPanel({ companyId, token }: { companyId: string; token: s
                   )}
                   <button onClick={() => reinvite(m)} className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100">
                     再招待
+                  </button>
+                  <button onClick={() => mfaReset(m)} className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50" title="2要素認証のリセット（サポート用）">
+
+                    2要素リセット
+
                   </button>
                   <button onClick={() => remove(m)} className="rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50">
                     削除

@@ -11,8 +11,10 @@ export type LimitKey =
   | "members" // 担当者数（候補 3）
   | "published_projects" // 公開中案件（候補 20）
   | "published_engineers" // 営業中人材（候補 20）
-  | "api_tokens" // API トークン本数（FREE 2 / PRO 10。段階B で適用）
-  | "saved_searches"; // 保存検索（PRO 10件/社）
+  | "api_tokens" // API トークン本数（FREE 2 / PRO 10。有効なトークンを数える。既存分は削除しない）
+  | "webhooks" // Slack/Teams Webhook（PRO 5件/社）
+  | "saved_searches" // 保存検索（PRO 10件/社）
+  | "skill_sheet_templates"; // スキルシートの自社テンプレート（PRO 3件/社）
 
 // null = 無制限
 export const PLAN_LIMITS: Record<CompanyPlan, Record<LimitKey, number | null>> = {
@@ -21,24 +23,30 @@ export const PLAN_LIMITS: Record<CompanyPlan, Record<LimitKey, number | null>> =
     members: null,
     published_projects: null,
     published_engineers: null,
-    api_tokens: null, // 段階B で 2 に変更（既存トークンは削除しない）
+    api_tokens: 2, // 基本版は2本まで（PRO版仕様書 §4.10。3本以上ある既存企業は新規作成のみ制限）
     saved_searches: 0,
+    skill_sheet_templates: 0,
+    webhooks: 0,
   },
   TRIAL: {
     ingestions_per_month: null,
     members: null,
     published_projects: null,
     published_engineers: null,
-    api_tokens: null,
+    api_tokens: 10,
     saved_searches: 10,
+    skill_sheet_templates: 3,
+    webhooks: 5,
   },
   PRO: {
     ingestions_per_month: null,
     members: null,
     published_projects: null,
     published_engineers: null,
-    api_tokens: null,
+    api_tokens: 10,
     saved_searches: 10,
+    skill_sheet_templates: 3,
+    webhooks: 5,
   },
 };
 

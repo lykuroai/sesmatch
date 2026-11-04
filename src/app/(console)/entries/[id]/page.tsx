@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
-import { getEntry } from "@/server/services/entries";
+import { getEntry, markMessagesRead } from "@/server/services/entries";
 import { hasPermission } from "@/server/auth/rbac";
 import {
   canDecline,
@@ -13,6 +13,9 @@ import { DirectionIcon } from "@/components/DirectionIcon";
 import { ActionButton } from "@/components/ActionButton";
 import { MessageForm } from "@/components/MessageForm";
 import { InterviewForm } from "@/components/InterviewForm";
+import { MeetingControls } from "@/components/MeetingControls";
+import { hasFeature } from "@/server/plan/features";
+import { meetingAvailable } from "@/server/services/meetings";
 import { ContractCreateForm } from "@/components/ContractCreateForm";
 
 const FLOW = [
@@ -29,6 +32,8 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
   const auth = await getAuth();
   if (!auth) redirect("/login");
   const { id } = await params;
+  // 相手からの未読メッセージを既読にしてから取得する（既読表示は PRO 版のみ。PRO版仕様書 §4.6）
+  await markMessagesRead(auth, id);
   const e = await getEntry(auth, id);
   if (!e) notFound();
 
@@ -36,6 +41,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
   const canSubmitPerm = hasPermission(auth.roles, "entry.submit");
   const canMessage = hasPermission(auth.roles, "message.send");
   const canInterview = hasPermission(auth.roles, "interview.manage");
+  const webMeetingOn = meetingAvailable() && hasFeature(auth, "web_meeting");
 
   const myApproved = e.side === "SUPPLY" ? e.supplyApproved : e.demandApproved;
   const approvable =
@@ -219,17 +225,28 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
         {e.interviews.length > 0 && (
           <ul className="mb-4 space-y-1 text-sm">
             {e.interviews.map((iv) => (
-              <li key={iv.id} className="flex gap-3">
+              <li key={iv.id} className="flex flex-wrap items-center gap-3">
                 <span className="font-medium">{new Date(iv.scheduledAt).toLocaleString("ja-JP")}</span>
                 <span>{iv.method}</span>
                 <span className="text-slate-500">{iv.note}</span>
                 <span className="text-xs text-slate-400">{iv.status}</span>
+                {/* Web 会議（PRO版仕様書 §4.8）: 作成は PRO 側、参加は両社 */}
+                {iv.status === "SCHEDULED" && (webMeetingOn || iv.meeting) && (
+                  <MeetingControls
+                    entryId={e.id}
+                    interviewId={iv.id}
+                    hasMeeting={iv.meeting != null}
+                    canCreate={webMeetingOn && canInterview}
+                    canManage={canInterview}
+                    guestExpiresAt={iv.meeting?.guestExpiresAt ? new Date(iv.meeting.guestExpiresAt).toISOString() : null}
+                  />
+                )}
               </li>
             ))}
           </ul>
         )}
         {canInterview && canScheduleInterview(e.status) ? (
-          <InterviewForm entryId={e.id} />
+          <InterviewForm entryId={e.id} webMeeting={webMeetingOn} />
         ) : (
           <p className="text-xs text-slate-400">面談の設定は商談開始後に可能になります。</p>
         )}
@@ -248,6 +265,9 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
             <div key={m.id} className={`max-w-xl rounded-lg p-3 text-sm ${m.own ? "ml-auto bg-blue-50" : "bg-slate-100"}`}>
               <p className="mb-1 text-xs text-slate-500">
                 {m.senderName}（{m.own ? "自社" : "相手企業"}） {new Date(m.createdAt).toLocaleString("ja-JP")}
+                {m.own && auth.plan !== "FREE" && (
+                  <span className="ml-2 text-emerald-700">{m.readAt ? `既読 ${new Date(m.readAt).toLocaleString("ja-JP")}` : "未読"}</span>
+                )}
               </p>
               <p className="whitespace-pre-wrap">{m.body}</p>
             </div>

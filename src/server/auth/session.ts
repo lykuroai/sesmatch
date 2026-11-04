@@ -14,6 +14,8 @@ export type AuthContext = {
   companyName: string;
   roles: string[];
   plan: CompanyPlan; // 実効プラン（期限切れの TRIAL/PRO は FREE。PRO版仕様書 §5）
+  mfaEnabled: boolean; // 本人の2要素認証が有効か（§4.11）
+  mfaRequired: boolean; // 企業が2要素認証を必須化しているか（PRO のときのみ実効）
 };
 
 export async function createSession(userAccountId: string): Promise<{ token: string; expiresAt: Date }> {
@@ -38,9 +40,11 @@ export async function resolveSession(token: string | undefined): Promise<AuthCon
   // ログイン後、所属企業コンソールを自動表示（§8.1）。MVPでは1ユーザー=1企業所属を前提とする。
   const member = await prisma.companyMember.findFirst({
     where: { userAccountId: session.userAccountId, status: "ACTIVE" },
-    include: { company: true, roles: true },
+    include: { company: { include: { securitySettings: { select: { mfaRequired: true } } } }, roles: true },
   });
   if (!member || member.company.status !== "ACTIVE") return null;
+  const mfa = await prisma.userMfa.findUnique({ where: { userAccountId: session.userAccountId }, select: { enabledAt: true } });
+  const plan = effectivePlan(member.company);
 
   return {
     userAccountId: session.userAccountId,
@@ -50,6 +54,8 @@ export async function resolveSession(token: string | undefined): Promise<AuthCon
     companyId: member.companyId,
     companyName: member.company.name,
     roles: member.roles.map((r) => r.role),
-    plan: effectivePlan(member.company),
+    plan,
+    mfaEnabled: !!mfa?.enabledAt,
+    mfaRequired: plan !== "FREE" && !!member.company.securitySettings?.mfaRequired,
   };
 }

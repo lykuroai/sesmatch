@@ -20,6 +20,7 @@ import { DISPATCH_CONTRACT_TYPE } from "@/lib/constants";
 import { hasValidConsent, serializeEngineer } from "./engineers";
 import { companyNameMap } from "./companies";
 import { hasFeature } from "@/server/plan/features";
+import { dispatchWebhooks } from "./webhooks";
 import { serializeProject } from "./projects";
 
 const ENTRY_INCLUDE = {
@@ -105,6 +106,7 @@ export function serializeEntry(
       senderName: m.senderName,
       body: m.body,
       createdAt: m.createdAt,
+      readAt: m.readAt, // 相手が開いた時刻（既読表示は PRO 版のみ。PRO版仕様書 §4.6）
     })),
     interviews: e.interviews.map((iv) => ({
       id: iv.id,
@@ -112,6 +114,8 @@ export function serializeEntry(
       method: iv.method,
       note: iv.note,
       status: iv.status,
+      // Web 会議（PRO版仕様書 §4.8）: 会議室の有無と本人用 URL の有効期限のみ（トークンは返さない）
+      meeting: iv.meetingProvider === "JITSI" && iv.meetingRoomId ? { guestExpiresAt: iv.guestExpiresAt } : null,
     })),
   };
 }
@@ -208,6 +212,13 @@ async function notifyEntryReceived(
 提案人材コード: ${engineer.code}`
         : `貴社人材（${engineer.code}）への商談の申込み（案件のご提案）が届きました。
 対象案件: 「${project.name}」（${project.code}）`;
+    // PRO: Slack/Teams 通知（Level 1 の範囲のみ。PRO版仕様書 §4.9）
+    dispatchWebhooks(receivingCompanyId, {
+      event: "entry.received",
+      title: entry.type === "PROPOSAL" ? "案件への商談申込みが届きました" : "人材への商談申込みが届きました",
+      text: `案件「${project.name}」（${project.code}） × 人材 ${engineer.code}`,
+      url: `${appBaseUrl()}/entries/${entry.id}`,
+    });
     await Promise.all(
       members.map((m) =>
         sendMail({
@@ -266,6 +277,13 @@ async function notifyMessageReceived(
       ],
       { union: true }
     );
+    // PRO: Slack/Teams 通知（メッセージ本文は含めない。PRO版仕様書 §4.9）
+    dispatchWebhooks(receivingCompanyId, {
+      event: "message.received",
+      title: "商談に新しいメッセージが届きました",
+      text: `案件「${entry.project.name}」（${entry.project.code}） × 人材 ${entry.engineer.code}`,
+      url: `${appBaseUrl()}/entries/${entry.id}`,
+    });
     await Promise.all(
       members.map((m) =>
         sendMail({
@@ -570,6 +588,20 @@ export async function approveEntry(auth: AuthContext, entryId: string) {
     targetId: entryId,
     metadata: { side: result.side },
   });
+  if (result.mutual) {
+    // PRO: 双方承認（商談開始）を両社へ Slack/Teams 通知（PRO版仕様書 §4.9）
+    const e = await prisma.entry.findUnique({ where: { id: entryId }, include: { project: { select: { name: true, code: true } }, engineer: { select: { code: true } } } });
+    if (e) {
+      const payload = {
+        event: "entry.approved" as const,
+        title: "双方承認が成立し、商談が開始されました",
+        text: `案件「${e.project.name}」（${e.project.code}） × 人材 ${e.engineer.code}`,
+        url: `${appBaseUrl()}/entries/${entryId}`,
+      };
+      dispatchWebhooks(e.demandCompanyId, payload);
+      dispatchWebhooks(e.supplyCompanyId, payload);
+    }
+  }
   return result;
 }
 
@@ -690,6 +722,18 @@ export async function sendMessage(auth: AuthContext, entryId: string, body: stri
   return { message };
 }
 
+// 既読の記録（PRO版仕様書 §4.6）: 当事者が商談詳細を開いたとき、相手企業からの未読メッセージに readAt を付ける。
+// 記録はプランを問わず行い、表示は PRO 版のみ（送信側が PRO のとき「既読」を出す）
+export async function markMessagesRead(auth: AuthContext, entryId: string): Promise<number> {
+  const entry = await prisma.entry.findUnique({ where: { id: entryId } });
+  if (!entry || !sideOf(entry, auth.companyId)) return 0;
+  const r = await prisma.entryMessage.updateMany({
+    where: { entryId, senderCompanyId: { not: auth.companyId }, readAt: null },
+    data: { readAt: new Date() },
+  });
+  return r.count;
+}
+
 // 面談登録（§20.2: 双方承認後のみ）
 export async function scheduleInterview(
   auth: AuthContext,
@@ -719,6 +763,13 @@ export async function scheduleInterview(
     targetType: "Entry",
     targetId: entryId,
     metadata: { interviewId: interview.id },
+  });
+  // PRO: 相手企業へ面談設定を Slack/Teams 通知（PRO版仕様書 §4.9）
+  dispatchWebhooks(entry.demandCompanyId === auth.companyId ? entry.supplyCompanyId : entry.demandCompanyId, {
+    event: "interview.scheduled",
+    title: "面談が設定されました",
+    text: `${new Date(input.scheduledAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}（${input.method}）`,
+    url: `${appBaseUrl()}/entries/${entryId}`,
   });
   return { interview };
 }

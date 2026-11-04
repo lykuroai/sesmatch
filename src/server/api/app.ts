@@ -13,6 +13,29 @@ import {
   updateSavedSearch,
 } from "@/server/services/saved-searches";
 import { internalJobToken } from "@/server/plan/scheduler";
+import { createMeeting, joinMeeting, joinMeetingAsGuest, peekGuestMeeting, revokeMeeting } from "@/server/services/meetings";
+import {
+  beginMfaSetup,
+  consumeMfaChallenge,
+  createMfaChallenge,
+  disableMfa,
+  enableMfa,
+  getMfaStatus,
+  getSecuritySettings,
+  resetMfaByOperations,
+  setMfaRequired,
+} from "@/server/auth/mfa";
+import { createWebhook, deleteWebhook, listWebhooks, testWebhook, updateWebhook, WEBHOOK_EVENTS } from "@/server/services/webhooks";
+import {
+  buildSkillSheet,
+  createSheetTemplate,
+  deleteSheetTemplate,
+  listSheetTemplates,
+  renderXlsx,
+  updateSheetTemplate,
+  type SheetModel,
+} from "@/server/services/skill-sheet";
+import { createBulkScout, draftScoutMessage, getScoutBatch, listScoutBatches, MAX_SCOUTS_PER_REQUEST } from "@/server/services/scouts";
 import { exportCsv, getFunnel, getMarketRates, getResponseStats, rangeOfMonths } from "@/server/services/analytics";
 import {
   generatePlanInvoices,
@@ -162,10 +185,12 @@ const MAX_INGEST_BYTES = 20 * 1024 * 1024;
 type SvcErr = { code: string; message?: string };
 const svcError = (result: object): SvcErr | null =>
   (result as { error?: SvcErr }).error ?? null;
-const statusFor = (code: string): 400 | 403 | 404 | 409 | 422 =>
-  code === "NOT_FOUND"
+const statusFor = (code: string): 400 | 403 | 404 | 409 | 422 | 429 =>
+  code === "SCOUT_DAILY_LIMIT"
+    ? 429
+    : code === "NOT_FOUND"
     ? 404
-    : code === "FORBIDDEN" || code === "PLAN_REQUIRED" || code === "PLAN_LIMIT_EXCEEDED"
+    : code === "FORBIDDEN" || code === "PLAN_REQUIRED" || code === "PLAN_LIMIT_EXCEEDED" || code === "MFA_REQUIRED" || code === "MEETING_NOT_AVAILABLE"
       ? 403
       : code === "DUPLICATE_ENTRY" || code === "VERSION_CONFLICT"
         ? 409
@@ -215,6 +240,22 @@ app.post("/internal/jobs/alerts", async (c) => {
   if (!ok) return c.json(err("UNAUTHENTICATED"), 401);
   const summary = await evaluateSavedSearches({ force: c.req.query("force") === "1" });
   return c.json(summary);
+});
+
+// ---- Web 会議の人材本人ゲスト参加（PRO版仕様書 §4.8）: 未認証。トークンは hash 照合、面談前後1時間のみ ----
+
+app.get("/meetings/guest/:token", async (c) => {
+  const info = await peekGuestMeeting(c.req.param("token"));
+  if (!info) return c.json(err("NOT_FOUND"), 404);
+  return c.json(info);
+});
+app.post("/meetings/guest/:token/join", async (c) => {
+  const parsed = z.object({ displayName: z.string().max(30).default("") }).safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await joinMeetingAsGuest(c.req.param("token"), parsed.data.displayName);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
 });
 
 // ---- 企業申込（§6.4, §28）: 未認証で受け付ける ----
@@ -387,6 +428,14 @@ app.put("/operations/plan-invoices/:id/paid", requireAdminToken, async (c) => {
 });
 app.put("/operations/plan-invoices/:id/void", requireAdminToken, async (c) => {
   const result = await voidPlanInvoice(c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+// 運営: 担当者の2要素認証をリセット（サポート用。PRO版仕様書 §4.11）
+app.post("/operations/members/:id/mfa-reset", requireAdminToken, async (c) => {
+  const result = await resetMfaByOperations(c.req.param("id"));
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);
@@ -707,6 +756,12 @@ app.post("/auth/login", async (c) => {
     return c.json(err("FORBIDDEN", "運営の承認待ちです。開通までお待ちください"), 403);
   if (!membership || membership.company.status !== "ACTIVE")
     return c.json(err("FORBIDDEN", "有効な企業所属がありません"), 403);
+  // 2要素認証が有効なアカウントはコード入力（第2段階）を要求する（PRO版仕様書 §4.11）
+  const mfa = await prisma.userMfa.findUnique({ where: { userAccountId: account.id }, select: { enabledAt: true } });
+  if (mfa?.enabledAt) {
+    const challengeId = await createMfaChallenge(account.id);
+    return c.json({ ok: false, mfaRequired: true, challengeId });
+  }
   const { token, expiresAt } = await createSession(account.id);
   setCookie(c, SESSION_COOKIE, token, {
     httpOnly: true,
@@ -716,6 +771,29 @@ app.post("/auth/login", async (c) => {
     secure: process.env.NODE_ENV === "production", // 本番はHTTPS必須
   });
   await audit({ actorUserId: account.id, action: "LoginSucceeded" });
+  return c.json({ ok: true });
+});
+
+// ログインの第2段階: 認証アプリのコードまたはバックアップコード
+app.post("/auth/login/mfa", async (c) => {
+  const parsed = z
+    .object({ challengeId: z.string().min(1), code: z.string().min(6).max(12) })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const userAccountId = await consumeMfaChallenge(parsed.data.challengeId, parsed.data.code);
+  if (!userAccountId) {
+    await audit({ action: "LoginFailed", metadata: { reason: "mfa" } });
+    return c.json(err("UNAUTHENTICATED", "コードが一致しないか、有効期限が切れています。最初からやり直してください"), 401);
+  }
+  const { token, expiresAt } = await createSession(userAccountId);
+  setCookie(c, SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "Lax",
+    path: "/",
+    expires: expiresAt,
+    secure: process.env.NODE_ENV === "production",
+  });
+  await audit({ actorUserId: userAccountId, action: "LoginSucceeded", metadata: { mfa: true } });
   return c.json({ ok: true });
 });
 
@@ -742,7 +820,48 @@ app.use("*", async (c, next) => {
   const auth = await resolveSession(getCookie(c, SESSION_COOKIE));
   if (!auth) return c.json(err("UNAUTHENTICATED"), 401);
   c.set("auth", auth);
+  // 企業が2要素認証を必須化しているのに未設定なら、設定とログアウト以外は拒否（PRO版仕様書 §4.11）
+  if (auth.mfaRequired && !auth.mfaEnabled) {
+    const path = new URL(c.req.url).pathname;
+    if (!path.startsWith("/api/v1/auth/mfa") && path !== "/api/v1/auth/logout")
+      return c.json(err("MFA_REQUIRED", "貴社は2要素認証を必須にしています。設定を完了してください"), 403);
+  }
   await next();
+});
+
+// セッション認証のみ（API トークンでは2要素の設定をさせない）
+const sessionOnly = async (
+  c: { get(k: "tokenPermissions"): Permission[] | undefined; json: (o: object, s: 403) => Response },
+  next: () => Promise<void>
+) => {
+  if (c.get("tokenPermissions")) return c.json(err("FORBIDDEN", "APIトークンでは2要素認証を設定できません"), 403);
+  await next();
+};
+
+// ---- 2要素認証（本人設定。基本版にも提供）----
+
+app.get("/auth/mfa", async (c) => c.json(await getMfaStatus(c.get("auth").userAccountId)));
+app.post("/auth/mfa/setup", sessionOnly, async (c) => {
+  const result = await beginMfaSetup(c.get("auth"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+app.post("/auth/mfa/verify", sessionOnly, async (c) => {
+  const parsed = z.object({ code: z.string().min(6).max(12) }).safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await enableMfa(c.get("auth"), parsed.data.code);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+app.delete("/auth/mfa", sessionOnly, async (c) => {
+  const parsed = z.object({ code: z.string().min(6).max(12) }).safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await disableMfa(c.get("auth"), parsed.data.code);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
 });
 
 const requirePermission =
@@ -789,6 +908,172 @@ app.get("/plan-invoices/:id", requirePermission("billing.read"), async (c) => {
   return c.json(inv);
 });
 
+// ---- 一斉スカウト・AI 下書き・反応率（PRO版仕様書 §4.6）----
+
+app.post("/scouts/bulk", requireFeature("bulk_scout"), requirePermission("entry.submit"), async (c) => {
+  const parsed = z
+    .object({
+      projectId: z.string().min(1),
+      engineerIds: z.array(z.string().min(1)).min(1).max(MAX_SCOUTS_PER_REQUEST),
+      body: z.string().min(1).max(4000),
+    })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success)
+    return c.json(err("VALIDATION_ERROR", `案件・人材（1〜${MAX_SCOUTS_PER_REQUEST}名）・スカウト文を確認してください`), 400);
+  const result = await createBulkScout(c.get("auth"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result, 201);
+});
+
+app.post("/scouts/draft", requireFeature("bulk_scout"), requirePermission("entry.submit"), async (c) => {
+  const parsed = z
+    .object({ projectId: z.string().min(1), engineerIds: z.array(z.string()).max(MAX_SCOUTS_PER_REQUEST).default([]) })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await draftScoutMessage(c.get("auth"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+app.get("/scouts/batches", requireFeature("bulk_scout"), requirePermission("entry.read"), async (c) =>
+  c.json({ items: await listScoutBatches(c.get("auth")) })
+);
+app.get("/scouts/batches/:id", requireFeature("bulk_scout"), requirePermission("entry.read"), async (c) => {
+  const b = await getScoutBatch(c.get("auth"), c.req.param("id"));
+  if (!b) return c.json(err("NOT_FOUND"), 404);
+  return c.json(b);
+});
+
+// ---- スキルシート再生成（PRO版仕様書 §4.7）----
+
+const templateSchema = z.object({
+  name: z.string().min(1).max(50),
+  title: z.string().min(1).max(50),
+  showCompanyName: z.boolean(),
+  footerNote: z.string().max(500),
+  sections: z
+    .object({
+      summary: z.boolean().optional(),
+      skills: z.boolean().optional(),
+      processes: z.boolean().optional(),
+      roles: z.boolean().optional(),
+      industries: z.boolean().optional(),
+      conditions: z.boolean().optional(),
+    })
+    .default({}),
+});
+
+app.get("/skill-sheet-templates", requireFeature("skill_sheet_render"), async (c) =>
+  c.json({ items: await listSheetTemplates(c.get("auth")) })
+);
+app.post("/skill-sheet-templates", requireFeature("skill_sheet_render"), requirePermission("engineer.create"), async (c) => {
+  const parsed = templateSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR", "テンプレートの内容を確認してください"), 400);
+  const result = await createSheetTemplate(c.get("auth"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result, 201);
+});
+app.put("/skill-sheet-templates/:id", requireFeature("skill_sheet_render"), requirePermission("engineer.create"), async (c) => {
+  const parsed = templateSchema.partial().safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await updateSheetTemplate(c.get("auth"), c.req.param("id"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+app.delete("/skill-sheet-templates/:id", requireFeature("skill_sheet_render"), requirePermission("engineer.create"), async (c) => {
+  const result = await deleteSheetTemplate(c.get("auth"), c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+// Excel 出力（印刷用 HTML は /engineers/:id/sheet 画面）。実名版の可否はサービス側で判定する
+app.get("/engineers/:id/skill-sheet/export", requireFeature("skill_sheet_render"), requirePermission("engineer.read.masked"), async (c) => {
+  const q = z
+    .object({ mode: z.enum(["anonymous", "named"]).default("anonymous"), template: z.string().min(1).default("standard") })
+    .safeParse({ mode: c.req.query("mode") || undefined, template: c.req.query("template") || undefined });
+  if (!q.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const model = await buildSkillSheet(c.get("auth"), c.req.param("id"), { mode: q.data.mode, templateId: q.data.template, format: "xlsx" });
+  const er = svcError(model);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  const buf = renderXlsx(model as SheetModel);
+  const code = (model as SheetModel).engineer.code;
+  return new Response(new Uint8Array(buf), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename="skillsheet_${code}_${q.data.mode}.xlsx"`,
+      "Cache-Control": "no-store",
+    },
+  });
+});
+
+// ---- Slack/Teams Webhook（PRO版仕様書 §4.9）----
+
+const webhookSchema = z.object({
+  name: z.string().min(1).max(50),
+  url: z.string().url().max(500),
+  provider: z.enum(["SLACK", "TEAMS", "GENERIC"]),
+  events: z.array(z.enum(WEBHOOK_EVENTS)).min(1),
+});
+
+app.get("/webhooks", requireFeature("webhook_notify"), requirePermission("company.manage"), async (c) =>
+  c.json({ items: await listWebhooks(c.get("auth")), events: WEBHOOK_EVENTS })
+);
+app.post("/webhooks", requireFeature("webhook_notify"), requirePermission("company.manage"), async (c) => {
+  const parsed = webhookSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR", "名前・URL（https）・種別・イベントを確認してください"), 400);
+  const result = await createWebhook(c.get("auth"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result, 201);
+});
+app.put("/webhooks/:id", requireFeature("webhook_notify"), requirePermission("company.manage"), async (c) => {
+  const parsed = webhookSchema.partial().extend({ resume: z.boolean().optional() }).safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await updateWebhook(c.get("auth"), c.req.param("id"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+app.delete("/webhooks/:id", requireFeature("webhook_notify"), requirePermission("company.manage"), async (c) => {
+  const result = await deleteWebhook(c.get("auth"), c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+app.post("/webhooks/:id/test", requireFeature("webhook_notify"), requirePermission("company.manage"), async (c) => {
+  const result = await testWebhook(c.get("auth"), c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+// ---- Web 会議（PRO版仕様書 §4.8）: 作成・無効化は PRO 側、参加は両社の当事者 ----
+
+app.post("/interviews/:id/meeting", requirePermission("interview.manage"), async (c) => {
+  const result = await createMeeting(c.get("auth"), c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result, 201);
+});
+app.delete("/interviews/:id/meeting", requirePermission("interview.manage"), async (c) => {
+  const result = await revokeMeeting(c.get("auth"), c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+app.get("/interviews/:id/meeting/token", requirePermission("entry.read"), async (c) => {
+  const result = await joinMeeting(c.get("auth"), c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
 // ---- 分析・エクスポート（PRO版仕様書 §4.4）----
 
 const monthsParam = (v: string | undefined) => {
@@ -823,6 +1108,18 @@ app.get("/analytics/export", requireFeature("analytics_export"), async (c) => {
       "Cache-Control": "no-store",
     },
   });
+});
+
+// ---- 企業のセキュリティ設定（2要素必須化は PRO）----
+
+app.get("/company/security", requirePermission("company.manage"), async (c) => c.json(await getSecuritySettings(c.get("auth"))));
+app.put("/company/security", requirePermission("company.manage"), async (c) => {
+  const parsed = z.object({ mfaRequired: z.boolean() }).safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await setMfaRequired(c.get("auth"), parsed.data.mfaRequired);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
 });
 
 // ---- 保存検索と新着アラート（PRO版仕様書 §4.3）----
@@ -1696,6 +1993,13 @@ app.post("/entries/:id/interviews", requirePermission("interview.manage"), async
   const result = await scheduleInterview(c.get("auth"), c.req.param("id"), parsed.data);
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  // Web 会議（組込み）を選んだ場合は会議室も作成する（PRO 側のみ。PRO版仕様書 §4.8）
+  if (parsed.data.method === "Web会議（組込み）" && result.interview) {
+    const m = await createMeeting(c.get("auth"), result.interview.id);
+    const me = svcError(m);
+    if (me) return c.json({ ...result.interview, meetingError: me.message ?? me.code }, 201);
+    return c.json({ ...result.interview, meeting: m }, 201);
+  }
   return c.json(result.interview, 201);
 });
 

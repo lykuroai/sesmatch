@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
+import { MfaRequiredGate } from "@/components/MfaSetup";
 import { LogoutButton } from "@/components/LogoutButton";
 import { ResizableSidebar } from "@/components/ResizableSidebar";
 import { MobileNav } from "@/components/MobileNav";
@@ -97,6 +98,8 @@ const MOBILE_MENU = MENU.filter((m) => !["/", "/contracts", "/billing", "/analyt
 export default async function ConsoleLayout({ children }: { children: React.ReactNode }) {
   const auth = await getAuth();
   if (!auth) redirect("/login");
+  // 企業が2要素認証を必須化していて本人が未設定なら、設定が完了するまで他の画面を開けない（PRO版仕様書 §4.11）
+  const content = auth.mfaRequired && !auth.mfaEnabled ? <MfaRequiredGate /> : children;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -169,7 +172,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
             </div>
           </div>
         </ResizableSidebar>
-        <main className="min-w-0 flex-1 p-4 md:p-8 print:p-0">{children}</main>
+        <main className="min-w-0 flex-1 p-4 md:p-8 print:p-0">{content}</main>
       </div>
     </div>
   );

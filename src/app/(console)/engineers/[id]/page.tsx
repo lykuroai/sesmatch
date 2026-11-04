@@ -1,5 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { getAuth } from "@/server/session-rsc";
+import { hasFeature } from "@/server/plan/features";
+import { listSheetTemplates } from "@/server/services/skill-sheet";
+import { prisma } from "@/server/db";
+import { SkillSheetExport } from "@/components/SkillSheetExport";
 import { getEngineer } from "@/server/services/engineers";
 import { hasPermission } from "@/server/auth/rbac";
 import { DeleteResourceButton } from "@/components/DeleteResourceButton";
@@ -28,6 +32,15 @@ export default async function EngineerDetailPage({
   const { id } = await params;
   const e = await getEngineer(auth, id);
   if (!e) notFound();
+  // PRO: スキルシート出力（§4.7）。実名版は自社=PII権限、他社=Level 2 開示済みの商談がある場合のみ
+  const sheetTemplates = hasFeature(auth, "skill_sheet_render") ? await listSheetTemplates(auth) : [];
+  const namedAllowed = hasFeature(auth, "skill_sheet_render")
+    ? e.own
+      ? hasPermission(auth.roles, "engineer.read.pii")
+      : (await prisma.entry.count({
+          where: { engineerId: e.id, OR: [{ demandCompanyId: auth.companyId }, { supplyCompanyId: auth.companyId }], disclosure: { isNot: null } },
+        })) > 0
+    : false;
 
   const canPublish = e.own && hasPermission(auth.roles, "engineer.publish");
   const canConsent = e.own && hasPermission(auth.roles, "consent.manage");
@@ -244,6 +257,14 @@ export default async function EngineerDetailPage({
               ? "非公開（下書き）の人材はマッチングを実行できません。「公開する」と実行できるようになります"
               : undefined
           }
+        />
+      )}
+      {hasFeature(auth, "skill_sheet_render") && (
+        <SkillSheetExport
+          engineerId={e.id}
+          templates={sheetTemplates.map((t) => ({ id: t.id, name: t.name }))}
+          namedAllowed={namedAllowed}
+          namedHint={e.own ? "実名版の出力には engineer.read.pii 権限が必要です" : "他社人材の実名版は、双方承認（Level 2 開示）済みの商談がある場合のみ出力できます"}
         />
       )}
     </div>

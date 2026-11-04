@@ -9,6 +9,7 @@ import { audit } from "@/server/audit";
 import { hasPermission, type Permission } from "./rbac";
 import type { AuthContext } from "./session";
 import { effectivePlan } from "@/server/plan/features";
+import { assertLimit } from "@/server/plan/limits";
 
 export const TOKEN_PREFIX = "ses_pat_";
 
@@ -72,6 +73,8 @@ export async function resolveApiToken(bearer: string | undefined): Promise<ApiTo
       companyName: token.member.company.name,
       roles: token.member.roles.map((r) => r.role),
       plan: effectivePlan(token.member.company),
+      mfaEnabled: false, // API トークンは2要素の対象外（スコープで制限）
+      mfaRequired: false,
     },
     tokenPermissions: scopePermissions,
   };
@@ -90,6 +93,18 @@ export async function issueApiToken(
       error: {
         code: "FORBIDDEN" as const,
         message: "このスコープに必要な権限がありません（トークンの実効権限は本人の権限との積集合です）",
+      },
+    };
+  // 本数上限（PRO版仕様書 §4.10）: 自社の有効（未失効・未期限切れ）トークンを数える。基本版2本・PRO10本
+  const active = await prisma.apiToken.count({
+    where: { member: { companyId: auth.companyId }, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+  });
+  const limit = assertLimit(auth.plan, "api_tokens", active);
+  if (limit)
+    return {
+      error: {
+        code: limit.error.code,
+        message: `API トークンは${auth.plan === "FREE" ? "基本版では2本" : "10本"}までです（不要なトークンを失効させるか、PRO 版をご検討ください）`,
       },
     };
   const plain = `${TOKEN_PREFIX}${randomBytes(32).toString("hex")}`;

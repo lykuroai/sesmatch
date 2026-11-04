@@ -199,6 +199,11 @@ export default async function EntriesPage({
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">商談一覧</h1>
+      {auth.plan !== "FREE" && (
+        <p className="-mt-4 mb-4 text-xs">
+          <Link href="/entries/scouts" className="text-blue-700 hover:underline">一斉スカウトの送信履歴と反応率（PRO）</Link>
+        </p>
+      )}
 
       {/* 検索条件 */}
       <form method="GET" action="/entries" className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">

@@ -66,6 +66,7 @@ model Company {
   members   CompanyMember[]
   engineers Engineer[]
   projects  Project[]
+  securitySettings CompanySecuritySettings?
 
   @@map("companies")
 }
@@ -79,6 +80,7 @@ model UserAccount {
 
   memberships CompanyMember[]
   sessions    Session[]
+  mfa         UserMfa?
 
   @@map("user_accounts")
 }
@@ -530,6 +532,7 @@ model Entry {
   createdByMemberId  String
   note               String?
   subtierApproved    Boolean     @default(false) // 案件単位の一社下企業承認（§12.4）
+  scoutBatchId       String? // 一斉スカウト（PRO版仕様書 §4.6）の単位
   supplyApprovedAt   DateTime?
   demandApprovedAt   DateTime?
   declinedReason     String?
@@ -542,9 +545,11 @@ model Entry {
   interviews Interview[]
   disclosure Disclosure?
   contract   Contract?
+  scoutBatch ScoutBatch?    @relation(fields: [scoutBatchId], references: [id])
 
   // 同一人物×同一案件の重複応募をブロック（§18, §19.1）
   @@unique([projectId, engineerId])
+  @@index([scoutBatchId])
   @@map("entries")
 }
 
@@ -570,6 +575,7 @@ model EntryMessage {
   senderMemberId  String
   senderName      String // 表示用（承認前は企業名を出さないため担当者名のみ）
   body            String
+  readAt          DateTime? // 相手企業がメッセージ画面を開いた時刻（既読。PRO 版の表示用 §4.6）
   createdAt       DateTime @default(now())
 
   entry Entry @relation(fields: [entryId], references: [id])
@@ -583,13 +589,25 @@ enum InterviewStatus {
   CANCELLED
 }
 
+enum MeetingProvider {
+  NONE
+  JITSI // 自前運用の Jitsi Meet（PRO版仕様書 §4.8）
+}
+
 model Interview {
   id          String          @id @default(cuid())
   entryId     String
   scheduledAt DateTime
-  method      String // オンライン / 対面
+  method      String // オンライン / 対面 / Web会議（組込み）
   note        String?
   status      InterviewStatus @default(SCHEDULED)
+  // Web 会議（PRO版仕様書 §4.8, §8.9）。会議室名はランダム（案件名・氏名を含めない）。会話内容は保存しない
+  meetingProvider MeetingProvider @default(NONE)
+  meetingRoomId   String?
+  guestTokenHash  String? // 人材本人のゲスト URL（SHA-256 で照合）
+  guestExpiresAt  DateTime? // 面談予定の前後1時間
+  meetingStartedAt DateTime?
+  meetingEndedAt   DateTime?
   createdAt   DateTime        @default(now())
 
   entry Entry @relation(fields: [entryId], references: [id])
@@ -792,6 +810,123 @@ model PlanInvoice {
 
   @@unique([companyId, month])
   @@map("plan_invoices")
+}
+
+// ---- 一斉スカウト（PRO版仕様書 §4.6）----
+
+model ScoutBatch {
+  id              String   @id @default(cuid())
+  tenantCompanyId String
+  projectId       String
+  memberId        String
+  templateBody    String // 送信したスカウト文（変数展開前）
+  requestedCount  Int
+  createdCount    Int
+  skippedCount    Int
+  createdAt       DateTime @default(now())
+
+  entries Entry[]
+
+  @@index([tenantCompanyId])
+  @@map("scout_batches")
+}
+
+// ---- スキルシート再生成のテンプレート（PRO版仕様書 §4.7, §8.6）。3件/社 ----
+
+model SkillSheetTemplate {
+  id              String   @id @default(cuid())
+  tenantCompanyId String
+  name            String // テンプレート名
+  title           String // 書式の見出し（例: 技術者経歴書）
+  showCompanyName Boolean  @default(true) // 自社名をヘッダーに表示
+  footerNote      String   @default("") // 末尾の注記（機密表示など）
+  sections        Json // 表示する項目 { summary, skills, processes, roles, industries, conditions }
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantCompanyId])
+  @@map("skill_sheet_templates")
+}
+
+// ---- Slack/Teams Webhook 通知（PRO版仕様書 §4.9, §8.7）。5件/社。URL は暗号化保存 ----
+
+enum WebhookProvider {
+  SLACK
+  TEAMS
+  GENERIC
+}
+
+enum WebhookStatus {
+  ACTIVE
+  SUSPENDED // 連続失敗で停止（代表へメール通知）
+}
+
+model Webhook {
+  id              String          @id @default(cuid())
+  tenantCompanyId String
+  name            String
+  urlEncrypted    String // AES-256-GCM（src/server/crypto.ts）
+  urlHint         String // 画面表示用の末尾（例: ...AbCd）
+  provider        WebhookProvider @default(GENERIC)
+  events          Json // 購読イベント（string[]）
+  status          WebhookStatus   @default(ACTIVE)
+  failCount       Int             @default(0) // 連続失敗回数（成功で 0 に戻る）
+  lastDeliveredAt DateTime?
+  lastErrorAt     DateTime?
+  lastError       String?
+  createdByMemberId String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([tenantCompanyId])
+  @@map("webhooks")
+}
+
+// ---- 2要素認証（TOTP）と企業のセキュリティ設定（PRO版仕様書 §4.11〜§4.13, §8.8）----
+
+model UserMfa {
+  userAccountId   String    @id
+  secretEncrypted String // TOTP 秘密鍵（AES-256-GCM）
+  enabledAt       DateTime? // null は設定途中（未有効）
+  backupCodes     Json // 未使用バックアップコードの SHA-256（配列）
+  lastUsedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  userAccount UserAccount @relation(fields: [userAccountId], references: [id], onDelete: Cascade)
+
+  @@map("user_mfa")
+}
+
+// ログインの第2段階（コード入力）までの一時チャレンジ（5分有効）
+model MfaChallenge {
+  id            String   @id @default(cuid())
+  userAccountId String
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  @@map("mfa_challenges")
+}
+
+enum SsoProvider {
+  NONE
+  SAML
+  OIDC
+}
+
+model CompanySecuritySettings {
+  companyId          String      @id
+  mfaRequired        Boolean     @default(false) // 全担当者に2要素認証を必須化（PRO）
+  ipAllowList        Json        @default("[]") // 許可 IP/CIDR（PRO。段階C）
+  ssoProvider        SsoProvider @default(NONE) // 段階C
+  ssoConfigEncrypted String?
+  ssoRequired        Boolean     @default(false)
+  updatedByMemberId  String?
+  updatedAt          DateTime    @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("company_security_settings")
 }
 
 // ---- 本人同意・訂正・削除 (§26) ----

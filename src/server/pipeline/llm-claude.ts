@@ -15,6 +15,8 @@ import {
   type ExtractionDraft,
   type LlmGateway,
   engineerSplitSchema,
+  scoutDraftSchema,
+  type ScoutDraftInput,
 } from "./llm";
 
 const MODEL = "claude-opus-5";
@@ -242,6 +244,25 @@ export class ClaudeLlmGateway implements LlmGateway {
     }
   }
   // 用語辞書の候補提案（Phase 2 名寄せ）: 新語の正規形を提案する
+  // 一斉スカウトの AI 下書き（PRO版仕様書 §4.6）
+  async draftScoutMessage(input: ScoutDraftInput) {
+    const schema = {
+      type: "object",
+      additionalProperties: false,
+      properties: { body: { type: "string", description: "スカウト文（300〜500字）。変数 {案件名} {勤務地} {在宅} {開始時期} {単価上限} はそのまま。氏名・企業名・連絡先は書かない" } },
+      required: ["body"],
+    } as unknown as Record<string, unknown>;
+    const raw = await this.call(
+      "scout-draft",
+      schema,
+      `SES 営業担当として、他社の技術者へ自社案件を紹介するスカウト文を日本語で作成してください（丁寧なビジネス文体。挨拶→案件の魅力→経歴との接点→結び。複数名に送る前提で特定の1名だけの表現は避ける。氏名・企業名・メールアドレス・電話番号・URL は書かない）。\n案件: ${JSON.stringify(input.project)}\n対象人材（匿名）: ${JSON.stringify(input.engineers.slice(0, 20))}`,
+      4096
+    );
+    const parsed = scoutDraftSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("スカウト文の生成結果が不正です");
+    return parsed.data.body;
+  }
+
   // 人材書類の複数件分割（PRO版仕様書 §4.2）。失敗・不正な応答は「1名」扱い（分割しない）
   async splitEngineerSheets(text: string) {
     const schema = {

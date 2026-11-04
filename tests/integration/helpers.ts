@@ -17,6 +17,12 @@ export async function truncateAll() {
     "inquiry_messages",
     "inquiries",
     "plan_invoices",
+    "scout_batches",
+    "skill_sheet_templates",
+    "webhooks",
+    "mfa_challenges",
+    "user_mfa",
+    "company_security_settings",
     "saved_search_hits",
     "saved_searches",
     "api_tokens",
@@ -85,6 +91,8 @@ export async function makeCompany(name: string, roles: string[] = ["OWNER"]): Pr
     companyName: company.name,
     roles,
     plan: "FREE",
+    mfaEnabled: false,
+    mfaRequired: false,
   };
 }
 

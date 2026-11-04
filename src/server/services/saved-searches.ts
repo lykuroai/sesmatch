@@ -17,6 +17,7 @@ import { listEngineers } from "./engineers";
 import { expandSearchTerms } from "./skill-aliases";
 import { sendMail, appBaseUrl } from "@/server/mail";
 import { errorMessageOf, reportSystemError } from "@/server/system-error";
+import { dispatchWebhooks } from "./webhooks";
 
 export const searchCriteriaSchema = z.object({
   q: z.string().max(200).optional(),
@@ -288,6 +289,8 @@ export async function evaluateOne(savedSearchId: string, now = new Date()): Prom
     companyName: company.name,
     roles: member.roles.map((r) => r.role),
     plan: effectivePlan(company, now),
+    mfaEnabled: false,
+    mfaRequired: false,
   };
   if (!hasFeature(auth, "saved_search_alert", now)) return { notified: false, items: 0 };
 
@@ -366,5 +369,12 @@ ${appBaseUrl()}${basePath}?${criteriaToQuery(criteria)}
 ※この通知は PRO 版の新着アラートです。通知方法の変更・停止は検索画面の「保存した検索条件」から行えます。`,
   });
   await prisma.savedSearch.update({ where: { id: s.id }, data: { lastNotifiedAt: now } });
+  // PRO: Slack/Teams 通知（件数とリンクのみ。PRO版仕様書 §4.9）
+  dispatchWebhooks(s.tenantCompanyId, {
+    event: "alert.new",
+    title: `保存検索「${s.name}」に新着${kindLabel} ${targetIds.length}件`,
+    text: describeCriteria(criteria),
+    url: `${appBaseUrl()}${basePath}?${criteriaToQuery(criteria)}`,
+  });
   return { notified: true, items: targetIds.length };
 }
