@@ -1,4 +1,4 @@
-# SES DirectMatch PRO版（有料プラン）企画・仕様書 v1.2
+# SES DirectMatch PRO版（有料プラン）企画・仕様書 v1.3
 
 作成日: 2026-11-04 ／ 最終更新: 2026-11-04 ／ 状態: **企画確定・実装未着手**
 本書は `ses_matching_platform_complete_spec_v2_0.md`（本体仕様書）の追加仕様（有料プラン編）であり、**PRO版の全機能**を対象とする。契約事務（注文書 PDF・月次一括確認・外部契約台帳）と電子署名連携は 2026-11-04 の郭判断で対象外とした。本体仕様書と矛盾する場合は本体仕様書を優先する。本体仕様書への反映（§23.0 改定、§39 新設等）は実装着手時に行う。
@@ -18,7 +18,7 @@
 2. **PRO版は「量・速さ・自動化・分析・統制」の上乗せ機能**で差を付ける。人材本人の匿名性（氏名・実額単価は双方承認後のみ）、双方承認・同時開示、マッチングのスコア順位はプランで差を付けない。
    例外として、**PRO版では相手企業（掲載企業）の企業名を明示する**（§4.1）。
 3. **課金は月額固定（1社単位）**とする。成約時課金・ハイブリッドは採用しない。
-4. **決済は請求書払いで開始**する。カード決済（§4.14）は後続リリースで追加し、請求書払いと併用する。
+4. **決済は請求書払いで開始**する。カード決済（§4.15）は後続リリースで追加し、請求書払いと併用する。
 5. **将来、基本版に取込件数等の上限を設ける余地を残す**（§7）。導入時は規約改定と1か月前告知を行う。
 6. PRO機能であっても、性別・顔写真・民族をマッチングや出力に用いない、LLMだけで採否を決めない、二社下以降を扱わない等の本体の禁止事項は変えない。
 
@@ -34,7 +34,7 @@
 | 年払い | 398,000円（税別、10か月分）。請求書1枚で前払い |
 | TRIAL | 30日。運営が付与し、期限到来で FREE へ自動降格。TRIAL 中は請求しない |
 | 月途中の開始 | **日割りなし。開始当月は無料、翌月分から請求** |
-| 決済 | 請求書払い（月末締め・翌月末振込、適格請求書）。カード決済（Stripe）は §4.14 で追加 |
+| 決済 | 請求書払い（月末締め・翌月末振込、適格請求書）。カード決済（Stripe）は §4.15 で追加 |
 | 解約 | 当月末までの申し出で翌月から FREE。データは保持し、PRO 機能のみ停止 |
 | 未入金 | 2か月未入金で運営判断により FREE へ降格可。データは削除しない |
 
@@ -55,7 +55,7 @@
 | ロール・権限（代表・管理者・営業・閲覧等） | ○ | ○ | |
 | 企業プロフィール・派遣許可情報 | ○ | ○ | |
 | 企業間関係（一社下 SUBTIER 管理、直接契約確認） | ○ | ○ | |
-| 2要素認証（TOTP）の利用 | ○（§4.10 で基本版にも提供） | ○ | B |
+| 2要素認証（TOTP）の利用 | ○（§4.11 で基本版にも提供） | ○ | B |
 | 2要素認証の全員必須化 | − | ○ | B |
 | IP アドレス制限 | − | ○ | C |
 | SSO（SAML 2.0／OIDC） | − | ○ | C |
@@ -104,6 +104,7 @@
 | スカウト文の AI 下書き | − | ○ | B |
 | 既読表示・反応率 | − | ○ | B |
 | スキルシート再生成（自社書式 PDF／Excel、匿名版・実名版） | − | ○ | B |
+| Web 会議（コンソール組込み・自前 Jitsi。人材本人はゲスト URL 参加） | − | ○ | B |
 
 **契約・稼働・手数料**
 
@@ -250,7 +251,32 @@
 
 **テスト観点**: 他社人材の実名版は未承認なら 403。匿名版に氏名・実額が含まれない。生成が監査ログに記録される。
 
-### 4.8 Slack／Teams Webhook 通知（`webhook_notify`）
+### 4.8 Web 会議（`web_meeting`）
+
+**概要**: 面談をコンソール内のブラウザで行える組込み Web 会議。自前運用の Jitsi Meet を基盤とし、人材本人はログイン不要のゲスト URL で参加する。基本版には会議リンク連携を含め提供しない（2026-11-04 郭決定）。
+
+**動作仕様**
+- 面談（`interviews`）の作成・編集で「Web 会議（組込み）」を選ぶと会議室を自動作成する。会議室名はランダムな識別子とし、案件名・氏名を含めない。
+- 両社の担当者は商談詳細の面談欄の「参加」ボタンからコンソール内（iframe 埋め込み）で参加する。参加には本プラットフォームが発行する短命の JWT（Jitsi の JWT 認証）が必要で、JWT なしでは会議室に入れない。
+- 人材本人の参加: 供給側企業が「本人用の参加 URL」を発行し、本人へ転送する。URL は `https://ses.lykuro.ai/m/<token>` の形式で、ログイン不要。面談予定時刻の前後1時間のみ有効。表示名は本人が入力する（既定はイニシャル）。再発行すると旧 URL は無効になる。
+- 商談の両社いずれかが PRO であれば開催できる。会議室を作成できるのは PRO 側のみで、相手が FREE でも参加は可能。
+- 機能: 音声・映像、画面共有、通話中テキストチャット、参加者一覧、ミュート。参加者は最大6名。待機室（ロビー）は使わず、JWT またはゲスト URL を持つ者だけが入室できる。
+- 録画・文字起こし・LLM 要約は初版では行わない（2026-11-04 郭決定）。会話内容・チャットはサーバに保存しない（Jitsi の録画機能 Jibri は導入しない）。
+- 監査ログには会議の作成・開始・終了・参加者数のみ記録する。会話内容・参加者の氏名は記録しない。
+- 面談のキャンセル・日時変更で会議室とゲスト URL を無効化する。
+
+**基盤（自前 Jitsi）**
+- Jitsi Meet（docker-jitsi-meet: web／prosody／jicofo／jvb）と TURN（coturn）を**本番 EC2 とは別のインスタンス**で運用する（現本番は 4GB・単一ホストのため同居しない）。目安: 同時2〜3面談で 2vCPU／4GB、帯域は面談1件あたり上り下り各 3〜5Mbps。
+- ドメイン `meet.lykuro.ai`（案）。TLS は Let's Encrypt。UDP 10000（JVB）と TURN 用ポートを開放する。
+- 認証は JWT（`JWT_APP_ID`／`JWT_APP_SECRET`）のみ許可し、匿名入室を禁止する。プラットフォーム側で面談ごとに `room`・`exp`・表示名を含む JWT を発行する。
+- 設定: `ENABLE_RECORDING=0`、`ENABLE_LOBBY=0`、`ENABLE_PREJOIN_PAGE=1`、デフォルト言語 ja。
+- 監視: JVB の稼働と TURN の到達性を本体の運営監視（§33）に追加する。障害時は面談画面に「外部の会議ツールをご利用ください」と案内する。
+
+**データ・API**: `interviews` に `meetingProvider`（NONE／JITSI）、`meetingRoomId`、`guestTokenHash`、`guestExpiresAt`、`meetingStartedAt`、`meetingEndedAt` を追加（§8.9）。`POST /interviews/:id/meeting`（作成・再発行）、`DELETE /interviews/:id/meeting`、`GET /interviews/:id/meeting/token`（参加 JWT）、公開 `GET /m/:guestToken`（ゲスト参加ページ。トークンは hash 照合）。
+
+**テスト観点**: JWT なし・期限切れ JWT では入室できない。ゲスト URL は有効時間外・再発行後に無効。会議室名に案件名・氏名を含まない。FREE 同士の商談では作成できない。面談キャンセルで会議室が無効化される。監査ログに会話内容・氏名が含まれない。
+
+### 4.9 Slack／Teams Webhook 通知（`webhook_notify`）
 
 **動作仕様**
 - Incoming Webhook URL を5件/社まで登録し、通知するイベントを選ぶ: 新着アラート、商談申込み受信、承認、面談設定、メッセージ受信、契約署名依頼。
@@ -262,7 +288,7 @@
 
 **テスト観点**: 本文に Level 2 情報・メッセージ本文が含まれない。停止後は送信しない。他テナントのイベントが届かない。
 
-### 4.9 ローカルサーバ設置支援・API トークン拡大（`api_extended`）
+### 4.10 ローカルサーバ設置支援・API トークン拡大（`api_extended`）
 
 **動作仕様**
 - API トークン（`api_tokens`）の本数上限: FREE 2本/社、PRO 10本/社。既存の FREE 企業で3本以上あるものは削除せず、新規作成のみ制限する。
@@ -271,7 +297,7 @@
 
 **テスト観点**: FREE で3本目の作成は 403 PLAN_LIMIT_EXCEEDED。既存トークンは引き続き使える。
 
-### 4.10 2要素認証と必須化（`mfa_required`）
+### 4.11 2要素認証と必須化（`mfa_required`）
 
 **動作仕様**
 - 2要素認証（TOTP、認証アプリ）は本体にないため、**基本版にも任意利用として提供**する。バックアップコード10個を発行する。
@@ -282,7 +308,7 @@
 
 **テスト観点**: 必須化後、未設定メンバーは API を呼べない（403 MFA_REQUIRED）。バックアップコードは1回のみ有効。
 
-### 4.11 IP アドレス制限（`ip_restriction`）
+### 4.12 IP アドレス制限（`ip_restriction`）
 
 **動作仕様**
 - 許可する IP／CIDR を20件/社まで登録。登録時に設定者の現在 IP が含まれていなければ保存できない（ロックアウト防止）。
@@ -294,7 +320,7 @@
 
 **テスト観点**: 許可外 IP からの要求が 403。設定者自身を含まないリストは保存できない。解除が監査ログに残る。
 
-### 4.12 SSO（`sso`）
+### 4.13 SSO（`sso`）
 
 **動作仕様**
 - SAML 2.0 と OIDC（Google Workspace、Microsoft Entra ID を動作確認対象）に対応。
@@ -306,7 +332,7 @@
 
 **テスト観点**: メール不一致は拒否。SSO 必須化後はパスワードログインが拒否される（代表除く）。他社の IdP アサーションでログインできない。
 
-### 4.13 監査ログのエクスポート（`audit_export`）
+### 4.14 監査ログのエクスポート（`audit_export`）
 
 **動作仕様**
 - 期間指定で CSV／JSON を出力する（自社テナント分のみ）。出力自体も監査ログに記録する。
@@ -315,7 +341,7 @@
 
 **データ・API**: 新規テーブルなし。`GET /audit/export?from=&to=&format=csv|json`。
 
-### 4.14 カード決済（`card_billing`）
+### 4.15 カード決済（`card_billing`）
 
 **動作仕様**
 - Stripe のサブスクリプション（月額・年額）を使う。追加担当者は月末の有効メンバー数を使用量として報告する従量課金。3D セキュア対応。
@@ -335,7 +361,7 @@
 - 判定は単一関数 `hasFeature(company, feature)`（`src/server/plan/features.ts`）に集約し、RSC ページ・API（Hono）の両方から使う。画面側の出し分けだけに頼らない。
 - 期限切れ（`planExpiresAt < now`）は要求ごとに FREE 扱いとし、降格バッチは持たない。
 - API はプラン外機能を `403 PLAN_REQUIRED` で拒否する（§10）。画面は PRO 印と案内カード（料金ページへのリンク）を表示する。
-- 機能キー一覧: `company_name_display`, `bulk_ingest`, `saved_search_alert`, `analytics_export`, `priority_support`, `bulk_scout`, `skill_sheet_render`, `webhook_notify`, `api_extended`, `mfa_required`, `ip_restriction`, `sso`, `audit_export`, `card_billing`
+- 機能キー一覧: `company_name_display`, `bulk_ingest`, `saved_search_alert`, `analytics_export`, `priority_support`, `bulk_scout`, `skill_sheet_render`, `web_meeting`, `webhook_notify`, `api_extended`, `mfa_required`, `ip_restriction`, `sso`, `audit_export`, `card_billing`
 - TRIAL は PRO と同じ機能キーをすべて満たす。
 - FREE 側の数量上限（API トークン本数など）は `src/server/plan/limits.ts` の定数表で持ち、`assertLimit(company, limit, current)` で判定する（§7）。
 
@@ -355,7 +381,7 @@
 
 ### 6.2 カード決済
 
-§4.14 のとおり。請求額の算定ルール（基本＋追加席、日割りなし）は請求書払いと同じにする。
+§4.15 のとおり。請求額の算定ルール（基本＋追加席、日割りなし）は請求書払いと同じにする。
 
 ---
 
@@ -380,7 +406,7 @@
 | planSeats | Int | 含まれる担当者数。既定 5 |
 | planBillingCycle | enum（MONTHLY／YEARLY） | 既定 MONTHLY |
 | paymentMethod | enum（INVOICE／CARD） | 既定 INVOICE |
-| stripeCustomerId, stripeSubscriptionId | String? | カード決済（§4.14） |
+| stripeCustomerId, stripeSubscriptionId | String? | カード決済（§4.15） |
 
 ### 8.2 `saved_searches`
 
@@ -447,9 +473,18 @@
 | user_mfa | userAccountId（一意）, secretEncrypted, enabledAt, backupCodesHash（JSON）, lastUsedAt | TOTP |
 | company_security_settings | companyId（一意）, mfaRequired, ipAllowList（JSON）, ssoProvider（NONE／SAML／OIDC）, ssoConfigEncrypted, ssoRequired, updatedBy, updatedAt | 企業ごとのセキュリティ設定 |
 
-### 8.9 監査
+### 8.9 `interviews` 追加列
 
-プラン変更・請求書発行・入金消込・セキュリティ設定変更・2要素リセット・エクスポート・スキルシート生成・一斉スカウトは `audit_events` に記録する。人材本人の氏名などの個人情報は監査ログに書かない。
+| 列 | 内容 |
+|---|---|
+| meetingProvider | NONE／JITSI |
+| meetingRoomId | ランダム識別子（案件名・氏名を含めない） |
+| guestTokenHash, guestExpiresAt | 人材本人のゲスト URL（SHA-256 で照合、面談前後1時間） |
+| meetingStartedAt, meetingEndedAt | 監査用（会話内容は保存しない） |
+
+### 8.10 監査
+
+プラン変更・請求書発行・入金消込・セキュリティ設定変更・2要素リセット・エクスポート・スキルシート生成・一斉スカウト・Web 会議の作成／開始／終了は `audit_events` に記録する。人材本人の氏名などの個人情報は監査ログに書かない。
 
 ---
 
@@ -466,6 +501,8 @@
 | GET /analytics/funnel, /analytics/market-rates, /analytics/export | 分析・CSV | analytics_export |
 | POST /scouts/bulk, POST /scouts/draft, GET /scouts/batches/:id | 一斉スカウト・AI 下書き | bulk_scout |
 | GET/POST/PUT/DELETE /skill-sheet-templates, POST /engineers/:id/skill-sheet | スキルシート再生成 | skill_sheet_render |
+| POST/DELETE /interviews/:id/meeting, GET /interviews/:id/meeting/token | Web 会議の作成・無効化・参加 JWT | web_meeting |
+| GET /m/:guestToken | 人材本人のゲスト参加ページ（公開、hash 照合） | 認証なし |
 | GET/POST/PUT/DELETE /webhooks, POST /webhooks/:id/test | Webhook | webhook_notify |
 | POST /auth/mfa/setup, /auth/mfa/verify, DELETE /auth/mfa | 2要素認証（基本版にも提供） | 全ロール |
 | GET /auth/sso/:companySlug/start, POST /auth/sso/callback | SSO | sso |
@@ -488,6 +525,7 @@
 | MFA_REQUIRED | 403 | 2要素必須化後に未設定のメンバーが要求した |
 | IP_NOT_ALLOWED | 403 | IP 制限の許可外からの要求 |
 | SCOUT_DAILY_LIMIT | 429 | 一斉スカウトの1日上限超過 |
+| MEETING_NOT_AVAILABLE | 403 | Web 会議の有効時間外、無効化済み、または Jitsi 基盤の停止中 |
 | WEBHOOK_SIGNATURE_INVALID | 400 | Stripe からの受信 Webhook の署名検証失敗 |
 
 ---
@@ -502,7 +540,8 @@
 | コンソール 案件・人材検索 | 「この条件を保存」ボタン、保存検索一覧と通知設定（PRO） |
 | コンソール 他社案件・人材の一覧／詳細／マッチ候補／商談 | PRO は「他社」バッジを掲載企業名に置き換えて表示（§4.1） |
 | コンソール 人材検索結果 | 複数選択→一斉スカウト（テンプレ編集・AI 下書き・送信前確認） |
-| コンソール 商談詳細 | 既読表示（PRO）、一斉スカウトの反応率（バッチ画面） |
+| コンソール 商談詳細 | 既読表示（PRO）、一斉スカウトの反応率（バッチ画面）、面談欄の Web 会議「参加」「本人用 URL 発行」（PRO） |
+| 公開 `/m/:token` | 人材本人のゲスト参加ページ（ログイン不要。表示名入力→iframe で会議に参加） |
 | コンソール 人材詳細 | 「スキルシート出力」（テンプレ・匿名／実名・PDF／Excel） |
 | コンソール `/analytics` | 商談ファネル、反応状況、市場単価レンジ、CSV 出力（PRO）。通報画面 `/reports` とは別ルート |
 | 会社マイページ「セキュリティ」 | 2要素認証（本人設定）、必須化、IP 制限、SSO 設定（PRO） |
@@ -520,6 +559,7 @@
 - 規約・プライバシーポリシー・企業登録のルール（`/apply/rules`）に「PRO 利用企業には掲載企業名（案件保有企業・人材所属企業）が表示される」旨を明記し、既存の全企業へ適用開始日の1か月前までに告知する（§4.1）。
 - 特定商取引法に基づく表記（事業者名・価格・支払方法・支払時期・解約条件）を公開ページに追加する。カード決済の追加時に支払方法の記載を更新する。
 - 適格請求書発行事業者の登録番号を環境変数（例 `INVOICE_REGISTRATION_NUMBER`）で設定し請求書に記載する。
+- Web 会議は自前運用の Jitsi で行い、会話内容・映像・チャットを保存しない旨をプライバシーポリシーに明記する。人材本人向けのゲスト参加ページに同趣旨の案内を表示する。
 - SSO・Webhook・カード決済など外部事業者へのデータ送信は、送信範囲（Level 1 のみ、または請求に必要な企業情報）を規約に明記する。
 - LP・申込画面の「すべて0円」系の文言は「基本版は0円」に統一する（主要箇所は統一済み）。
 
@@ -535,6 +575,7 @@
 - 分析: 母数5件未満のセルを出さない。CSV に他テナント・未開示情報が含まれない
 - 一斉スカウト: 重複応募ブロックに従いスキップされる。1日上限。連絡先を含む本文は拒否。AI 下書きに Level 2 情報を渡さない
 - スキルシート: 他社人材の実名版は未承認なら 403。匿名版に氏名・実額が含まれない
+- Web 会議: JWT なし・期限切れでは入室不可。ゲスト URL は時間外・再発行後に無効。会議室名に案件名・氏名を含まない。FREE 同士では作成不可。監査ログに会話内容・氏名を含まない
 - Webhook: 本文に Level 2 情報が含まれない。連続失敗で停止する。他テナントのイベントが届かない
 - 2要素・IP・SSO: 必須化後の未設定は 403 MFA_REQUIRED。許可外 IP は 403。設定者を含まない IP リストは保存不可。メール不一致の SSO は拒否
 - カード決済: 受信 Webhook の署名検証失敗を無視する。決済失敗→猶予→降格の遷移。二重請求が起きない
@@ -560,13 +601,14 @@
 | B-3 | Slack／Teams Webhook | `webhooks`、配信・再試行 | 2日 |
 | B-4 | 2要素認証（基本版）＋ PRO 必須化 | `user_mfa`、`src/server/auth/`、ログイン画面 | 3日 |
 | B-5 | API トークン上限・ローカルサーバ支援 | `limits.ts`、`ApiTokenAdmin.tsx` | 1日 |
-| | **段階B 小計** | | **約3週間** |
+| B-6 | Web 会議（Jitsi 基盤の構築・JWT 認証・面談画面の組込み・ゲスト参加ページ・監視） | 別インスタンス（docker-jitsi-meet、coturn）、`interviews`、`InterviewForm.tsx`、`/m/[token]` | 10日 |
+| | **段階B 小計** | | **約5週間** |
 | C-1 | IP 制限 | `company_security_settings`、認証ミドルウェア | 1日 |
 | C-2 | SSO（SAML／OIDC） | `src/server/auth/sso/`、設定画面 | 4日 |
 | C-3 | 監査ログのエクスポート・月次送付 | `audit.ts`、会社マイページ | 2日 |
 | C-4 | カード決済（Stripe） | `billing.ts`、Checkout／Portal、受信 Webhook | 5日 |
 | | **段階C 小計** | | **約2.5週間** |
-| | **合計** | | **約9週間（単独作業・検証込み）** |
+| | **合計** | | **約11週間（単独作業・検証込み）** |
 
 着手順は A → B → C。各段階の本番反映は `scripts/release-ec2.sh`。規約改定を伴う段階A の反映は告知の1か月後。
 
@@ -582,6 +624,8 @@
 6. スキルシートの既定テンプレート2種のレイアウト
 7. 一斉スカウトの上限値（20名/回、50件/日）の妥当性
 8. 段階B・C 内の優先順位
+9. Web 会議の録画・文字起こし・LLM 要約を将来提供するか（初版は録画なし・文字起こしなしで確定。提供する場合は人材本人の同意と保存期限の設計が必要）
+10. Jitsi 用インスタンスの構成（インスタンス種別、リージョン、月額費用）とドメイン名（案: meet.lykuro.ai）
 
 ---
 
@@ -592,3 +636,4 @@
 | 2026-11-04 | v1.0 初版。課金モデル（月額固定）、価格（39,800円・5名込み・追加4,000円）、請求書払い、日割りなし、基本版上限の予約を郭決定として確定。機能比較一覧（完全版）を追加。相手企業名の明示（PRO）を追加（郭指示。掲載側オプトアウトなし・片方向で確定） |
 | 2026-11-04 | v1.1 段階A 中心の構成を改め、PRO 全機能（16機能）を §4 で同じ深さで仕様化。§8 データモデル・§9 API・§10 エラー・§11 画面・§13 テスト・§14 リリース計画を全機能分に拡張。2要素認証（TOTP）は基本版にも任意提供とし、必須化のみ PRO とした |
 | 2026-11-04 | v1.2 契約事務（注文書・注文請書 PDF、月次確認の一括処理、外部契約台帳）と電子署名連携を対象外とした（郭指示）。機能数は14。関連するデータモデル・API・画面・テスト・リリース計画を削除し、合計目安を約9週間に更新 |
+| 2026-11-04 | v1.3 Web 会議を PRO 機能として追加（§4.8、郭指示）: 基本版には提供せず、PRO 版はコンソール組込みの自前 Jitsi（別インスタンス、JWT 認証）。人材本人はログイン不要のゲスト URL で参加。初版は録画・文字起こしなし。機能数は15、合計目安を約11週間に更新 |
