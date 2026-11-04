@@ -90,7 +90,8 @@ import {
   applyCompany,
   approveCompany,
   rejectCompany,
-  sendEmailVerificationCode,
+  requestEmailVerificationLink,
+  getEmailVerificationByToken,
   deleteCompanyByOperations,
   deleteMember,
   deleteMemberByOperations,
@@ -181,18 +182,26 @@ app.get("/health", async (c) => {
 
 // ---- 企業申込（§6.4, §28）: 未認証で受け付ける ----
 
-// 代表メールの確認コード送付
+// 第1段階: 代表メールのみ受け付け、登録用URL（24時間有効）をメールで送る
 app.post("/companies/applications/email-verification", async (c) => {
   const parsed = z
-    .object({ email: z.string().email() })
+    .object({ email: z.string().trim().email() })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR", "メールアドレスを確認してください"), 400);
-  const result = await sendEmailVerificationCode(parsed.data.email);
+  const result = await requestEmailVerificationLink(parsed.data.email);
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);
 });
 
+// 登録用URLのトークン検証（第2段階の画面表示時に使用）。無効・期限切れは 404
+app.get("/companies/applications/email-verification/:token", async (c) => {
+  const v = await getEmailVerificationByToken(c.req.param("token"));
+  if (!v) return c.json(err("NOT_FOUND", "登録用URLが無効か期限切れです"), 404);
+  return c.json({ ok: true, email: v.email });
+});
+
+// 第2段階: 残りの項目を受け付けて申込を確定する（メールアドレスはトークンから確定）
 app.post("/companies/applications", async (c) => {
   const parsed = z
     .object({
@@ -201,10 +210,9 @@ app.post("/companies/applications", async (c) => {
       corporateNumber: z.string().optional(),
       address: z.string().trim().min(1),
       ownerName: z.string().min(1),
-      email: z.string().email(),
       password: z.string().min(8),
       agreedToTerms: z.boolean(),
-      emailVerificationCode: z.string().min(1),
+      emailVerificationToken: z.string().min(1),
       duplicateWarningConfirmed: z.boolean().optional(),
     })
     .safeParse(await c.req.json().catch(() => null));

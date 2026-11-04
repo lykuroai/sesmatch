@@ -18,62 +18,71 @@ export async function companyNameMap(ids: string[]): Promise<Map<string, string>
   return new Map(companies.map((c) => [c.id, c.name]));
 }
 
-// 代表メールの検証コード送付（企業申込 §6.4）。15分有効の6桁コードをメールで送る
-export async function sendEmailVerificationCode(email: string) {
+// 登録用URLの有効期間（24時間）
+export const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+
+// 企業申込の第1段階（§6.4.1、2026-11-04 変更）: メールアドレスのみ受け付け、登録用URL（トークン付き・24時間有効）をメールで送る。
+// 第2段階（残り項目の入力）は URL を開いた画面で行う
+export async function requestEmailVerificationLink(email: string) {
   const existing = await prisma.userAccount.findUnique({ where: { email } });
   if (existing)
     return { error: { code: "DUPLICATE_ENTRY" as const, message: "このメールアドレスは登録済みです" } };
-  const code = String(randomBytes(4).readUInt32BE() % 900000 + 100000); // 6桁（暗号学的乱数）
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
+  // 同じメールで再送した場合は新しい URL に置き換える（古い URL は無効になる）
   await prisma.emailVerification.upsert({
     where: { email },
-    create: { email, code, expiresAt },
-    update: { code, expiresAt },
+    create: { email, token, expiresAt },
+    update: { token, expiresAt },
   });
   await sendMail({
     to: email,
-    subject: "【SES DirectMatch】メールアドレス確認コード",
-    body: `企業申込のメールアドレス確認コードです。
+    subject: "【SES DirectMatch】企業登録のご案内（登録用URL）",
+    body: `SES DirectMatch の企業登録を受け付けました。
 
-確認コード: ${code}
+以下の URL を開いて、企業情報・代表者・パスワードを入力すると登録が完了します。
 
-15分以内に申込画面へ入力してください。
+${appBaseUrl()}/apply/register?token=${token}
+
+この URL は 24 時間有効です。期限が切れた場合は、申込画面からメールアドレスを再送信してください。
 このメールに心当たりがない場合は破棄してください。`,
   });
   return { ok: true as const };
 }
 
-// 企業申込（§6.4: 申込 → 事業者情報確認 → 規約同意 → 自動審査 → 即時開通。2026-08-22に運営の手動審査を廃止）
-// 自動審査 = メール確認コード + 重複チェック（法人番号/正規化名・管轄/LLM類似判定）。通過すれば ACTIVE で作成する
+// 登録用URLのトークンを検証し、紐づくメールアドレスを返す（無効・期限切れは null）
+export async function getEmailVerificationByToken(token: string): Promise<{ email: string } | null> {
+  if (!token) return null;
+  const v = await prisma.emailVerification.findUnique({ where: { token } });
+  if (!v || v.expiresAt < new Date()) return null;
+  return { email: v.email };
+}
+
+// 企業申込の第2段階（§6.4: メール確認 → 事業者情報入力 → 規約同意 → 自動審査 → 即時開通。2026-08-22に運営の手動審査を廃止）
+// 自動審査 = 登録用URL（メール確認）+ 重複チェック（法人番号/正規化名・管轄/LLM類似判定）。通過すれば ACTIVE で作成する
 export async function applyCompany(input: {
   companyName: string;
   companyType: "CORPORATION" | "SOLE_PROPRIETOR";
   corporateNumber?: string;
   address: string; // 必須。都道府県から入力（管轄法務局の重複判定に使用）
   ownerName: string;
-  email: string;
   password: string;
   agreedToTerms: boolean;
-  emailVerificationCode: string;
+  emailVerificationToken: string; // 登録用URLのトークン（第1段階でメール送付済み）
   duplicateWarningConfirmed?: boolean; // 警告画面で「別企業として申込む」を確認済み
 }) {
   if (!input.agreedToTerms)
     return { error: { code: "VALIDATION_ERROR" as const, message: "規約・基本契約への同意が必要です" } };
-  // 代表メールの検証（確認コード）
-  const verification = await prisma.emailVerification.findUnique({
-    where: { email: input.email },
-  });
-  if (
-    !verification ||
-    verification.code !== input.emailVerificationCode.trim() ||
-    verification.expiresAt < new Date()
-  )
+  // 代表メールの検証（登録用URLのトークン）。メールアドレスは入力値ではなくここで確定する
+  const verification = await getEmailVerificationByToken(input.emailVerificationToken.trim());
+  if (!verification)
     return {
       error: {
         code: "VALIDATION_ERROR" as const,
-        message: "メール確認コードが正しくないか期限切れです。コードを再送して入力し直してください",
+        message: "登録用URLが無効か期限切れです。申込画面からメールアドレスを再送信してください",
       },
     };
+  const email = verification.email;
   // 法人番号は任意入力。指定時のみ形式を検査（重複判定に使用）
   if (input.corporateNumber && !/^\d{13}$/.test(input.corporateNumber))
     return { error: { code: "VALIDATION_ERROR" as const, message: "法人番号は13桁で入力してください" } };
@@ -89,7 +98,7 @@ export async function applyCompany(input: {
       },
     };
 
-  const existing = await prisma.userAccount.findUnique({ where: { email: input.email } });
+  const existing = await prisma.userAccount.findUnique({ where: { email } });
   if (existing)
     return { error: { code: "DUPLICATE_ENTRY" as const, message: "このメールアドレスは登録済みです" } };
 
@@ -172,13 +181,13 @@ export async function applyCompany(input: {
       },
     });
     const account = await tx.userAccount.create({
-      data: { email: input.email, passwordHash, name: input.ownerName },
+      data: { email, passwordHash, name: input.ownerName },
     });
     const member = await tx.companyMember.create({
       data: { companyId: company.id, userAccountId: account.id },
     });
     await tx.companyMemberRole.create({ data: { memberId: member.id, role: "OWNER" } });
-    await tx.emailVerification.delete({ where: { email: input.email } }); // 使用済みコードを破棄
+    await tx.emailVerification.delete({ where: { email } }); // 使用済みの登録用URLを破棄
     return company;
   });
   await audit({
@@ -194,7 +203,7 @@ export async function applyCompany(input: {
     },
   });
   await sendMail({
-    to: input.email,
+    to: email,
     subject: "【SES DirectMatch】企業登録が完了しました",
     body: `${input.ownerName} 様
 

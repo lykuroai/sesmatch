@@ -5,7 +5,7 @@
 // イベント名と GTM 側の用途:
 //   apply_click  ホーム画面（ログインLP）の「企業登録を申し込む」ボタン押下（GA4 用）
 //   apply_reach  企業申込画面への到達（Google 広告「申し込み到達」コンバージョン）
-//   sign_up      企業登録の完了（Google 広告「申し込み登録完了」コンバージョン・GA4 のキーイベント）
+//   sign_up      企業登録の完了（/apply/register の第2段階完了時。Google 広告「申し込み登録完了」コンバージョン・GA4 のキーイベント）
 export type TrackingEvent = "apply_click" | "apply_reach" | "sign_up";
 
 export function trackEvent(name: TrackingEvent, params?: Record<string, unknown>) {

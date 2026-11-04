@@ -106,11 +106,13 @@ model CompanyMemberRole {
 }
 
 // 企業申込の代表メール検証（確認コード §6.4）
+// 企業申込の代表メール確認（§6.4.1）。メールのみ先に受け付け、登録用URL（トークン付き）を送る。
+// URL を開いて残りの項目を入力・申込完了したら削除する（使用後破棄）
 model EmailVerification {
   id         String    @id @default(cuid())
   email      String    @unique
-  code       String // 6桁確認コード
-  expiresAt  DateTime // 有効期限（発行から15分）
+  token      String    @unique // 登録用URLのトークン（暗号学的乱数・base64url）
+  expiresAt  DateTime // 有効期限（発行から24時間）
   createdAt  DateTime  @default(now())
 
   @@map("email_verifications")
