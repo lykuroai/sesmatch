@@ -41,12 +41,6 @@ const STEPS = [
   { no: "04", title: "直接契約・稼働", body: "仲介業者を挟まず、需要側と供給側の2社間で直接契約。月次の稼働確認もプラットフォームで完結。" },
 ];
 
-const FREE_BADGES = [
-  { label: "掲載料", value: "0" },
-  { label: "月額費用", value: "0" },
-  { label: "成約手数料", value: "0" },
-];
-
 function FeatureIcon({ name }: { name: string }) {
   const common = "h-6 w-6";
   switch (name) {
@@ -192,20 +186,7 @@ export default function LoginPage() {
               マッチング成立後は、需要企業と提供企業が<span className="font-bold text-stone-900">直接契約</span>します。
             </p>
 
-            {/* 0円バッジ */}
-            <ul className="mt-7 flex flex-wrap gap-4">
-              {FREE_BADGES.map((b) => (
-                <li key={b.label} className="rounded-full bg-gradient-to-br from-orange-600 to-amber-500 p-[3px] shadow-md shadow-orange-600/20">
-                  <div className="flex h-24 w-24 flex-col items-center justify-center rounded-full bg-white sm:h-28 sm:w-28">
-                    <span className="text-[11px] font-bold text-stone-500 sm:text-xs">{b.label}</span>
-                    <span className="mt-0.5 flex items-baseline gap-0.5 leading-none">
-                      <span className="text-3xl font-black text-orange-800 sm:text-4xl">{b.value}</span>
-                      <span className="text-sm font-bold text-orange-800">円</span>
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {/* 0円バッジ（掲載料・月額費用・成約手数料）は 2026-11-05 郭指示で削除 */}
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
