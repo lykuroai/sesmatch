@@ -1,0 +1,4 @@
+/* SES DirectMatch 向けの上書き（2026-11-05）。Jitsi の css/all.css の末尾に連結して /css/all.css として配信する。
+   左上のロゴ枠（既定 71×32px）を横長ロゴが読める大きさに広げる */
+.watermark.leftwatermark { width: 236px; height: 40px; }
+.leftwatermark { max-width: 260px; max-height: 48px; }

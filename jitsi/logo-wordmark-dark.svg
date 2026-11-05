@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 236 40" width="236" height="40" role="img" aria-label="SES DirectMatch">
+  <!-- SES DirectMatch 横長ロゴ（暗い背景用。Web 会議画面の左上に表示。2026-11-05）: ロゴマーク（public/logo-mark.svg と同じ）＋白文字 -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c2410c"/>
+      <stop offset="1" stop-color="#7c2d12"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(0 0) scale(0.625)">
+    <rect width="64" height="64" rx="14" fill="url(#g)"/>
+    <path d="M16 20 L38 32 L16 44" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M48 20 L26 32 L48 44" fill="none" stroke="#fbbf24" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="50" y="27" font-family="'Helvetica Neue', Arial, 'Hiragino Sans', 'Noto Sans JP', sans-serif" font-size="21" font-weight="700" fill="#ffffff" letter-spacing="0.2">SES DirectMatch</text>
+</svg>
