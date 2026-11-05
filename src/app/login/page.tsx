@@ -188,22 +188,25 @@ export default function LoginPage() {
 
             {/* 0円バッジ（掲載料・月額費用・成約手数料）は 2026-11-05 郭指示で削除 */}
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link
-                href="/apply"
-                onClick={reportHomeApplyClick}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-700 px-8 py-3.5 text-base font-bold text-white shadow-lg shadow-orange-700/30 transition hover:bg-orange-800"
-              >
-                <span className="rounded bg-white/20 px-1.5 py-0.5 text-xs font-bold">無料</span>
-                企業登録を申し込む
-                <span aria-hidden>→</span>
-              </Link>
-              <Link href="/about" className="inline-flex items-center justify-center gap-1 px-4 py-3 text-sm font-medium text-stone-600 hover:text-orange-800">
+            {/* 利用イメージ画像（郭提供 public/lp-flow.png。2026-11-05）。左側の申込ボタンは外し、右のログイン欄の下の申込ボタンに集約 */}
+            <figure className="mt-7 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-lg shadow-stone-900/10">
+              <picture>
+                <source srcSet="/lp-flow.webp" type="image/webp" />
+                <img
+                  src="/lp-flow.png"
+                  width={1400}
+                  height={788}
+                  alt="SES DirectMatch の利用イメージ: 需要企業の案件情報と提供企業の人材情報を AI が要約・構造化し、条件・スキルでマッチング。マッチング成立後は企業間で直接契約"
+                  className="h-auto w-full"
+                />
+              </picture>
+            </figure>
+            <div className="mt-5">
+              <Link href="/about" className="inline-flex items-center gap-1 text-sm font-medium text-stone-600 hover:text-orange-800">
                 サービス紹介を見る
                 <span aria-hidden>›</span>
               </Link>
             </div>
-            <p className="mt-4 text-xs text-stone-500">ご利用には企業（法人・個人事業者）としての登録が必要です。</p>
           </div>
 
           {/* ログインカード（モバイルでは最上部） */}
