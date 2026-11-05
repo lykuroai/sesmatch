@@ -159,7 +159,7 @@ async function onCheckoutCompleted(session: Stripe.Checkout.Session, now: Date) 
 
 PRO 版（${cycle === "YEARLY" ? "年払い" : "月払い"}・カード決済）のお申込を受け付けました。本日から PRO 機能をご利用いただけます。
 開始当月は無料で、翌月1日から請求が始まります（日割りなし）。
-お支払い方法の変更・解約・請求書の確認は企業コンソール「成約手数料 > プラン・請求」から行えます。
+お支払い方法の変更・解約・請求書の確認は企業コンソールの会社マイページ「プラン・請求」から行えます。
 ${appBaseUrl()}/billing`
   );
   return { handled: true };
@@ -248,7 +248,7 @@ async function onInvoicePaymentFailed(invoice: Stripe.Invoice, now: Date) {
     (name) => `${name} 様（${company.name}）
 
 PRO 版のカード決済に失敗しました。${graceUntil.toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })} までにお支払いが確認できない場合、基本版（無料）へ自動的に切り替わります（データは削除されません）。
-カード情報の更新・再決済は企業コンソール「成約手数料 > プラン・請求 > お支払い方法の管理」から行えます。
+カード情報の更新・再決済は企業コンソールの会社マイページ「プラン・請求 > お支払い方法の管理」から行えます。
 ${appBaseUrl()}/billing`
   );
   return { handled: true };
@@ -269,7 +269,7 @@ async function onSubscriptionDeleted(sub: Stripe.Subscription, now: Date) {
     (name) => `${name} 様（${company.name}）
 
 カード決済のサブスクリプションが終了したため、基本版（無料）へ切り替わりました。登録データはそのまま保持されます。
-再度 PRO 版をご利用になる場合は企業コンソール「成約手数料 > プラン・請求」からお申込みください。
+再度 PRO 版をご利用になる場合は企業コンソールの会社マイページ「プラン・請求」からお申込みください。
 ${appBaseUrl()}/billing`
   );
   return { handled: true };

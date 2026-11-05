@@ -28,7 +28,7 @@ export default async function PlanInvoiceDocumentPage({ params }: { params: Prom
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-4 flex items-center justify-between print:hidden">
-        <Link href="/billing" className="text-sm text-orange-800 hover:underline">
+        <Link href="/company/plan" className="text-sm text-orange-800 hover:underline">
           ← プラン・請求に戻る
         </Link>
         <PrintButton />

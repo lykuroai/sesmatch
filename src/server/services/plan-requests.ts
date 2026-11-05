@@ -199,7 +199,7 @@ export async function approvePlanRequest(id: string, note?: string | null, now =
       ? `${company.name} 様
 
 PRO 版を有効にしました。本日から PRO 版の機能をご利用いただけます。
-利用開始当月は無料で、翌月分から月初に請求書（請求書払い・月末締め翌月末振込）を発行し、企業コンソールの「成約手数料 > プラン・請求」に表示します。
+利用開始当月は無料で、翌月分から月初に請求書（請求書払い・月末締め翌月末振込）を発行し、企業コンソールの会社マイページ「プラン・請求」に表示します。
 
 ${appBaseUrl()}/company/plan`
       : `${company.name} 様

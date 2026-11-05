@@ -25,8 +25,8 @@ export default async function InvoiceDocumentPage({
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-4 flex items-center justify-between print:hidden">
-        <Link href="/billing" className="text-sm text-orange-800 hover:underline">
-          ← 請求に戻る
+        <Link href="/contracts" className="text-sm text-orange-800 hover:underline">
+          ← 成約・稼働に戻る
         </Link>
         <PrintButton />
       </div>

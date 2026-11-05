@@ -4,13 +4,16 @@ import { getAuth } from "@/server/session-rsc";
 import { hasPermission } from "@/server/auth/rbac";
 import { getOwnPlan } from "@/server/services/companies";
 import { listOwnPlanRequests } from "@/server/services/plan-requests";
+import { listOwnPlanInvoices } from "@/server/services/plan-billing";
 import { PLAN_LABELS } from "@/server/plan/features";
 import { isProSignupOpen } from "@/lib/plan-signup";
 import { PlanRequestPanel } from "@/components/PlanRequestPanel";
 
-// 会社マイページ「プラン」（2026-11-05）: 現在のプランの確認と、PRO 版の申込・解約申請。請求書は「成約手数料 > プラン・請求」
+// 会社マイページ「プラン・請求」（2026-11-05）: 現在のプランの確認、PRO 版の申込・解約申請、PRO 版の請求書の一覧
+// （「成約手数料」画面の廃止に伴い請求書の一覧をここへ移した。2026-11-05 郭指示）
 const STATUS_LABEL = { PENDING: "確認中", APPROVED: "承認", REJECTED: "却下", WITHDRAWN: "取り下げ" } as const;
 const KIND_LABEL = { UPGRADE: "PRO 版の申込", CANCEL: "PRO 版の解約申請" } as const;
+const INVOICE_STATUS_LABEL: Record<string, string> = { ISSUED: "未入金", PAID: "入金済み", VOID: "取消" };
 
 export default async function CompanyPlanPage() {
   const auth = await getAuth();
@@ -18,12 +21,12 @@ export default async function CompanyPlanPage() {
   if (!hasPermission(auth.roles, "billing.read")) {
     return (
       <div>
-        <h1 className="mb-4 text-2xl font-bold">プラン</h1>
-        <p className="text-sm text-stone-500">プランの閲覧権限がありません（billing.read）。</p>
+        <h1 className="mb-4 text-2xl font-bold">プラン・請求</h1>
+        <p className="text-sm text-stone-500">プラン・請求の閲覧権限がありません（billing.read）。</p>
       </div>
     );
   }
-  const [plan, requests] = await Promise.all([getOwnPlan(auth), listOwnPlanRequests(auth)]);
+  const [plan, requests, invoices] = await Promise.all([getOwnPlan(auth), listOwnPlanRequests(auth), listOwnPlanInvoices(auth)]);
   const pending = requests.find((r) => r.status === "PENDING") ?? null;
   const canManage = hasPermission(auth.roles, "billing.manage");
   const expiresLabel = plan.planExpiresAt ? new Date(plan.planExpiresAt).toLocaleDateString("ja-JP") : null;
@@ -31,9 +34,9 @@ export default async function CompanyPlanPage() {
   return (
     <div>
       <p className="mb-2 text-xs text-stone-500">
-        <Link href="/company" className="hover:underline">会社マイページ</Link> / プラン
+        <Link href="/company" className="hover:underline">会社マイページ</Link> / プラン・請求
       </p>
-      <h1 className="mb-6 text-2xl font-bold">プラン</h1>
+      <h1 className="mb-6 text-2xl font-bold">プラン・請求</h1>
 
       <section className="mb-6 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -62,9 +65,7 @@ export default async function CompanyPlanPage() {
         </dl>
         <p className="mt-3 text-xs text-stone-500">
           PRO 版は月額 39,800円（税別・担当者5名まで含む、6名以降は1名 4,000円/月）。利用開始当月は無料で、翌月分から月初に請求書を発行します（月末締め・翌月末振込、日割りなし）。
-          請求書は
-          <Link href="/billing" className="mx-0.5 text-orange-800 hover:underline">成約手数料 &gt; プラン・請求</Link>
-          で確認できます。
+          請求書はこの画面の「PRO 版の請求書」で確認・印刷できます。
           <Link href="/pricing" target="_blank" className="ml-1 text-orange-800 hover:underline">料金・機能比較</Link>
         </p>
         <PlanRequestPanel
@@ -75,6 +76,47 @@ export default async function CompanyPlanPage() {
           pendingRequest={pending ? { id: pending.id, kind: pending.kind, createdAt: pending.createdAt.toISOString() } : null}
         />
       </section>
+
+      {/* PRO 版の請求書（PRO版仕様書 §6.1, §11）。基本版で請求書が無ければ出さない */}
+      {(plan.effectivePlan !== "FREE" || invoices.length > 0) && (
+        <section className="mb-6 rounded-xl border border-amber-200 bg-white p-5 shadow-sm">
+          <h2 className="mb-3 font-bold">PRO 版の請求書</h2>
+          {invoices.length === 0 ? (
+            <p className="text-sm text-stone-400">請求書はまだありません（利用開始当月は無料、翌月分から月初に発行されます）</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-stone-50 text-left text-xs text-stone-500">
+                <tr>
+                  <th className="px-3 py-2">対象月</th>
+                  <th className="px-3 py-2">請求書番号</th>
+                  <th className="px-3 py-2 text-right">金額（税込）</th>
+                  <th className="px-3 py-2">支払期限</th>
+                  <th className="px-3 py-2">状態</th>
+                  <th className="px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map((inv) => (
+                  <tr key={inv.id} className="border-t border-stone-100">
+                    <td className="px-3 py-2">{inv.month}</td>
+                    <td className="px-3 py-2">{inv.invoiceNumber}</td>
+                    <td className="px-3 py-2 text-right">{inv.totalYen.toLocaleString()}円</td>
+                    <td className="px-3 py-2">{new Date(inv.dueAt).toLocaleDateString("ja-JP")}</td>
+                    <td className="px-3 py-2">
+                      <span className={`rounded px-1.5 py-0.5 text-xs ${inv.status === "PAID" ? "bg-emerald-50 text-emerald-700" : inv.status === "VOID" ? "bg-stone-100 text-stone-500 line-through" : "bg-amber-50 text-amber-700"}`}>
+                        {INVOICE_STATUS_LABEL[inv.status] ?? inv.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <Link href={`/billing/plan-invoices/${inv.id}`} className="text-orange-800 hover:underline">請求書</Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      )}
 
       {requests.length > 0 && (
         <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">

@@ -6,7 +6,7 @@ import { prisma } from "@/server/db";
 // 会社マイページ: 企業に関する管理機能の入口（ヘッダー右の会社名から遷移）
 const SECTIONS = [
   { href: "/settings/company", label: "企業情報", desc: "企業名・事業者種別・法人番号の確認と修正" },
-  { href: "/company/plan", label: "プラン", desc: "現在のプランの確認、PRO 版の申込・解約申請" },
+  { href: "/company/plan", label: "プラン・請求", desc: "現在のプランの確認、PRO 版の申込・解約申請、PRO 版の請求書" },
   { href: "/settings/members", label: "担当者", desc: "担当者の招待・ロール変更・停止" },
   { href: "/settings/api-tokens", label: "APIトークン", desc: "ローカルサーバ等の外部連携用トークンの発行・失効" },
   { href: "/settings/security", label: "セキュリティ", desc: "2要素認証（認証アプリ）と、企業全体への必須化（PRO）" },

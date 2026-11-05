@@ -15,7 +15,6 @@ const TOC = [
   { id: "matching", label: "マッチング" },
   { id: "entries", label: "商談管理" },
   { id: "contracts", label: "成約・稼働" },
-  { id: "billing", label: "成約手数料" },
   { id: "company", label: "会社マイページ" },
   { id: "glossary", label: "用語集" },
 ];
@@ -228,14 +227,6 @@ export default async function ManualPage() {
           </Note>
         </Section>
 
-        <Section id="billing" title="成約手数料">
-          <p>
-            現在、<b>基本版は完全無料</b>のため成約手数料は発生しません（全稼働月0円で記録されます）。
-          </p>
-          <p>
-            「成約手数料」画面では、月ごとの稼働記録と、過去に請求が発生した場合の明細・請求書を確認できます。将来、料金体系を変更する場合は1か月前までにお知らせします。
-          </p>
-        </Section>
 
         <Section id="company" title="会社マイページ（ヘッダー右の会社名から）">
           <p>企業に関する管理機能はヘッダー右の会社名から開く「会社マイページ」に集約されています。</p>

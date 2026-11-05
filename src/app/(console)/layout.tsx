@@ -40,11 +40,6 @@ const MENU: { href: string; label: string; icon: string }[] = [
     icon: "M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z",
   },
   {
-    href: "/billing",
-    label: "成約手数料",
-    icon: "M9 7.5l3 4.5m0 0l3-4.5M12 12v5.25M15 12H9m6 3H9m12-3a9 9 0 11-18 0 9 9 0 0118 0z",
-  },
-  {
     // 分析・エクスポート（PRO版仕様書 §4.4）。基本版には案内を表示。PC専用
     href: "/analytics",
     label: "分析",
@@ -91,9 +86,10 @@ function MenuLink({ item }: { item: { href: string; label: string; icon: string 
 // 企業情報・担当者・通報・監査・プライバシー・企業間関係は
 // 会社マイページ（/company、ヘッダー右の会社名から）に集約
 
-// モバイルのドロワーメニューではホーム（KPI）・成約・稼働／成約手数料は案内しない（PC専用画面）。
+// モバイルのドロワーメニューではホーム（KPI）・成約・稼働・分析は案内しない（PC専用画面）。
+// 「成約手数料」画面はメニューから外した（2026-11-05 郭指示。基本版は無料のため。/billing は会社マイページ「プラン・請求」へ転送）
 // モバイルの起点は案件一覧
-const MOBILE_MENU = MENU.filter((m) => !["/", "/contracts", "/billing", "/analytics"].includes(m.href));
+const MOBILE_MENU = MENU.filter((m) => !["/", "/contracts", "/analytics"].includes(m.href));
 
 export default async function ConsoleLayout({ children }: { children: React.ReactNode }) {
   const auth = await getAuth();
