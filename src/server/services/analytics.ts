@@ -2,7 +2,7 @@
 //
 // - 商談ファネル: 期間内の商談を送信側・受信側の別に、申込→承認→面談→契約の件数と転換率
 // - 反応状況: 自社案件ごとの申込数・承認率・申込から承認までの平均日数、自社人材ごとの提案数・承認率
-// - 市場単価レンジ（匿名統計）: 公開中案件の単価上限をスキル×都道府県で集計し、母数5件未満のセルは出さない。
+// - 市場単価レンジ（匿名統計）: 公開中案件の単価上限をスキル×都道府県で集計し、異常値（妥当範囲外・IQR 外れ値）を除いた上で母数5件未満のセルは出さない。
 //   企業名・案件名・個別単価は出さない。人材側の希望単価は本人情報のため対象外
 // - CSV エクスポート: 自社データのみ。相手側の情報は開示レベルに従う（未開示は匿名のまま）。
 //   出力は保存せず都度生成し、監査ログに記録する
@@ -142,7 +142,20 @@ export async function getResponseStats(auth: AuthContext, range: { from: Date; t
 // ---- 市場単価レンジ（匿名統計）----
 
 export const MARKET_MIN_SAMPLE = 5;
-export type MarketRateRow = { skill: string; prefecture: string; count: number; minYen: number; medianYen: number; maxYen: number };
+// 異常値の除外（2026-11-05 郭指示: 既存データをそのまま信用せず、入力ミス等の異常数値を取り除く）
+// ① 妥当範囲: SES の月額単価として 20万〜300万円の外は入力ミスとみなして除外（桁違い・時給/年収の混入など）
+// ② 四分位範囲（IQR）: 母数5件以上のセルで Q1−1.5×IQR 〜 Q3+1.5×IQR の外を外れ値として除外
+// 表示は最小・最大ではなく 下位25%（Q1）・中央値・上位25%（Q3）。母数・閾値判定は除外後の件数で行う
+export const MARKET_RATE_BOUNDS = { min: 200_000, max: 3_000_000 } as const;
+export type MarketRateRow = {
+  skill: string;
+  prefecture: string;
+  count: number; // 除外後の件数
+  excluded: number; // 異常値として除外した件数
+  q1Yen: number;
+  medianYen: number;
+  q3Yen: number;
+};
 
 export function median(values: number[]): number {
   const s = [...values].sort((a, b) => a - b);
@@ -150,7 +163,32 @@ export function median(values: number[]): number {
   return s.length % 2 === 1 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
 }
 
-// 純粋関数: 案件（必須スキル名・勤務地・単価上限）をスキル×都道府県で集計し、母数が閾値未満のセルを除く
+// 分位点（線形補間）。p=0.25 で下位25%、0.75 で上位25%
+export function quantile(values: number[], p: number): number {
+  const s = [...values].sort((a, b) => a - b);
+  if (s.length === 0) return 0;
+  const pos = (s.length - 1) * p;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  return Math.round(s[lo] + (s[hi] - s[lo]) * (pos - lo));
+}
+
+// 異常値を除いた単価の配列を返す（純粋関数）。妥当範囲外を除き、5件以上なら IQR 法でさらに外れ値を除く
+export function removeRateOutliers(rates: number[]): { kept: number[]; excluded: number } {
+  const inRange = rates.filter((r) => Number.isFinite(r) && r >= MARKET_RATE_BOUNDS.min && r <= MARKET_RATE_BOUNDS.max);
+  let kept = inRange;
+  if (inRange.length >= MARKET_MIN_SAMPLE) {
+    const q1 = quantile(inRange, 0.25);
+    const q3 = quantile(inRange, 0.75);
+    const iqr = q3 - q1;
+    const lower = q1 - 1.5 * iqr;
+    const upper = q3 + 1.5 * iqr;
+    kept = inRange.filter((r) => r >= lower && r <= upper);
+  }
+  return { kept, excluded: rates.length - kept.length };
+}
+
+// 純粋関数: 案件（必須スキル名・勤務地・単価上限）をスキル×都道府県で集計し、異常値を除いた上で母数が閾値未満のセルを除く
 export function aggregateMarketRates(
   projects: { requiredSkills: string[]; locationCity: string | null; rateMaxYen: number }[],
   minSample = MARKET_MIN_SAMPLE
@@ -172,14 +210,16 @@ export function aggregateMarketRates(
     }
   }
   return [...cells.values()]
-    .filter((c) => c.rates.length >= minSample)
+    .map((c) => ({ ...c, ...removeRateOutliers(c.rates) }))
+    .filter((c) => c.kept.length >= minSample)
     .map((c) => ({
       skill: c.skill,
       prefecture: c.prefecture,
-      count: c.rates.length,
-      minYen: Math.min(...c.rates),
-      medianYen: median(c.rates),
-      maxYen: Math.max(...c.rates),
+      count: c.kept.length,
+      excluded: c.excluded,
+      q1Yen: quantile(c.kept, 0.25),
+      medianYen: median(c.kept),
+      q3Yen: quantile(c.kept, 0.75),
     }))
     .sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill) || a.prefecture.localeCompare(b.prefecture))
     .slice(0, 200);

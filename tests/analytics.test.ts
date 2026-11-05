@@ -1,6 +1,6 @@
 // 分析の純粋ロジック（PRO版仕様書 §4.4, §13）: ファネル集計・反応状況・匿名統計の母数条件・CSV 生成
 import { describe, expect, it } from "vitest";
-import { aggregateMarketRates, funnelFromEntries, median, responseRows } from "@/server/services/analytics";
+import { aggregateMarketRates, funnelFromEntries, median, quantile, removeRateOutliers, responseRows } from "@/server/services/analytics";
 import { toCsv, parseCsv } from "@/lib/csv";
 
 describe("funnelFromEntries", () => {
@@ -43,7 +43,7 @@ describe("responseRows", () => {
 
 describe("aggregateMarketRates（匿名統計）", () => {
   const p = (skill: string, city: string | null, rate: number) => ({ requiredSkills: [skill], locationCity: city, rateMaxYen: rate });
-  it("母数5件未満のセルは出さず、スキル×都道府県で最小・中央値・最大を返す", () => {
+  it("母数5件未満のセルは出さず、スキル×都道府県で下位25%・中央値・上位25%を返す", () => {
     const rows = aggregateMarketRates([
       ...[60, 70, 80, 90, 100].map((r) => p("Java", "東京都千代田区", r * 10_000)),
       ...[60, 70, 80, 90].map((r) => p("PHP", "東京都新宿区", r * 10_000)),
@@ -52,14 +52,31 @@ describe("aggregateMarketRates（匿名統計）", () => {
     ]);
     expect(rows.map((r) => `${r.skill}/${r.prefecture}`)).toEqual(["Java/大阪府", "Java/東京都"]);
     const tokyo = rows.find((r) => r.prefecture === "東京都")!;
-    expect(tokyo).toMatchObject({ count: 5, minYen: 600_000, medianYen: 800_000, maxYen: 1_000_000 });
+    expect(tokyo).toMatchObject({ count: 5, excluded: 0, q1Yen: 700_000, medianYen: 800_000, q3Yen: 900_000 });
     const osaka = rows.find((r) => r.prefecture === "大阪府")!;
-    expect(osaka.medianYen).toBe(750_000); // 偶数件は中央2件の平均
+    expect(osaka).toMatchObject({ count: 6, medianYen: 750_000, q1Yen: 625_000, q3Yen: 875_000 }); // 偶数件は中央2件の平均、分位点は線形補間
     expect(JSON.stringify(rows)).not.toContain("千代田"); // 市区町村は出さない
   });
   it("都道府県不明は「全国・未指定」にまとめ、閾値は引数で変えられる", () => {
     const rows = aggregateMarketRates([p("AWS", null, 700_000), p("AWS", "リモート", 800_000)], 2);
-    expect(rows).toEqual([{ skill: "AWS", prefecture: "全国・未指定", count: 2, minYen: 700_000, medianYen: 750_000, maxYen: 800_000 }]);
+    expect(rows).toEqual([{ skill: "AWS", prefecture: "全国・未指定", count: 2, excluded: 0, q1Yen: 725_000, medianYen: 750_000, q3Yen: 775_000 }]);
+  });
+  it("異常値の除外: 妥当範囲外（20万未満・300万超）と IQR 外れ値を除き、母数は除外後で判定する", () => {
+    // 60〜100万の5件に、桁違い（5万・900万）と極端値（150万。Q3+1.5×IQR=135万 を超える）を混ぜる
+    const rates = [600_000, 700_000, 800_000, 900_000, 1_000_000, 50_000, 9_000_000, 1_500_000];
+    expect(removeRateOutliers(rates)).toEqual({ kept: [600_000, 700_000, 800_000, 900_000, 1_000_000], excluded: 3 });
+    // 妥当範囲内が5件未満なら IQR 法は使わず、範囲外だけ除く
+    expect(removeRateOutliers([400_000, 2_900_000, 10_000])).toEqual({ kept: [400_000, 2_900_000], excluded: 1 });
+
+    const rows = aggregateMarketRates(rates.map((r) => p("Go", "東京都港区", r)));
+    expect(rows).toEqual([{ skill: "Go", prefecture: "東京都", count: 5, excluded: 3, q1Yen: 700_000, medianYen: 800_000, q3Yen: 900_000 }]);
+    // 異常値を除いた結果が5件未満になるセルは出さない
+    expect(aggregateMarketRates([600_000, 700_000, 800_000, 900_000, 9_000_000].map((r) => p("Rust", "東京都", r)))).toEqual([]);
+  });
+  it("quantile は線形補間", () => {
+    expect(quantile([10, 20, 30, 40, 50], 0.25)).toBe(20);
+    expect(quantile([10, 20, 30, 40], 0.75)).toBe(33); // 32.5 → 四捨五入
+    expect(quantile([], 0.5)).toBe(0);
   });
   it("median", () => {
     expect(median([3, 1, 2])).toBe(2);

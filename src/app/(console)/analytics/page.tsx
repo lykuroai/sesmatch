@@ -178,7 +178,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       <section className="mb-8 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
         <h2 className="mb-1 font-bold">市場単価レンジ（匿名統計）</h2>
         <p className="mb-3 text-xs text-stone-500">
-          プラットフォーム全体の公開中案件（{market.totalProjects}件）の単価上限を必須スキル×都道府県で集計。母数{market.minSample}件未満の組合せは表示しません。企業名・案件名は含みません。
+          プラットフォーム全体の公開中案件（{market.totalProjects}件）の単価上限を必須スキル×都道府県で集計。入力ミス等の異常値（20万円未満・300万円超、および四分位範囲から大きく外れる値）は除外し、
+          除外後の母数{market.minSample}件未満の組合せは表示しません。レンジは最小・最大ではなく下位25%〜上位25%（中央値付き）です。企業名・案件名・個別の単価は表示しません。
         </p>
         {market.rows.length === 0 ? (
           <p className="text-sm text-stone-500">母数{market.minSample}件以上の組合せがまだありません。</p>
@@ -190,9 +191,9 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                   <th className={th}>スキル</th>
                   <th className={th}>都道府県</th>
                   <th className={th}>件数</th>
-                  <th className={th}>最小</th>
+                  <th className={th}>下位25%</th>
                   <th className={th}>中央値</th>
-                  <th className={th}>最大</th>
+                  <th className={th}>上位25%</th>
                 </tr>
               </thead>
               <tbody>
@@ -200,10 +201,13 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                   <tr key={`${r.skill}-${r.prefecture}`} className="border-t border-stone-100">
                     <td className={td}>{r.skill}</td>
                     <td className={td}>{r.prefecture}</td>
-                    <td className={td}>{r.count}</td>
-                    <td className={td}>{yen(r.minYen)}</td>
+                    <td className={td}>
+                      {r.count}
+                      {r.excluded > 0 && <span className="ml-1 text-xs text-stone-400">（除外{r.excluded}）</span>}
+                    </td>
+                    <td className={td}>{yen(r.q1Yen)}</td>
                     <td className={`${td} font-medium`}>{yen(r.medianYen)}</td>
-                    <td className={td}>{yen(r.maxYen)}</td>
+                    <td className={td}>{yen(r.q3Yen)}</td>
                   </tr>
                 ))}
               </tbody>
