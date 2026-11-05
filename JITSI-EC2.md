@@ -12,13 +12,13 @@ PRO 版の Web 会議（`ses_directmatch_pro_spec_v1_0.md` §4.8）が使う自�
 | 配置先 | `/data/jitsi`（`.env`＝設定一式・秘密情報、`cfg/`＝各コンテナの設定と証明書、`docker-jitsi-meet-stable-11248-3/`＝公式リリースの展開物） |
 | compose | `cd /data/jitsi/docker-jitsi-meet-stable-11248-3 && docker compose --env-file /data/jitsi/.env -p jitsi <cmd>`（プロジェクト名 `jitsi`。コンテナ `jitsi-web-1` / `jitsi-prosody-1` / `jitsi-jicofo-1` / `jitsi-jvb-1`） |
 | イメージ | `ghcr.io/jitsi/{web,prosody,jicofo,jvb}:stable-11248-3`（arm64 対応。ルートレス実行のため `cfg/` は uid 1000 所有にしておく） |
-| 公開ドメイン | `meet.lykuro.ai`。経路は **Cloudflare（プロキシ）→ ALB（TLS 終端、ACM の `*.lykuro.ai`）→ 本ホストの `lykuro-nginx`:80 → Jitsi web（`127.0.0.1:8000`、http）**。lykuro の他ドメインと同じ構成（郭、2026-11-05）。映像・音声（10000/udp）だけは ALB を通らず本ホストの公開 IP へ直接届く |
+| 公開ドメイン | `meet.lykuro.ai`。経路は **Cloudflare（プロキシ）→ ALB（TLS 終端、ACM の `*.lykuro.ai`）→ 本ホストの `lykuro-nginx`:80 → Jitsi web（`172.17.0.1:8000`、http）**。lykuro の他ドメインと同じ構成（郭、2026-11-05）。映像・音声（10000/udp）だけは ALB を通らず本ホストの公開 IP へ直接届く |
 
 ### ポート
 
 | ポート | 用途 | 備考 |
 | --- | --- | --- |
-| 80/tcp | lykuro の nginx コンテナ（`lykuro-nginx`、ALB からのみ到達）。`meet.lykuro.ai` の vhost を `127.0.0.1:8000`（Jitsi web、http）へ WebSocket 透過で転送 | TLS は ALB で終端。Jitsi 側は `DISABLE_HTTPS=1`、443 は公開しない（`127.0.0.1:8443` のみ） |
+| 80/tcp | lykuro の nginx コンテナ（`lykuro-nginx`、ALB からのみ到達）。`meet.lykuro.ai` の vhost を `host.docker.internal:8000`（Jitsi web、http）へ WebSocket 透過で転送 | TLS は ALB で終端。Jitsi 側は `DISABLE_HTTPS=1`、443 は公開しない（`127.0.0.1:8443` のみ） |
 | 10000/udp | JVB（音声・映像）。`JVB_ADVERTISE_IPS=18.181.207.71` | TURN（coturn）は未設置。UDP が通らない社内網からは接続できない場合がある |
 | 127.0.0.1:18888 / 18080 | jicofo REST / JVB colibri（ローカルのみ） | lykuro 側が 8888/8080 を使うため変更 |
 
@@ -31,17 +31,19 @@ PRO 版の Web 会議（`ses_directmatch_pro_spec_v1_0.md` §4.8）が使う自�
   アプリ側（`src/server/meeting/jitsi.ts`）が発行する JWT は `aud=jitsi`、`iss=JITSI_APP_ID`、`sub=JITSI_DOMAIN`、`room`、HS256。`JITSI_APP_ID`／`JITSI_APP_SECRET` は上記と一致させる
 - `ENABLE_RECORDING=0`、`ENABLE_TRANSCRIPTIONS=0`、`ENABLE_LOBBY=0`、`ENABLE_PREJOIN_PAGE=1`、`DEFAULT_LANGUAGE=ja`、`ENABLE_WELCOME_PAGE=0`、`TZ=Asia/Tokyo`
 - TLS: ALB の ACM 証明書（`*.lykuro.ai`）で終端するため Jitsi 側は **http のみ**（`DISABLE_HTTPS=1`、`ENABLE_HTTP_REDIRECT=0`、`ENABLE_LETSENCRYPT=0`）。ブラウザは `https://meet.lykuro.ai` で接続し、WebSocket（`/xmpp-websocket`・`/colibri-ws/`）も ALB → nginx 経由で届く。nginx の vhost には Upgrade ヘッダの透過と長いタイムアウトが必要（`/data/jitsi/nginx-meet.lykuro.ai.conf`）
-- `HTTP_PORT=127.0.0.1:8000`、`HTTPS_PORT=127.0.0.1:8443`（未使用）、`JICOFO_REST_PORT=18888`、`JVB_COLIBRI_PORT=18080`、`RESTART_POLICY=unless-stopped`
+- `HTTP_PORT=172.17.0.1:8000`（docker0 のゲートウェイ。`lykuro-nginx` は `host.docker.internal`＝172.17.0.1 で到達するため、127.0.0.1 では 502 になる。外部からは SG で遮断）、`HTTPS_PORT=127.0.0.1:8443`（未使用）、`JICOFO_REST_PORT=18888`、`JVB_COLIBRI_PORT=18080`、`RESTART_POLICY=unless-stopped`
 - 各コンポーネントの XMPP パスワードは `gen-passwords.sh` で生成済み
 
 ## 3. 初回開通に必要な手動作業（AWS・ホスト。郭）
 
-DNS（Cloudflare → ALB）と ALB の証明書（`*.lykuro.ai`）は 2026-11-05 時点で既に `meet.lykuro.ai` に効いている（nginx に vhost が無いうちは既定の lykuro アプリが応答する）。残りは次の 3 点。
+**2026-11-05 にすべて完了**（1〜3 は郭が実施、4 で開通確認済み）。再構築時の記録として残す。
+DNS（Cloudflare → ALB）と ALB の証明書（`*.lykuro.ai`）は元から `meet.lykuro.ai` に効いていた（nginx に vhost が無いうちは既定の lykuro アプリが応答する）。
 
 1. **セキュリティグループ**（データノード）に受信追加: `10000/udp` を `0.0.0.0/0`（映像・音声は ALB を通らない）。80/443 の追加は不要
 2. **ホストの ufw**: `sudo ufw allow 10000/udp comment "Jitsi JVB"`
 3. **lykuro の nginx に vhost 追加**: `/data/jitsi/nginx-meet.lykuro.ai.conf` の内容を `/data/lykuro/src/docker/nginx/default.conf` の末尾に追記して `docker exec lykuro-nginx nginx -t && docker exec lykuro-nginx nginx -s reload`
    （この conf は lykuro リポジトリの作業コピーで、既に spotomo の追記があり未コミット。lykuro を再デプロイするときは消えないよう注意）
+   **注意: 単一ファイルの bind mount なので、エディタで保存して inode が変わるとコンテナは古い内容を見続け、`nginx -s reload` でも反映されない。** その場合は `cd /data/lykuro/src && docker compose -f docker-compose.yaml up -d --force-recreate nginx`（数秒の断）。`tee -a` での追記や `cat > file` の上書きなら inode が変わらず reload だけでよい
 4. 開通確認（開発機から）:
    ```bash
    curl -sI https://meet.lykuro.ai/ | head -1                 # 200
@@ -63,6 +65,17 @@ docker compose --env-file /data/jitsi/.env -p jitsi restart
 docker compose --env-file /data/jitsi/.env -p jitsi down
 ```
 
+- 開通確認（開発機、ブラウザ不要）: アプリと同じ形式の JWT で 2 参加者を JVB 経由で入室させ、接続状態を確認する
+  ```bash
+  SECRET=<.env の JWT_APP_SECRET>; ROOM=ses-test$(date +%H%M%S)
+  TA=$(node scripts/jitsi-sign-jwt.cjs $SECRET $ROOM 確認A); TB=$(node scripts/jitsi-sign-jwt.cjs $SECRET $ROOM 確認B)
+  ~/.cache/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell --headless --no-sandbox --disable-gpu \
+    --remote-debugging-port=9333 --use-fake-device-for-media-stream --use-fake-ui-for-media-stream about:blank &
+  H='#config.prejoinConfig.enabled=false&config.p2p.enabled=false'
+  node scripts/jitsi-join-test.cjs "https://meet.lykuro.ai/$ROOM?jwt=$TA$H" "https://meet.lykuro.ai/$ROOM?jwt=$TB$H"   # 両者 joined:true, connState:"connected", p2p:false
+  pkill -f remote-debugging-port=9333
+  ```
+  2026-11-05 の初回確認: 両参加者とも JVB 経由で connected、JVB ログに ICE 完了、画面に相手の参加通知（日本語 UI）を確認
 - 更新: 新しい `stable-XXXX` の zip を `/data/jitsi` に展開し、`.env` の `JITSI_IMAGE_VERSION` を変えて `pull` → `up -d`。`env.example` に新しい必須変数が増えていないか CHANGELOG を確認。旧ディレクトリは残して戻せるようにする
 - 秘密情報: `/data/jitsi/.env`（600）。`JWT_APP_SECRET` を変えるときはアプリ側 `.env.production` も同時に変える（発行済みの参加 JWT は無効になる）
 - ディスク: ルート 29GB のうち Jitsi イメージで約 1.7GB を使用（2026-11-05 時点で空き 5.5GB）。`docker system df` で監視
