@@ -195,8 +195,8 @@ export default function LoginPage() {
                 <img
                   src="/lp-flow.png"
                   width={1400}
-                  height={788}
-                  alt="SES DirectMatch の利用イメージ: 需要企業の案件情報と提供企業の人材情報を AI が要約・構造化し、条件・スキルでマッチング。マッチング成立後は企業間で直接契約"
+                  height={1050}
+                  alt="SES DirectMatch の利用イメージ: 案件情報と人材情報を AI がマッチングし、需要企業と提供企業が直接契約を結ぶ"
                   className="h-auto w-full"
                 />
               </picture>
