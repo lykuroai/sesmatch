@@ -41,6 +41,104 @@ const STEPS = [
   { no: "04", title: "直接契約・稼働", body: "仲介業者を挟まず、需要側と供給側の2社間で直接契約。月次の稼働確認もプラットフォームで完結。" },
 ];
 
+// ヒーロー部の「利用の流れ」イメージ（2026-11-05 郭指示）: 案件・人材の登録 → マッチング → Web 会議で面談 を、簡略化した画面の絵で示す
+function HeroFlow() {
+  const steps = [
+    {
+      no: "1",
+      title: "案件・人材を登録",
+      caption: "案件票・スキルシートをそのまま取込。AIが整理",
+      screen: (
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="h-5 w-5 flex-none rounded bg-orange-100 text-center text-[10px] font-bold leading-5 text-orange-800">案</span>
+            <span className="h-2 flex-1 rounded bg-stone-200" />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-5 w-5 flex-none rounded bg-purple-100 text-center text-[10px] font-bold leading-5 text-purple-800">人</span>
+            <span className="h-2 w-3/4 rounded bg-stone-200" />
+          </div>
+          <div className="mt-1 flex items-center justify-between rounded border border-dashed border-orange-300 bg-orange-50 px-2 py-1">
+            <span className="text-[10px] font-bold text-orange-800">取込</span>
+            <span className="rounded-full bg-orange-700 px-1.5 text-[9px] font-bold text-white">AI整理</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      no: "2",
+      title: "マッチング",
+      caption: "条件が合う相手に応募・スカウト。双方承認で開示",
+      screen: (
+        <div className="flex items-center justify-between gap-1">
+          <div className="flex-1 rounded border border-stone-200 bg-white p-1.5">
+            <span className="block text-[9px] font-bold text-orange-800">案件</span>
+            <span className="mt-1 block h-1.5 w-full rounded bg-stone-200" />
+            <span className="mt-1 block h-1.5 w-2/3 rounded bg-stone-200" />
+          </div>
+          <div className="flex flex-none flex-col items-center text-orange-700">
+            <span className="text-[10px] font-bold">〇</span>
+            <span className="text-base leading-none">⇄</span>
+            <span className="text-[9px] font-bold text-amber-600">〇</span>
+          </div>
+          <div className="flex-1 rounded border border-stone-200 bg-white p-1.5">
+            <span className="block text-[9px] font-bold text-purple-800">人材</span>
+            <span className="mt-1 block h-1.5 w-full rounded bg-stone-200" />
+            <span className="mt-1 block h-1.5 w-2/3 rounded bg-stone-200" />
+          </div>
+        </div>
+      ),
+    },
+    {
+      no: "3",
+      title: "Web 会議で面談",
+      caption: "コンソール内でそのまま面談。別ツールは不要",
+      screen: (
+        <div className="rounded-lg bg-stone-900 p-2">
+          <div className="flex items-center justify-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-600 text-xs font-bold text-white">需</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">供</span>
+          </div>
+          <div className="mt-2 flex items-center justify-center gap-1.5">
+            <span className="h-3.5 w-3.5 rounded-full bg-stone-600" />
+            <span className="h-3.5 w-3.5 rounded-full bg-stone-600" />
+            <span className="h-3.5 w-3.5 rounded-full bg-red-500" />
+          </div>
+        </div>
+      ),
+    },
+  ];
+  return (
+    <ol className="mt-7 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-stretch">
+      {steps.map((st, i) => (
+        <li key={st.no} className="contents">
+          <div className="flex flex-col rounded-2xl border border-stone-200 bg-white/90 p-3.5 shadow-md shadow-stone-900/5">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-gradient-to-br from-orange-600 to-amber-500 text-xs font-bold text-white">{st.no}</span>
+              <span className="text-sm font-bold text-stone-900">{st.title}</span>
+            </div>
+            <div className="rounded-lg border border-stone-200 bg-stone-50 p-2">
+              <div className="mb-1.5 flex gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-stone-300" />
+                <span className="h-1.5 w-1.5 rounded-full bg-stone-300" />
+                <span className="h-1.5 w-1.5 rounded-full bg-stone-300" />
+              </div>
+              {st.screen}
+            </div>
+            <p className="mt-2 text-[11px] leading-snug text-stone-500">{st.caption}</p>
+          </div>
+          {i < steps.length - 1 && (
+            <div aria-hidden className="flex items-center justify-center text-2xl font-bold text-orange-600">
+              <span className="sm:hidden">↓</span>
+              <span className="hidden sm:inline">→</span>
+            </div>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 function FeatureIcon({ name }: { name: string }) {
   const common = "h-6 w-6";
   switch (name) {
@@ -186,24 +284,14 @@ export default function LoginPage() {
               マッチング成立後は、需要企業と提供企業が<span className="font-bold text-stone-900">直接契約</span>します。
             </p>
 
-            {/* 0円バッジ（掲載料・月額費用・成約手数料）は 2026-11-05 郭指示で削除 */}
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link
-                href="/apply"
-                onClick={reportHomeApplyClick}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-700 px-8 py-3.5 text-base font-bold text-white shadow-lg shadow-orange-700/30 transition hover:bg-orange-800"
-              >
-                <span className="rounded bg-white/20 px-1.5 py-0.5 text-xs font-bold">無料</span>
-                企業登録を申し込む
-                <span aria-hidden>→</span>
-              </Link>
-              <Link href="/about" className="inline-flex items-center justify-center gap-1 px-4 py-3 text-sm font-medium text-stone-600 hover:text-orange-800">
+            {/* 利用の流れイメージ（登録 → マッチング → Web 会議で面談）。0円バッジと申込ボタンは 2026-11-05 郭指示で削除し、流れの図に置き換え */}
+            <HeroFlow />
+            <div className="mt-5">
+              <Link href="/about" className="inline-flex items-center gap-1 text-sm font-medium text-stone-600 hover:text-orange-800">
                 サービス紹介を見る
                 <span aria-hidden>›</span>
               </Link>
             </div>
-            <p className="mt-4 text-xs text-stone-500">ご利用には企業（法人・個人事業者）としての登録が必要です。</p>
           </div>
 
           {/* ログインカード（モバイルでは最上部） */}
