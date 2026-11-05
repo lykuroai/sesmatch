@@ -229,7 +229,7 @@ export default async function ProjectsPage({
         action={
           <Link
             href="/projects/new"
-            className="rounded bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800"
+            className="rounded bg-orange-800 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
           >
             案件を登録
           </Link>
