@@ -9,10 +9,12 @@ import { inputClass as input, labelClass as label } from "@/app/apply/ApplyShell
 
 type ApplyPayload = Record<string, unknown>;
 
-export default function RegisterForm({ token, email }: { token: string; email: string }) {
+// proSignupOpen: PRO 版の自己申込の受付中か（規約の適用開始日 2026-12-04 以降。サーバー側で JST 判定）
+export default function RegisterForm({ token, email, proSignupOpen }: { token: string; email: string; proSignupOpen: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [tokenInvalid, setTokenInvalid] = useState(false);
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<null | { planRequested: boolean }>(null);
+  const [plan, setPlan] = useState<"FREE" | "PRO">("FREE");
   const [companyType, setCompanyType] = useState("CORPORATION");
   const [loading, setLoading] = useState(false);
   // 類似企業の警告（社名 or 所在地の片方一致）。確認の上で再送すると申込が確定する
@@ -36,7 +38,7 @@ export default function RegisterForm({ token, email }: { token: string; email: s
     } else if (res.ok) {
       // 企業登録完了を送信（GTM 側で GA4 の sign_up と Google 広告「申し込み登録完了」コンバージョンを発火）
       reportSignupConversion();
-      setDone(true);
+      setDone({ planRequested: b?.planRequested === true });
     } else {
       const message: string = b?.error?.message ?? "申込に失敗しました";
       // 登録用URLの期限切れ・無効は再送の導線を出す
@@ -68,6 +70,8 @@ export default function RegisterForm({ token, email }: { token: string; email: s
       password: f.get("password"),
       agreedToTerms: f.get("agreedToTerms") === "on",
       emailVerificationToken: token,
+      // プラン選択（受付中のときのみ送る。PRO は登録と同時に申込を作り、運営の承認で有効化）
+      ...(proSignupOpen ? { plan } : {}),
     });
   }
 
@@ -84,6 +88,11 @@ export default function RegisterForm({ token, email }: { token: string; email: s
         <p className="text-sm text-slate-600">
           企業コンソールが開通しました。登録したメールアドレスとパスワードでログインしてご利用ください。
         </p>
+        {done.planRequested && (
+          <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+            PRO 版の申込を受け付けました。運営が確認のうえ有効化し、メールでご案内します（それまでは基本版でご利用いただけます）。
+          </p>
+        )}
         <Link
           href="/login"
           className="mt-6 inline-block w-full rounded-full bg-slate-900 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
@@ -204,6 +213,46 @@ export default function RegisterForm({ token, email }: { token: string; email: s
             placeholder="同じパスワードをもう一度入力"
           />
         </div>
+        <fieldset>
+          <legend className={label}>プラン</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm ${plan === "FREE" ? "border-blue-500 bg-blue-50" : "border-slate-200"}`}>
+              <input type="radio" name="plan" value="FREE" checked={plan === "FREE"} onChange={() => setPlan("FREE")} className="mt-0.5" />
+              <span>
+                <span className="font-bold">基本プラン（無料）</span>
+                <span className="mt-0.5 block text-xs text-slate-500">掲載料・月額費用・成約手数料すべて0円。基本機能をすべて利用可能</span>
+              </span>
+            </label>
+            <label
+              className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${
+                !proSignupOpen ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400" : plan === "PRO" ? "cursor-pointer border-emerald-500 bg-emerald-50" : "cursor-pointer border-slate-200"
+              }`}
+            >
+              <input
+                type="radio"
+                name="plan"
+                value="PRO"
+                checked={plan === "PRO"}
+                disabled={!proSignupOpen}
+                onChange={() => setPlan("PRO")}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="font-bold">PRO 版（月額 39,800円・税別）</span>
+                <span className="mt-0.5 block text-xs">
+                  {proSignupOpen
+                    ? "担当者5名まで含む。請求書払い・開始当月無料。登録後に運営が確認して有効化します"
+                    : "2026年12月4日から受付開始。登録後に会社マイページの「プラン」からもお申込みいただけます"}
+                </span>
+              </span>
+            </label>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            料金・機能の比較は
+            <Link href="/pricing" target="_blank" className="mx-0.5 font-medium text-blue-600 hover:underline">料金ページ</Link>
+            をご覧ください。
+          </p>
+        </fieldset>
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" name="agreedToTerms" required className="mt-0.5" />
           <span>

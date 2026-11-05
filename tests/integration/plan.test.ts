@@ -132,14 +132,13 @@ describe("プラン管理（§2, §9）", () => {
       plan: "PRO",
       planExpiresAt: null,
       planSeats: 8,
-      planBillingCycle: "YEARLY",
     });
     if ("error" in pro) throw new Error(String(pro.error));
     expect(pro.planExpiresAt).toBeNull();
     const after = await getOwnPlan(owner);
     expect(after.effectivePlan).toBe("PRO");
     expect(after.planSeats).toBe(8);
-    expect(after.planBillingCycle).toBe("YEARLY");
+    expect(after.planBillingCycle).toBe("MONTHLY"); // 年払いは廃止（2026-11-05）。常に月払い
 
     // 認証コンテキスト（API トークン経由）にも実効プランが載る
     const issued = await issueApiToken({ ...owner, plan: "PRO" }, { name: "t", scope: "ingest", expiresInDays: null });

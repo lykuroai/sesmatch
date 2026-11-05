@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getEmailVerificationByToken } from "@/server/services/companies";
 import ApplyShell from "@/app/apply/ApplyShell";
 import RegisterForm from "@/app/apply/register/RegisterForm";
+import { isProSignupOpen } from "@/lib/plan-signup";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export default async function ApplyRegisterPage({
 
   return (
     <ApplyShell>
-      <RegisterForm token={tokenValue} email={verification.email} />
+      <RegisterForm token={tokenValue} email={verification.email} proSignupOpen={isProSignupOpen()} />
     </ApplyShell>
   );
 }

@@ -192,7 +192,7 @@ export async function applyCompany(input: {
     });
     await tx.companyMemberRole.create({ data: { memberId: member.id, role: "OWNER" } });
     await tx.emailVerification.delete({ where: { email } }); // 使用済みの登録用URLを破棄
-    return company;
+    return { ...company, ownerMemberId: member.id };
   });
   await audit({
     tenantCompanyId: company.id,
@@ -216,7 +216,7 @@ ${input.companyName} の企業登録が完了し、ご利用を開始いただ�
 
 ${appBaseUrl()}/login`,
   });
-  return { companyId: company.id };
+  return { companyId: company.id, ownerMemberId: company.ownerMemberId };
 }
 
 // 運営承認: 承認して企業コンソールを開通する（運営トークンで保護）。
@@ -1172,10 +1172,10 @@ export async function updateCompanyPlanByOperations(
     plan: "FREE" | "TRIAL" | "PRO";
     planExpiresAt?: string | null; // "YYYY-MM-DD"（その日の終わり JST まで有効）または null
     planSeats?: number;
-    planBillingCycle?: "MONTHLY" | "YEARLY";
     paymentMethod?: "INVOICE" | "CARD";
   }
 ) {
+  // 支払周期は月払いのみ（年払いは 2026-11-05 廃止）。既存の YEARLY 設定があっても MONTHLY に戻す
   const company = await prisma.company.findUnique({ where: { id: companyId } });
   if (!company) return { error: { code: "NOT_FOUND" as const } };
   // カード決済（Stripe）で契約中の企業は、プラン・決済方法を運営側で変えない（二重請求・請求漏れを防ぐ。§4.15）
@@ -1212,7 +1212,7 @@ export async function updateCompanyPlanByOperations(
       planExpiresAt,
       planStartedAt: startedAt,
       planSeats,
-      planBillingCycle: input.planBillingCycle ?? company.planBillingCycle,
+      planBillingCycle: "MONTHLY",
       paymentMethod: input.paymentMethod ?? company.paymentMethod,
     },
   });

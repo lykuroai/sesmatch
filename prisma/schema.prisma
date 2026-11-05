@@ -32,9 +32,42 @@ enum CompanyPlan {
   PRO
 }
 
+// 支払周期。YEARLY（年払い 398,000円）は 2026-11-05 に廃止（郭決定）。既存値との互換のため列挙値は残すが、新規設定・請求計算では使わない
 enum PlanBillingCycle {
   MONTHLY
   YEARLY
+}
+
+// PRO 版の申込・解約申請（2026-11-05、郭指示）。企業からの自己申込（新規登録画面・会社マイページ）を運営が承認してプランを変更する。
+// 申込だけではプランは変わらない（承認で PRO 開始／解約は当月末で期限設定）
+enum PlanRequestKind {
+  UPGRADE // PRO 版の申込
+  CANCEL // PRO 版の解約申請（当月末まで有効、翌月から基本版）
+}
+
+enum PlanRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN // 企業が取り下げ
+}
+
+model PlanRequest {
+  id                  String            @id @default(cuid())
+  tenantCompanyId     String
+  kind                PlanRequestKind
+  status              PlanRequestStatus @default(PENDING)
+  source              String // REGISTER（新規登録画面）／ CONSOLE（会社マイページ）
+  requestedByMemberId String?
+  note                String? // 企業からの備考（任意）
+  processedAt         DateTime?
+  processedNote       String? // 運営の処理メモ（却下理由等）
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([tenantCompanyId, status])
+  @@index([status, createdAt])
+  @@map("plan_requests")
 }
 
 enum PaymentMethod {

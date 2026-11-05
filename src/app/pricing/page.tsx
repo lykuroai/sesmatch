@@ -4,7 +4,7 @@ import PublicFooter from "@/components/PublicFooter";
 
 // 料金ページ（PRO版仕様書 §2, §3, §11）。未ログインで閲覧可能。
 // 基本版は現行機能をすべて無料で提供し続け、PRO 版は上乗せ機能を月額固定で提供する。
-// PRO の申込は問合せ経由（運営がプランを付与）。価格は税別。
+// PRO の申込は新規登録画面のプラン選択・会社マイページ「プラン」・お問合せの3経路（2026-12-04 受付開始。運営が承認して有効化）。価格は税別・月払いのみ（年払いは 2026-11-05 廃止）。
 
 export const metadata = {
   title: "料金",
@@ -124,7 +124,7 @@ export default function PricingPage() {
               </p>
               <ul className="mt-5 space-y-2 text-sm text-slate-600">
                 <li>・担当者5名まで含む（6名以降は 1名 4,000円/月）</li>
-                <li>・年払い 398,000円（10か月分）</li>
+                <li>・月払いのみ（年払い・割引はありません）</li>
                 <li>・30日間のお試し期間あり。開始当月は無料、翌月分から請求</li>
                 <li>・請求書払い（月末締め・翌月末振込）。解約は当月末までの申し出で翌月から基本版へ</li>
               </ul>
@@ -132,10 +132,10 @@ export default function PricingPage() {
                 href="/apply"
                 className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700"
               >
-                企業登録のうえ、お問合せから PRO を申し込む
+                企業登録して PRO 版を申し込む
               </Link>
               <p className="mt-2 text-center text-xs text-slate-500">
-                ご登録済みの企業は、企業コンソールの「お問合せ」から「PRO 版の申込」とお送りください。
+                PRO 版のお申込は 2026年12月4日 から受け付けます。企業登録画面でのプラン選択、またはご登録済みの企業は会社マイページの「プラン」からお申込みください。
               </p>
             </section>
           </div>
@@ -172,7 +172,7 @@ export default function PricingPage() {
               <li>・追加担当者の料金は前月末時点の有効な担当者数で算定します。日割り計算は行いません。</li>
               <li>・お試し期間・PRO 版の期限が切れた場合は自動的に基本版に戻ります。登録データは削除されません。</li>
               <li>・PRO 版では他社の公開案件・公開人材に掲載企業名が表示されます（人材本人の氏名・実額単価は双方承認後のみ）。</li>
-              <li>・PRO 版のお申込・変更・解約は、企業コンソールの「お問合せ」から受け付けます。</li>
+              <li>・PRO 版のお申込・解約申請は、企業登録画面のプラン選択または会社マイページの「プラン」から受け付けます（2026年12月4日受付開始。「お問合せ」からのご相談も可能です）。運営が確認のうえ有効化します。</li>
             </ul>
           </section>
 

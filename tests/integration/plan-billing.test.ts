@@ -78,15 +78,15 @@ describe("PRO 版の月額請求（§6.1）", () => {
     expect("error" in bad && bad.error?.code).toBe("VALIDATION_ERROR");
   });
 
-  it("年払いは更新月に 398,000円、非更新月は追加担当者分のみ", async () => {
-    const pro = await setPlan(await makeCompany("年払い株式会社"), "PRO");
+  it("年払いは廃止（2026-11-05）: 既存の YEARLY 設定が残っていても月額 39,800円で請求する", async () => {
+    const pro = await setPlan(await makeCompany("旧年払い株式会社"), "PRO");
     const start = new Date();
-    start.setUTCMonth(start.getUTCMonth() - 13, 10); // 13か月前開始 → 今月が更新月（開始翌月から12か月目）
+    start.setUTCMonth(start.getUTCMonth() - 13, 10);
     await prisma.company.update({ where: { id: pro.companyId }, data: { planStartedAt: start, planBillingCycle: "YEARLY" } });
     const r = await generatePlanInvoices(thisMonthKey());
     if ("error" in r) throw new Error(r.error.message);
     expect(r.created).toBe(1);
-    expect((await listOwnPlanInvoices(pro))[0]).toMatchObject({ baseYen: 398_000, extraYen: 0, amountExTaxYen: 398_000, taxYen: 39_800 });
+    expect((await listOwnPlanInvoices(pro))[0]).toMatchObject({ baseYen: 39_800, extraYen: 0, amountExTaxYen: 39_800, taxYen: 3_980 });
   });
 });
 

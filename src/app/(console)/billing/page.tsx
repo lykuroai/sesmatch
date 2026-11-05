@@ -77,7 +77,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
             )}
           </dd>
           <dt className="text-xs text-slate-500">支払</dt>
-          <dd>{plan.planBillingCycle === "YEARLY" ? "年払い" : "月払い"} / {plan.paymentMethod === "CARD" ? "カード" : "請求書払い"}</dd>
+          <dd>月払い / {plan.paymentMethod === "CARD" ? "カード" : "請求書払い"}</dd>
         </dl>
         {/* カード決済（PRO版仕様書 §4.15）。Stripe 未設定なら表示しない */}
         <CardBillingActions
@@ -88,7 +88,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         />
         {plan.effectivePlan === "FREE" ? (
           <p className="mt-3 text-xs text-slate-500">
-            PRO 版（月額 39,800円・税別）の請求書払いでのお申込は「お問合せ」から。
+            PRO 版（月額 39,800円・税別）のお申込は
+            <Link href="/company/plan" className="mx-1 text-blue-700 hover:underline">会社マイページ &gt; プラン</Link>
+            から（2026年12月4日受付開始）。
             <Link href="/pricing" className="ml-1 text-blue-700 hover:underline">料金を見る</Link>
           </p>
         ) : (

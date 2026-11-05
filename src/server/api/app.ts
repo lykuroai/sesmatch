@@ -59,6 +59,16 @@ import {
   markPlanInvoicePaid,
   voidPlanInvoice,
 } from "@/server/services/plan-billing";
+import {
+  approvePlanRequest,
+  createPlanRequest,
+  createPlanRequestInternal,
+  listOwnPlanRequests,
+  listPlanRequestsByOperations,
+  rejectPlanRequest,
+  withdrawPlanRequest,
+} from "@/server/services/plan-requests";
+import { isProSignupOpen, PRO_SIGNUP_CLOSED_MESSAGE } from "@/lib/plan-signup";
 import { HTTPException } from "hono/http-exception";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { z } from "zod";
@@ -381,16 +391,26 @@ app.post("/companies/applications", async (c) => {
       agreedToTerms: z.boolean(),
       emailVerificationToken: z.string().min(1),
       duplicateWarningConfirmed: z.boolean().optional(),
+      // 新規登録時のプラン選択（2026-11-05）。PRO を選ぶと登録と同時に PRO 版の申込を作る（基本版で即時開通、運営の承認で PRO 開始）
+      plan: z.enum(["FREE", "PRO"]).optional(),
     })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR", "入力内容を確認してください（パスワードは8文字以上）"), 400);
-  const result = await applyCompany(parsed.data);
+  const { plan, ...applyInput } = parsed.data;
+  if (plan === "PRO" && !isProSignupOpen()) return c.json(err("VALIDATION_ERROR", PRO_SIGNUP_CLOSED_MESSAGE), 400);
+  const result = await applyCompany(applyInput);
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   // 類似企業あり（社名 or 所在地の片方一致）→ 警告。クライアントは確認の上 duplicateWarningConfirmed で再送する
   if ("duplicateWarning" in result)
     return c.json({ ok: false, duplicateWarning: result.duplicateWarning }, 200);
-  return c.json({ ok: true, companyId: (result as { companyId: string }).companyId }, 201);
+  const created = result as { companyId: string; ownerMemberId: string };
+  let planRequested = false;
+  if (plan === "PRO") {
+    const req = await createPlanRequestInternal({ companyId: created.companyId, memberId: created.ownerMemberId, kind: "UPGRADE", source: "REGISTER" });
+    planRequested = !("error" in req);
+  }
+  return c.json({ ok: true, companyId: created.companyId, planRequested }, 201);
 });
 
 // ---- 運営承認（運営トークン保護。対象はCSV取込由来のAPPLIED企業のみ。申込フローは自動審査で即時開通）----
@@ -487,7 +507,6 @@ app.put("/operations/companies/:id/plan", requireAdminToken, async (c) => {
       plan: z.enum(["FREE", "TRIAL", "PRO"]),
       planExpiresAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
       planSeats: z.number().int().min(1).optional(),
-      planBillingCycle: z.enum(["MONTHLY", "YEARLY"]).optional(),
       paymentMethod: z.enum(["INVOICE", "CARD"]).optional(),
     })
     .safeParse(await c.req.json().catch(() => null));
@@ -517,6 +536,27 @@ app.put("/operations/plan-invoices/:id/paid", requireAdminToken, async (c) => {
 });
 app.put("/operations/plan-invoices/:id/void", requireAdminToken, async (c) => {
   const result = await voidPlanInvoice(c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
+// 運営: PRO 版の申込・解約申請（2026-11-05）。承認で PRO 開始／当月末を期限に設定、却下は理由必須
+app.get("/operations/plan-requests", requireAdminToken, async (c) => {
+  const st = c.req.query("status");
+  const status = st === "PENDING" || st === "APPROVED" || st === "REJECTED" || st === "WITHDRAWN" ? st : undefined;
+  return c.json({ items: await listPlanRequestsByOperations(status) });
+});
+app.put("/operations/plan-requests/:id/approve", requireAdminToken, async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { note?: unknown };
+  const result = await approvePlanRequest(c.req.param("id"), typeof body.note === "string" ? body.note : null);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+app.put("/operations/plan-requests/:id/reject", requireAdminToken, async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { note?: unknown };
+  const result = await rejectPlanRequest(c.req.param("id"), typeof body.note === "string" ? body.note : "");
   const er = svcError(result);
   if (er) return c.json(err(er.code, er.message), statusFor(er.code));
   return c.json(result);
@@ -1272,6 +1312,27 @@ app.put("/company/security/ip", requirePermission("company.manage"), async (c) =
   return c.json(result);
 });
 // SSO 設定（§4.13）
+// 会社マイページ「プラン」: PRO 版の申込・解約申請（2026-11-05）。閲覧は billing.read、申請は billing.manage
+app.get("/company/plan-requests", requirePermission("billing.read"), async (c) =>
+  c.json({ items: await listOwnPlanRequests(c.get("auth")) })
+);
+app.post("/company/plan-requests", requirePermission("billing.manage"), async (c) => {
+  const parsed = z
+    .object({ kind: z.enum(["UPGRADE", "CANCEL"]), note: z.string().max(1000).optional() })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR", "申請内容を確認してください"), 400);
+  const result = await createPlanRequest(c.get("auth"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result, 201);
+});
+app.post("/company/plan-requests/:id/withdraw", requirePermission("billing.manage"), async (c) => {
+  const result = await withdrawPlanRequest(c.get("auth"), c.req.param("id"));
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  return c.json(result);
+});
+
 app.put("/company/security/sso", requirePermission("company.manage"), async (c) => {
   const parsed = z
     .object({
@@ -1293,7 +1354,7 @@ app.put("/company/security/sso", requirePermission("company.manage"), async (c) 
 
 app.get("/billing/card", requirePermission("billing.read"), async (c) => c.json(await getCardBillingStatus(c.get("auth").companyId)));
 app.post("/billing/checkout", requirePermission("billing.manage"), async (c) => {
-  const parsed = z.object({ cycle: z.enum(["MONTHLY", "YEARLY"]).default("MONTHLY") }).safeParse(await c.req.json().catch(() => ({})));
+  const parsed = z.object({ cycle: z.enum(["MONTHLY"]).default("MONTHLY") }).safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
   const result = await createCheckoutSession(c.get("auth"), parsed.data.cycle);
   const er = svcError(result);

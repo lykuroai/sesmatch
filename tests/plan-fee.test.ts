@@ -33,13 +33,10 @@ describe("calcPlanInvoice", () => {
     expect(calcPlanInvoice({ ...base, paymentMethod: "CARD", month: "2026-11" })).toBeNull();
     expect(isBillableMonth({ ...base, planStartedAt: null, month: "2026-11" })).toBe(false);
   });
-  it("年払いは更新月（開始翌月から12か月ごと）に 398,000円、他の月は追加担当者分のみ", () => {
+  it("年払いは廃止（2026-11-05）: billingCycle が YEARLY でも月額 39,800円で計算する", () => {
     const yearly = { ...base, billingCycle: "YEARLY" as const };
-    expect(calcPlanInvoice({ ...yearly, month: "2026-11" })?.baseYen).toBe(398_000);
-    expect(calcPlanInvoice({ ...yearly, month: "2026-12" })).toBeNull(); // 追加なし → 請求なし
-    expect(calcPlanInvoice({ ...yearly, activeMembers: 6, month: "2026-12" })).toMatchObject({ baseYen: 0, extraYen: 4_000, amountExTaxYen: 4_000 });
-    expect(calcPlanInvoice({ ...yearly, month: "2027-11" })?.baseYen).toBe(398_000);
-    expect(calcPlanInvoice({ ...yearly, month: "2027-10" })).toBeNull();
+    expect(calcPlanInvoice({ ...yearly, month: "2026-11" })?.baseYen).toBe(39_800);
+    expect(calcPlanInvoice({ ...yearly, month: "2026-12" })?.baseYen).toBe(39_800);
   });
   it("支払期限は翌月末、請求書番号は P-YYYYMM-NNNN、monthKey は UTC 基準", () => {
     expect(dueDateOf("2026-11").toISOString().slice(0, 10)).toBe("2026-12-31");

@@ -90,6 +90,7 @@ const MENU = [
   { key: "companies", label: "企業一覧" },
   { key: "contracts", label: "契約・手数料" },
   { key: "plan", label: "PRO請求" },
+  { key: "plan-requests", label: "PRO申込" },
   { key: "engineers", label: "人材稼働状況" },
   { key: "mail", label: "メール配信" },
   { key: "aliases", label: "用語辞書" },
@@ -108,6 +109,7 @@ export default function AdminPage() {
   const [inquiries, setInquiries] = useState<AdminInquiry[]>([]);
   const [allCompanies, setAllCompanies] = useState<AdminCompany[]>([]);
   const [errorLogs, setErrorLogs] = useState<AdminSystemError[]>([]);
+  const [pendingPlanRequests, setPendingPlanRequests] = useState(0); // PRO申込の未処理件数（バッジ）
   const [unackedErrors, setUnackedErrors] = useState(0);
   const [tab, setTab] = useState<MenuKey>("review");
 
@@ -123,14 +125,16 @@ export default function AdminPage() {
 
   const load = useCallback(async (t: string) => {
     const headers = { "X-Admin-Token": t };
-    const [cRes, rRes, aRes, qRes, eRes] = await Promise.all([
+    const [cRes, rRes, aRes, qRes, eRes, pRes] = await Promise.all([
       fetch("/api/v1/operations/companies", { headers }),
       fetch("/api/v1/operations/reports", { headers }),
       fetch("/api/v1/operations/companies/all", { headers }),
       fetch("/api/v1/operations/inquiries", { headers }),
       fetch("/api/v1/operations/errors", { headers }),
+      fetch("/api/v1/operations/plan-requests?status=PENDING", { headers }),
     ]);
-    if (!cRes.ok || !rRes.ok || !aRes.ok || !qRes.ok || !eRes.ok) throw new Error("認証エラー");
+    if (!cRes.ok || !rRes.ok || !aRes.ok || !qRes.ok || !eRes.ok || !pRes.ok) throw new Error("認証エラー");
+    setPendingPlanRequests(((await pRes.json()) as { items: unknown[] }).items.length);
     setCompanies((await cRes.json()).items);
     setReports((await rRes.json()).items);
     setAllCompanies((await aRes.json()).items);
@@ -195,7 +199,9 @@ export default function AdminPage() {
           ? openInquiries
           : key === "errors"
             ? unackedErrors
-            : 0;
+            : key === "plan-requests"
+              ? pendingPlanRequests
+              : 0;
 
   return (
     <main className="min-h-screen bg-slate-100 p-8">
@@ -248,6 +254,7 @@ export default function AdminPage() {
             )}
             {tab === "contracts" && <ContractMonitorSection token={token} />}
             {tab === "plan" && <PlanInvoiceSection token={token} />}
+            {tab === "plan-requests" && <PlanRequestSection token={token} onChanged={() => load(token)} />}
             {tab === "engineers" && <EngineerMonitorSection token={token} />}
             {tab === "mail" && <MailBroadcastSection token={token} />}
             {tab === "aliases" && <SkillAliasSection token={token} />}
@@ -472,7 +479,6 @@ function CompanyListSection({
     plan: "FREE" as AdminCompany["plan"],
     planExpiresAt: "",
     planSeats: 5,
-    planBillingCycle: "MONTHLY" as AdminCompany["planBillingCycle"],
     paymentMethod: "INVOICE" as AdminCompany["paymentMethod"],
   });
 
@@ -708,7 +714,6 @@ function CompanyListSection({
                                 plan: co.plan,
                                 planExpiresAt: co.planExpiresAt ? co.planExpiresAt.slice(0, 10) : "",
                                 planSeats: co.planSeats,
-                                planBillingCycle: co.planBillingCycle,
                                 paymentMethod: co.paymentMethod,
                               });
                             }}
@@ -742,7 +747,7 @@ function CompanyListSection({
                   {planCompanyId === co.id && (
                     <tr className="bg-emerald-50/40">
                       <td colSpan={7} className="px-3 py-3">
-                        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                           <label className="block text-xs">
                             <span className="mb-1 block font-medium text-slate-600">プラン</span>
                             <select
@@ -774,17 +779,6 @@ function CompanyListSection({
                               onChange={(e) => setEditPlan({ ...editPlan, planSeats: Number(e.target.value) })}
                               className="w-full rounded border border-slate-300 px-2 py-1"
                             />
-                          </label>
-                          <label className="block text-xs">
-                            <span className="mb-1 block font-medium text-slate-600">支払周期</span>
-                            <select
-                              value={editPlan.planBillingCycle}
-                              onChange={(e) => setEditPlan({ ...editPlan, planBillingCycle: e.target.value as AdminCompany["planBillingCycle"] })}
-                              className="w-full rounded border border-slate-300 px-2 py-1"
-                            >
-                              <option value="MONTHLY">月払い</option>
-                              <option value="YEARLY">年払い</option>
-                            </select>
                           </label>
                           <label className="block text-xs">
                             <span className="mb-1 block font-medium text-slate-600">決済方法</span>
@@ -897,7 +891,7 @@ function PlanInvoiceSection({ token }: { token: string }) {
         <h2 className="mb-1 font-bold">PRO 版の月額請求</h2>
         <p className="mb-3 text-xs text-slate-500">
           対象月の1日時点で PRO・請求書払い・開始月が対象月より前の企業に請求書を発行します（企業×月で1枚。再実行は発行済みをスキップ）。
-          金額は 39,800円 ＋ 追加担当者 4,000円/名（年払いは更新月のみ 398,000円）。日割りなし。
+          金額は 39,800円 ＋ 追加担当者 4,000円/名（月払いのみ。年払いは廃止）。日割りなし。
         </p>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
@@ -931,7 +925,6 @@ function PlanInvoiceSection({ token }: { token: string }) {
                   <td className="px-3 py-2 text-xs">
                     {i.activeMembers}/{i.seats}
                     {i.extraSeats > 0 && <span className="ml-1 text-amber-600">+{i.extraSeats}</span>}
-                    {i.billingCycle === "YEARLY" && <span className="ml-1 text-slate-500">年</span>}
                   </td>
                   <td className="px-3 py-2 text-right">{yen(i.totalYen)}</td>
                   <td className="px-3 py-2 text-xs">{i.dueAt.slice(0, 10)}</td>
@@ -950,6 +943,139 @@ function PlanInvoiceSection({ token }: { token: string }) {
                   </td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+type AdminPlanRequest = {
+  id: string;
+  tenantCompanyId: string;
+  companyName: string;
+  companyPlan: "FREE" | "TRIAL" | "PRO";
+  companyPlanExpiresAt: string | null;
+  activeMembers: number;
+  kind: "UPGRADE" | "CANCEL";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "WITHDRAWN";
+  source: string;
+  note: string | null;
+  processedNote: string | null;
+  processedAt: string | null;
+  requestedByName: string | null;
+  createdAt: string;
+};
+
+// PRO 版の申込・解約申請（2026-11-05）。承認で PRO 開始（請求書払い・月払い・無期限）／解約は当月末を期限に設定。却下は理由必須
+function PlanRequestSection({ token, onChanged }: { token: string; onChanged: () => void }) {
+  const [items, setItems] = useState<AdminPlanRequest[]>([]);
+  const [showAll, setShowAll] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const headers = { "X-Admin-Token": token, "Content-Type": "application/json" };
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/v1/operations/plan-requests${showAll ? "" : "?status=PENDING"}`, { headers });
+    if (res.ok) setItems(((await res.json()) as { items: AdminPlanRequest[] }).items);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, showAll]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function act(r: AdminPlanRequest, action: "approve" | "reject") {
+    let note: string | null = null;
+    if (action === "reject") {
+      note = window.prompt("却下理由（企業の代表へメールで通知されます）");
+      if (!note?.trim()) return;
+    } else {
+      const text =
+        r.kind === "UPGRADE"
+          ? `${r.companyName} を PRO 版にします（請求書払い・月払い・開始当月無料、翌月分から月初請求）。代表へメール通知されます。よろしいですか？`
+          : `${r.companyName} の解約を承認します（当月末まで PRO、翌月から基本版）。代表へメール通知されます。よろしいですか？`;
+      if (!window.confirm(text)) return;
+    }
+    setError(null);
+    setMessage(null);
+    const res = await fetch(`/api/v1/operations/plan-requests/${r.id}/${action}`, { method: "PUT", headers, body: JSON.stringify({ note }) });
+    if (res.ok) {
+      setMessage(action === "approve" ? "承認しました" : "却下しました");
+      await load();
+      onChanged();
+    } else {
+      const b = await res.json().catch(() => null);
+      setError(b?.error?.message ?? "処理に失敗しました");
+    }
+  }
+  const kindLabel = { UPGRADE: "PRO 申込", CANCEL: "解約申請" } as const;
+  const statusLabel = { PENDING: "未処理", APPROVED: "承認", REJECTED: "却下", WITHDRAWN: "取り下げ" } as const;
+  return (
+    <div>
+      {error && <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+      {message && <p className="mb-4 rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p>}
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-bold">PRO 版の申込・解約申請（{items.length}件）</h2>
+          <label className="flex items-center gap-1 text-xs text-slate-600">
+            <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
+            処理済みも表示
+          </label>
+        </div>
+        <p className="mb-3 text-xs text-slate-500">
+          新規登録画面・会社マイページからの自己申込です。承認すると PRO 開始（請求書払い・月払い・無期限）、解約は当月末を期限に設定します。
+          規約の適用開始日 2026-12-04 より前は承認しないでください。お問合せ経由の申込は従来どおり「企業一覧 &gt; プラン」で変更します。
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-left text-xs text-slate-500">
+              <tr>
+                <th className="px-3 py-2">申請日</th>
+                <th className="px-3 py-2">企業</th>
+                <th className="px-3 py-2">種別</th>
+                <th className="px-3 py-2">現在</th>
+                <th className="px-3 py-2">入口 / 申請者</th>
+                <th className="px-3 py-2">備考</th>
+                <th className="px-3 py-2">状態</th>
+                <th className="px-3 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((r) => (
+                <tr key={r.id} className="border-t border-slate-100 align-top">
+                  <td className="px-3 py-2 text-xs">{r.createdAt.slice(0, 10)}</td>
+                  <td className="px-3 py-2">{r.companyName}</td>
+                  <td className="px-3 py-2 text-xs">{kindLabel[r.kind]}</td>
+                  <td className="px-3 py-2 text-xs">
+                    {PLAN_LABEL[r.companyPlan]}
+                    {r.companyPlanExpiresAt && <span className="ml-1 text-slate-500">〜{r.companyPlanExpiresAt.slice(0, 10)}</span>}
+                    <span className="ml-1 text-slate-500">担当者{r.activeMembers}名</span>
+                  </td>
+                  <td className="px-3 py-2 text-xs">
+                    {r.source === "REGISTER" ? "新規登録" : "マイページ"}
+                    {r.requestedByName && <span className="ml-1 text-slate-500">/ {r.requestedByName}</span>}
+                  </td>
+                  <td className="max-w-xs whitespace-pre-wrap px-3 py-2 text-xs text-slate-600">
+                    {r.note}
+                    {r.processedNote && <span className="block text-slate-400">運営: {r.processedNote}</span>}
+                  </td>
+                  <td className="px-3 py-2 text-xs">{statusLabel[r.status]}</td>
+                  <td className="px-3 py-2 text-right text-xs">
+                    {r.status === "PENDING" && (
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => act(r, "approve")} className="rounded border border-emerald-300 px-2 py-1 text-emerald-700 hover:bg-emerald-50">承認</button>
+                        <button onClick={() => act(r, "reject")} className="rounded border border-red-300 px-2 py-1 text-red-600 hover:bg-red-50">却下</button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-3 py-4 text-center text-xs text-slate-400">申請はありません</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -20,7 +20,7 @@ export default async function PlanInvoiceDocumentPage({ params }: { params: Prom
   const yen = (v: number) => `${v.toLocaleString()}円`;
   const lines = [
     ...(inv.baseYen > 0
-      ? [{ label: inv.billingCycle === "YEARLY" ? `SES DirectMatch PRO 版 年額利用料（${inv.month} 更新）` : `SES DirectMatch PRO 版 月額利用料（${inv.month} 分）`, detail: `担当者 ${inv.seats}名まで`, yen: inv.baseYen }]
+      ? [{ label: `SES DirectMatch PRO 版 月額利用料（${inv.month} 分）`, detail: `担当者 ${inv.seats}名まで`, yen: inv.baseYen }]
       : []),
     ...(inv.extraYen > 0 ? [{ label: `追加担当者（${inv.month} 分）`, detail: `${inv.extraSeats}名 × 4,000円`, yen: inv.extraYen }] : []),
   ];

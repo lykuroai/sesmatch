@@ -23,8 +23,8 @@ export function CardBillingActions({ status, canManage, currentPlanFree, checkou
     if (res.ok && b?.url) window.location.href = b.url;
     else setError(b?.error?.message ?? "手続きを開始できませんでした");
   }
-  const checkout = (cycle: "MONTHLY" | "YEARLY") => {
-    if (!window.confirm(`PRO 版（${cycle === "YEARLY" ? "年払い 398,000円" : "月払い 39,800円"}・税別）のカード決済手続きへ進みます。開始当月は無料、翌月1日から請求されます。よろしいですか？`)) return;
+  const checkout = (cycle: "MONTHLY") => { // 年払いは 2026-11-05 廃止
+    if (!window.confirm(`PRO 版（月払い 39,800円・税別）のカード決済手続きへ進みます。開始当月は無料、翌月1日から請求されます。よろしいですか？`)) return;
     void go("/api/v1/billing/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cycle }) });
   };
 
@@ -48,9 +48,6 @@ export function CardBillingActions({ status, canManage, currentPlanFree, checkou
           <>
             <button onClick={() => checkout("MONTHLY")} disabled={!canManage || busy} className="rounded bg-emerald-600 px-3 py-1.5 font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
               カードで PRO 版を始める（月払い）
-            </button>
-            <button onClick={() => checkout("YEARLY")} disabled={!canManage || busy} className="rounded border border-emerald-600 bg-white px-3 py-1.5 font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">
-              年払い（2か月分お得）
             </button>
           </>
         )}
