@@ -12,14 +12,13 @@ PRO 版の Web 会議（`ses_directmatch_pro_spec_v1_0.md` §4.8）が使う自�
 | 配置先 | `/data/jitsi`（`.env`＝設定一式・秘密情報、`cfg/`＝各コンテナの設定と証明書、`docker-jitsi-meet-stable-11248-3/`＝公式リリースの展開物） |
 | compose | `cd /data/jitsi/docker-jitsi-meet-stable-11248-3 && docker compose --env-file /data/jitsi/.env -p jitsi <cmd>`（プロジェクト名 `jitsi`。コンテナ `jitsi-web-1` / `jitsi-prosody-1` / `jitsi-jicofo-1` / `jitsi-jvb-1`） |
 | イメージ | `ghcr.io/jitsi/{web,prosody,jicofo,jvb}:stable-11248-3`（arm64 対応。ルートレス実行のため `cfg/` は uid 1000 所有にしておく） |
-| 公開ドメイン | `meet.lykuro.ai`（Cloudflare DNS。**プロキシなし（DNS only）で本ホストの IP を直指し**。ALB は通さない） |
+| 公開ドメイン | `meet.lykuro.ai`。経路は **Cloudflare（プロキシ）→ ALB（TLS 終端、ACM の `*.lykuro.ai`）→ 本ホストの `lykuro-nginx`:80 → Jitsi web（`127.0.0.1:8000`、http）**。lykuro の他ドメインと同じ構成（郭、2026-11-05）。映像・音声（10000/udp）だけは ALB を通らず本ホストの公開 IP へ直接届く |
 
 ### ポート
 
 | ポート | 用途 | 備考 |
 | --- | --- | --- |
-| 443/tcp | Jitsi web（HTTPS・XMPP WebSocket）。コンテナ 8443 を直接公開 | ホスト上で 443 は他に使っていない |
-| 80/tcp | lykuro の nginx コンテナ（`lykuro-nginx`）。`meet.lykuro.ai` の vhost だけを `127.0.0.1:8000`（Jitsi web の HTTP）へ転送 | Let's Encrypt の HTTP-01 検証と https への 301 のみ |
+| 80/tcp | lykuro の nginx コンテナ（`lykuro-nginx`、ALB からのみ到達）。`meet.lykuro.ai` の vhost を `127.0.0.1:8000`（Jitsi web、http）へ WebSocket 透過で転送 | TLS は ALB で終端。Jitsi 側は `DISABLE_HTTPS=1`、443 は公開しない（`127.0.0.1:8443` のみ） |
 | 10000/udp | JVB（音声・映像）。`JVB_ADVERTISE_IPS=18.181.207.71` | TURN（coturn）は未設置。UDP が通らない社内網からは接続できない場合がある |
 | 127.0.0.1:18888 / 18080 | jicofo REST / JVB colibri（ローカルのみ） | lykuro 側が 8888/8080 を使うため変更 |
 
@@ -31,27 +30,25 @@ PRO 版の Web 会議（`ses_directmatch_pro_spec_v1_0.md` §4.8）が使う自�
 - 認証は JWT のみ: `ENABLE_AUTH=1`、`ENABLE_GUESTS=0`、`AUTH_TYPE=jwt`、`JWT_APP_ID=sesmatch`、`JWT_APP_SECRET=<hex 64>`、`JWT_ACCEPTED_ISSUERS=sesmatch`、`JWT_ACCEPTED_AUDIENCES=jitsi`。
   アプリ側（`src/server/meeting/jitsi.ts`）が発行する JWT は `aud=jitsi`、`iss=JITSI_APP_ID`、`sub=JITSI_DOMAIN`、`room`、HS256。`JITSI_APP_ID`／`JITSI_APP_SECRET` は上記と一致させる
 - `ENABLE_RECORDING=0`、`ENABLE_TRANSCRIPTIONS=0`、`ENABLE_LOBBY=0`、`ENABLE_PREJOIN_PAGE=1`、`DEFAULT_LANGUAGE=ja`、`ENABLE_WELCOME_PAGE=0`、`TZ=Asia/Tokyo`
-- TLS: `ENABLE_LETSENCRYPT=1`、`LETSENCRYPT_DOMAIN=meet.lykuro.ai`、`LETSENCRYPT_EMAIL=support@lykuro.ai`。web コンテナ内の acme.sh が取得し、`acme-renewal` サービスが 1日2回更新を確認する（証明書は `cfg/storage/web/acme-certs/`）。
-  取得は **コンテナ内 8000 番の standalone 方式**（nginx を一時停止）なので、`meet.lykuro.ai:80` → `lykuro-nginx` → `127.0.0.1:8000` の経路が通っている必要がある
-- `HTTP_PORT=127.0.0.1:8000`、`HTTPS_PORT=443`、`JICOFO_REST_PORT=18888`、`JVB_COLIBRI_PORT=18080`、`RESTART_POLICY=unless-stopped`
+- TLS: ALB の ACM 証明書（`*.lykuro.ai`）で終端するため Jitsi 側は **http のみ**（`DISABLE_HTTPS=1`、`ENABLE_HTTP_REDIRECT=0`、`ENABLE_LETSENCRYPT=0`）。ブラウザは `https://meet.lykuro.ai` で接続し、WebSocket（`/xmpp-websocket`・`/colibri-ws/`）も ALB → nginx 経由で届く。nginx の vhost には Upgrade ヘッダの透過と長いタイムアウトが必要（`/data/jitsi/nginx-meet.lykuro.ai.conf`）
+- `HTTP_PORT=127.0.0.1:8000`、`HTTPS_PORT=127.0.0.1:8443`（未使用）、`JICOFO_REST_PORT=18888`、`JVB_COLIBRI_PORT=18080`、`RESTART_POLICY=unless-stopped`
 - 各コンポーネントの XMPP パスワードは `gen-passwords.sh` で生成済み
 
-## 3. 初回開通に必要な手動作業（AWS・DNS・ホスト。郭）
+## 3. 初回開通に必要な手動作業（AWS・ホスト。郭）
 
-1. **セキュリティグループ**（データノード）に受信を追加: `80/tcp`・`443/tcp`・`10000/udp` を `0.0.0.0/0`（IPv6 を使うなら `::/0` も）
-   - 80 を開けると lykuro の各 vhost へも http で直接届くようになる（ALB 経由と同じ nginx）。問題があれば nginx 側で `meet.lykuro.ai` 以外の直接 http アクセスを拒否する
-2. **ホストの ufw**: `sudo ufw allow 443/tcp comment "HTTPS (Jitsi)"` と `sudo ufw allow 10000/udp comment "Jitsi JVB"`
+DNS（Cloudflare → ALB）と ALB の証明書（`*.lykuro.ai`）は 2026-11-05 時点で既に `meet.lykuro.ai` に効いている（nginx に vhost が無いうちは既定の lykuro アプリが応答する）。残りは次の 3 点。
+
+1. **セキュリティグループ**（データノード）に受信追加: `10000/udp` を `0.0.0.0/0`（映像・音声は ALB を通らない）。80/443 の追加は不要
+2. **ホストの ufw**: `sudo ufw allow 10000/udp comment "Jitsi JVB"`
 3. **lykuro の nginx に vhost 追加**: `/data/jitsi/nginx-meet.lykuro.ai.conf` の内容を `/data/lykuro/src/docker/nginx/default.conf` の末尾に追記して `docker exec lykuro-nginx nginx -t && docker exec lykuro-nginx nginx -s reload`
    （この conf は lykuro リポジトリの作業コピーで、既に spotomo の追記があり未コミット。lykuro を再デプロイするときは消えないよう注意）
-4. **DNS**（Cloudflare）: `A meet.lykuro.ai → 18.181.207.71`、プロキシ無効（DNS only）。公開 IP が Elastic IP でなければ付与する（停止→起動で IP が変わると `JVB_ADVERTISE_IPS` も変える）
-5. 上記が済んだら開発機から:
+4. 開通確認（開発機から）:
    ```bash
-   ssh -i ~/.aws/lykuro-prod-key.pem ubuntu@ec2-18-181-207-71.ap-northeast-1.compute.amazonaws.com \
-     'sed -i "s/^ENABLE_LETSENCRYPT=0/ENABLE_LETSENCRYPT=1/" /data/jitsi/.env && cd /data/jitsi/docker-jitsi-meet-stable-11248-3 && docker compose --env-file /data/jitsi/.env -p jitsi up -d web && sleep 60 && docker logs --tail 30 jitsi-web-1'
-   curl -sI https://meet.lykuro.ai/ | head -1          # 200、証明書は Let's Encrypt
-   curl -s https://meet.lykuro.ai/external_api.js | head -c 100
+   curl -sI https://meet.lykuro.ai/ | head -1                 # 200
+   curl -s https://meet.lykuro.ai/external_api.js | head -c 100  # Jitsi の JS
    ```
-6. アプリ側 `.env.production` の `JITSI_DOMAIN=meet.lykuro.ai`／`JITSI_APP_ID=sesmatch`／`JITSI_APP_SECRET=<.env の JWT_APP_SECRET>` のコメントを外し、`./scripts/release-ec2.sh` で反映（`docker-compose.ec2.yml` は 3 変数を渡す設定済み）。反映後、商談詳細の面談欄に「参加」が出ること、ゲスト URL `/m/<token>` が面談前後1時間だけ入室できることを確認する
+   任意: ALB のアイドルタイムアウト（既定 60 秒）を 300 秒以上にすると WebSocket の再接続が減る
+5. アプリ側 `.env.production` の `JITSI_DOMAIN=meet.lykuro.ai`／`JITSI_APP_ID=sesmatch`／`JITSI_APP_SECRET=<.env の JWT_APP_SECRET>` のコメントを外し、`./scripts/release-ec2.sh` で反映（`docker-compose.ec2.yml` は 3 変数を渡す設定済み）。反映後、商談詳細の面談欄に「参加」が出ること、ゲスト URL `/m/<token>` が面談前後1時間だけ入室できることを確認する
 
 ## 4. 日常運用
 
@@ -74,5 +71,5 @@ docker compose --env-file /data/jitsi/.env -p jitsi down
 ## 5. 未対応・課題
 
 - TURN（coturn）未設置。UDP 10000 が塞がれた環境のためには coturn（443/tcp）を追加する
-- 監視（JVB の稼働・証明書期限）は未設定。`https://meet.lykuro.ai/` の外形監視を追加予定
-- 専用インスタンスへの移設時は `/data/jitsi` を丸ごと移し、`JVB_ADVERTISE_IPS` と DNS を変えるだけでよい
+- 監視（JVB の稼働）は未設定。`https://meet.lykuro.ai/` の外形監視を追加予定
+- 専用インスタンスへの移設時は `/data/jitsi` を丸ごと移し、`JVB_ADVERTISE_IPS`・ALB のターゲット（または DNS）・SG の 10000/udp を変える
