@@ -1,7 +1,7 @@
 "use client";
 
 // 案件・人材画面に埋め込む取込パネル（§9）。ボタンで開閉し、貼り付け/ファイルの両方に対応。
-// 取込後の人手確認・確定は /ingestions（取込履歴）で行う
+// 取込後の人手確認・確定は /ingestions（取込履歴）で行う。取込ボタンは「案件を登録」等の主ボタンと同じ塗りつぶし形式（2026-11-05 郭指示）
 import { useState } from "react";
 import Link from "next/link";
 import { IngestPaste } from "./IngestPaste";
@@ -30,7 +30,7 @@ export function IngestPanel({
   const toggle = (
     <button
       onClick={() => setOpen(!open)}
-      className="rounded border border-orange-700 px-4 py-2 text-sm font-medium text-orange-700 hover:bg-orange-50"
+      className="rounded bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800"
     >
       {open ? "取込を閉じる" : label}
     </button>
