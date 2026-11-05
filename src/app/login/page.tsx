@@ -188,8 +188,14 @@ export default function LoginPage() {
 
             {/* 0円バッジ（掲載料・月額費用・成約手数料）は 2026-11-05 郭指示で削除 */}
 
-            {/* 利用イメージ画像（郭提供 public/lp-flow.png。2026-11-05）。左側の申込ボタンは外し、右のログイン欄の下の申込ボタンに集約 */}
-            <figure className="mt-7 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-lg shadow-stone-900/10">
+            <div className="mt-5">
+              <Link href="/about" className="inline-flex items-center gap-1 text-sm font-medium text-stone-600 hover:text-orange-800">
+                サービス紹介を見る
+                <span aria-hidden>›</span>
+              </Link>
+            </div>
+            {/* 利用イメージ画像（郭提供 public/lp-flow.png。2026-11-05）。「サービス紹介を見る」は画像の上（郭指示）。左側の申込ボタンは外し、右のログイン欄の下の申込ボタンに集約 */}
+            <figure className="mt-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-lg shadow-stone-900/10">
               <picture>
                 <source srcSet="/lp-flow.webp" type="image/webp" />
                 <img
@@ -201,12 +207,6 @@ export default function LoginPage() {
                 />
               </picture>
             </figure>
-            <div className="mt-5">
-              <Link href="/about" className="inline-flex items-center gap-1 text-sm font-medium text-stone-600 hover:text-orange-800">
-                サービス紹介を見る
-                <span aria-hidden>›</span>
-              </Link>
-            </div>
           </div>
 
           {/* ログインカード（モバイルでは最上部） */}
