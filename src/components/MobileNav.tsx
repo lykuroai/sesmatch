@@ -19,7 +19,7 @@ function ItemIcon({ path }: { path: string }) {
       strokeWidth={1.5}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="h-5 w-5 flex-none text-slate-400"
+      className="h-5 w-5 flex-none text-stone-400"
     >
       <path d={path} />
     </svg>
@@ -35,7 +35,7 @@ export function MobileNav({ items, footer }: { items: MobileNavItem[]; footer: M
       <button
         onClick={() => setOpen(true)}
         aria-label="メニューを開く"
-        className="-ml-1 flex h-10 w-10 items-center justify-center rounded text-slate-600 hover:bg-slate-100"
+        className="-ml-1 flex h-10 w-10 items-center justify-center rounded text-stone-600 hover:bg-stone-100"
       >
         <svg
           aria-hidden="true"
@@ -55,9 +55,9 @@ export function MobileNav({ items, footer }: { items: MobileNavItem[]; footer: M
           {/* 背景（タップで閉じる） */}
           <div className="absolute inset-0 bg-black/40" onClick={close} aria-hidden="true" />
           <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
               {/* モバイルの起点は先頭メニュー（案件一覧）。ホームは案内しない */}
-              <Link href={items[0]?.href ?? "/"} onClick={close} className="flex items-center gap-2 text-sm font-bold text-slate-800">
+              <Link href={items[0]?.href ?? "/"} onClick={close} className="flex items-center gap-2 text-sm font-bold text-stone-800">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/logo-mark.svg" alt="" className="h-6 w-6" />
                 SES DirectMatch
@@ -65,7 +65,7 @@ export function MobileNav({ items, footer }: { items: MobileNavItem[]; footer: M
               <button
                 onClick={close}
                 aria-label="メニューを閉じる"
-                className="flex h-10 w-10 items-center justify-center rounded text-slate-500 hover:bg-slate-100"
+                className="flex h-10 w-10 items-center justify-center rounded text-stone-500 hover:bg-stone-100"
               >
                 <svg
                   aria-hidden="true"
@@ -86,7 +86,7 @@ export function MobileNav({ items, footer }: { items: MobileNavItem[]; footer: M
                   key={m.href}
                   href={m.href}
                   onClick={close}
-                  className="flex items-center gap-3 rounded px-3 py-3 text-sm text-slate-700 hover:bg-slate-100"
+                  className="flex items-center gap-3 rounded px-3 py-3 text-sm text-stone-700 hover:bg-stone-100"
                 >
                   <ItemIcon path={m.icon} />
                   <span>{m.label}</span>
@@ -94,13 +94,13 @@ export function MobileNav({ items, footer }: { items: MobileNavItem[]; footer: M
               ))}
             </nav>
             <div className="p-2">
-              <div className="border-t border-slate-100 pt-2">
+              <div className="border-t border-stone-100 pt-2">
                 {footer.map((m) => (
                   <Link
                     key={m.href}
                     href={m.href}
                     onClick={close}
-                    className="flex items-center gap-3 rounded px-3 py-3 text-sm text-slate-700 hover:bg-slate-100"
+                    className="flex items-center gap-3 rounded px-3 py-3 text-sm text-stone-700 hover:bg-stone-100"
                   >
                     <ItemIcon path={m.icon} />
                     <span>{m.label}</span>

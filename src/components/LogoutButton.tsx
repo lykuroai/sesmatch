@@ -11,7 +11,7 @@ export function LogoutButton() {
         router.push("/login");
         router.refresh();
       }}
-      className="text-xs text-slate-500 underline hover:text-slate-700"
+      className="text-xs text-stone-500 underline hover:text-stone-700"
     >
       ログアウト
     </button>

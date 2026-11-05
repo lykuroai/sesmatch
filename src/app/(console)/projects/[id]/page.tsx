@@ -60,27 +60,27 @@ export default async function ProjectDetailPage({
                   掲載企業: {p.partnerCompanyName}
                 </span>
               ) : (
-                <span className="ml-3 rounded bg-indigo-50 px-2 py-1 text-xs text-indigo-600">他社案件</span>
+                <span className="ml-3 rounded bg-orange-50 px-2 py-1 text-xs text-orange-700">他社案件</span>
               ))}
           </h1>
           {/* 状態表示: 「公開状態」（自社のみ）と「案件状況」をラベル付きで並べる */}
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             {p.own && (
               <span className="flex items-center gap-1.5">
-                <span className="shrink-0 whitespace-nowrap text-xs text-slate-500">公開状態</span>
+                <span className="shrink-0 whitespace-nowrap text-xs text-stone-500">公開状態</span>
                 <span
                   className={`rounded px-2 py-0.5 text-xs font-medium ${
                     p.status === "PUBLISHED"
                       ? "bg-emerald-50 text-emerald-700"
                       : p.status === "DRAFT"
                         ? "bg-amber-50 text-amber-700"
-                        : "bg-slate-100 text-slate-600"
+                        : "bg-stone-100 text-stone-600"
                   }`}
                 >
                   {PUBLISH_STATUS_LABELS[p.status]}
                 </span>
                 {p.status === "DRAFT" && (
-                  <span className="text-xs text-slate-400">他社には表示されません（「公開する」で公開）</span>
+                  <span className="text-xs text-stone-400">他社には表示されません（「公開する」で公開）</span>
                 )}
                 {/* 公開の取り下げ（手動で下書きへ戻す） */}
                 {p.status === "PUBLISHED" && canPublish && (
@@ -94,7 +94,7 @@ export default async function ProjectDetailPage({
               </span>
             )}
             <span className="flex items-center gap-1.5">
-              <span className="shrink-0 whitespace-nowrap text-xs text-slate-500">案件状況</span>
+              <span className="shrink-0 whitespace-nowrap text-xs text-stone-500">案件状況</span>
               {p.own && hasPermission(auth.roles, "project.create") ? (
                 <WorkflowStatusSelect
                   path={`/api/v1/projects/${p.id}/workflow-status`}
@@ -105,10 +105,10 @@ export default async function ProjectDetailPage({
                 <span
                   className={`rounded px-2 py-0.5 text-xs ${
                     p.workflowStatus === "RECRUITING"
-                      ? "bg-blue-50 text-blue-700"
+                      ? "bg-orange-50 text-orange-800"
                       : p.workflowStatus === "CONTRACTED"
                         ? "bg-emerald-50 text-emerald-700"
-                        : "bg-slate-100 text-slate-600"
+                        : "bg-stone-100 text-stone-600"
                   }`}
                 >
                   {PROJECT_WORKFLOW_LABELS[p.workflowStatus]}
@@ -117,7 +117,7 @@ export default async function ProjectDetailPage({
             </span>
           </div>
           {p.own && hasPermission(auth.roles, "project.create") && (
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-stone-400">
               案件状況は商談開始・成約で自動更新されます。プルダウンから手動でも変更できます
             </p>
           )}
@@ -127,7 +127,7 @@ export default async function ProjectDetailPage({
             <>
               <a
                 href={`/projects/${p.id}/edit`}
-                className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                className="rounded border border-stone-300 bg-white px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
               >
                 編集
               </a>
@@ -147,7 +147,7 @@ export default async function ProjectDetailPage({
       <ResizableColumns
         storageKey="project-detail-columns"
         left={
-          <section className="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="h-full rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">案件条件</h2>
           <dl className="space-y-2 text-sm">
             <Row label="開始日" value={new Date(p.startDate).toLocaleDateString("ja-JP")} />
@@ -189,9 +189,9 @@ export default async function ProjectDetailPage({
           </section>
         }
         right={
-          <section className="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="h-full rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">スキル要件</h2>
-          <p className="mb-1 text-xs text-slate-500">必須</p>
+          <p className="mb-1 text-xs text-stone-500">必須</p>
           <div className="mb-3 flex flex-wrap gap-1">
             {p.requiredSkills.map((s) => (
               <span key={s.name} className="rounded bg-red-50 px-2 py-1 text-xs text-red-700">
@@ -199,27 +199,27 @@ export default async function ProjectDetailPage({
                 {s.minMonths ? `（${s.minMonths}ヶ月〜）` : ""}
               </span>
             ))}
-            {p.requiredSkills.length === 0 && <span className="text-xs text-slate-400">なし</span>}
+            {p.requiredSkills.length === 0 && <span className="text-xs text-stone-400">なし</span>}
           </div>
-          <p className="mb-1 text-xs text-slate-500">尚可</p>
+          <p className="mb-1 text-xs text-stone-500">尚可</p>
           <div className="flex flex-wrap gap-1">
             {p.preferredSkills.map((s) => (
-              <span key={s.name} className="rounded bg-blue-50 px-2 py-1 text-xs text-blue-700">
+              <span key={s.name} className="rounded bg-orange-50 px-2 py-1 text-xs text-orange-800">
                 {s.name}
               </span>
             ))}
-            {p.preferredSkills.length === 0 && <span className="text-xs text-slate-400">なし</span>}
+            {p.preferredSkills.length === 0 && <span className="text-xs text-stone-400">なし</span>}
           </div>
           <h2 className="mb-2 mt-5 font-bold">匿名概要</h2>
-          <p className="whitespace-pre-wrap text-sm text-slate-600">{p.anonymousSummary}</p>
+          <p className="whitespace-pre-wrap text-sm text-stone-600">{p.anonymousSummary}</p>
           </section>
         }
       />
 
       {p.maskedSourceText && (
-        <details className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <details className="mt-6 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
           <summary className="cursor-pointer font-bold">取込原文</summary>
-          <pre className="mt-3 max-h-96 overflow-y-auto whitespace-pre-wrap rounded bg-slate-50 p-4 text-sm text-slate-700">
+          <pre className="mt-3 max-h-96 overflow-y-auto whitespace-pre-wrap rounded bg-stone-50 p-4 text-sm text-stone-700">
             {p.maskedSourceText}
           </pre>
         </details>
@@ -256,7 +256,7 @@ export default async function ProjectDetailPage({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
-      <dt className="text-slate-500">{label}</dt>
+      <dt className="text-stone-500">{label}</dt>
       <dd className="text-right font-medium">{value}</dd>
     </div>
   );

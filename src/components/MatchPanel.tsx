@@ -102,13 +102,13 @@ export function MatchPanel({
           {direction === "project-to-engineers" ? "候補人材マッチング" : "適合案件マッチング"}
         </h2>
         {/* 必須スキルの充足率条件: 100%（全て充足）が既定。下げると一部不足の候補も抽出する */}
-        <label className="flex items-center gap-1.5 text-xs text-slate-600" title="必須スキルをどこまで満たす候補を抽出するか">
+        <label className="flex items-center gap-1.5 text-xs text-stone-600" title="必須スキルをどこまで満たす候補を抽出するか">
           必須スキル適合
           <select
             value={minRatio}
             onChange={(e) => changeRatio(Number(e.target.value))}
             disabled={loading || !!disabledReason}
-            className="rounded border border-slate-300 bg-white px-2 py-1 text-sm disabled:opacity-50"
+            className="rounded border border-stone-300 bg-white px-2 py-1 text-sm disabled:opacity-50"
           >
             <option value={1}>100%（全て充足）</option>
             <option value={0.9}>90%以上</option>
@@ -126,10 +126,10 @@ export function MatchPanel({
           {loading ? "計算中..." : "マッチング実行"}
         </button>
       </div>
-      {disabledReason && <p className="text-sm text-slate-500">{disabledReason}</p>}
+      {disabledReason && <p className="text-sm text-stone-500">{disabledReason}</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
       {rows && rows.length === 0 && (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-stone-500">
           {minRatio < 1
             ? "条件を満たす候補はありません。"
             : "ハードフィルターを通過した候補はありません（「必須スキル適合」を下げると一部不足の候補も抽出できます）。"}
@@ -138,7 +138,7 @@ export function MatchPanel({
       {rows && rows.length > 0 && (
         <div className="space-y-3">
           {minRatio < 1 && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-stone-500">
               必須スキルを{Math.round(minRatio * 100)}%以上満たす{rows.length}件（不足スキルは各候補の△に表示）
             </p>
           )}
@@ -151,17 +151,17 @@ export function MatchPanel({
               : `${row.project!.code} ${row.project!.name}`;
             const entryState = entryStates[target.id];
             return (
-              <div key={i} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div key={i} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <Link href={href} className="font-medium text-blue-700 hover:underline">
+                  <Link href={href} className="font-medium text-orange-800 hover:underline">
                     {title}
                     {target.own ? (
-                      <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">自社</span>
+                      <span className="ml-2 rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">自社</span>
                     ) : target.partnerCompanyName ? (
                       // 登録済み取引先の候補は掲載企業名を表示
                       <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-700">{target.partnerCompanyName}</span>
                     ) : (
-                      <span className="ml-2 rounded bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-600">他社</span>
+                      <span className="ml-2 rounded bg-orange-50 px-1.5 py-0.5 text-xs text-orange-700">他社</span>
                     )}
                   </Link>
                   <span className="flex items-center gap-3">
@@ -170,7 +170,7 @@ export function MatchPanel({
                       <button
                         onClick={() => createEntry(target.id)}
                         disabled={submitting === target.id}
-                        className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                        className="rounded bg-orange-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-orange-800 disabled:opacity-50"
                       >
                         {submitting === target.id ? "作成中..." : actionLabel}
                       </button>
@@ -191,7 +191,7 @@ export function MatchPanel({
                 )}
                 <div className="mt-2 flex flex-wrap gap-1 text-xs">
                   {Object.entries(row.result.breakdown).map(([k, v]) => (
-                    <span key={k} className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-600">
+                    <span key={k} className="rounded bg-stone-100 px-1.5 py-0.5 text-stone-600">
                       {k}: {v}
                     </span>
                   ))}

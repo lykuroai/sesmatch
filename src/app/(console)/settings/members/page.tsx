@@ -20,14 +20,14 @@ export default async function MembersPage() {
     <div>
       <h1 className="mb-6 text-2xl font-bold">担当者</h1>
       {canManage && (
-        <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="mb-6 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">担当者を招待</h2>
           <InviteMemberForm />
         </section>
       )}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs text-slate-500">
+          <thead className="bg-stone-50 text-left text-xs text-stone-500">
             <tr>
               <th className="px-4 py-3">氏名</th>
               <th className="px-4 py-3">メールアドレス</th>
@@ -51,13 +51,13 @@ export default async function MembersPage() {
                   }}
                 />
               ) : (
-                <tr key={m.id} className="border-t border-slate-100">
+                <tr key={m.id} className="border-t border-stone-100">
                   <td className="px-4 py-3 font-medium">{m.userAccount.name}</td>
                   <td className="px-4 py-3">{m.userAccount.email}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       {m.roles.map((r) => (
-                        <span key={r.id} className="rounded bg-slate-100 px-2 py-0.5 text-xs">
+                        <span key={r.id} className="rounded bg-stone-100 px-2 py-0.5 text-xs">
                           {ROLE_LABELS[r.role]}
                         </span>
                       ))}

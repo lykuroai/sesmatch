@@ -57,15 +57,15 @@ export function MeetingControls({
         </button>
       )}
       {hasMeeting && canManage && (
-        <button type="button" onClick={revoke} className="rounded border border-slate-300 px-2 py-1 text-slate-600 hover:bg-slate-50">無効化</button>
+        <button type="button" onClick={revoke} className="rounded border border-stone-300 px-2 py-1 text-stone-600 hover:bg-stone-50">無効化</button>
       )}
       {guestUrl && (
-        <span className="w-full rounded border border-amber-300 bg-amber-50 p-2 text-slate-700">
+        <span className="w-full rounded border border-amber-300 bg-amber-50 p-2 text-stone-700">
           人材本人用の参加 URL（面談予定の前後1時間のみ有効。本人へ転送してください。再表示はできません）:
           <code className="ml-1 break-all">{guestUrl}</code>
         </span>
       )}
-      {!guestUrl && hasMeeting && guestExpiresAt && <span className="text-slate-400">本人用 URL 有効期限 {new Date(guestExpiresAt).toLocaleString("ja-JP")}</span>}
+      {!guestUrl && hasMeeting && guestExpiresAt && <span className="text-stone-400">本人用 URL 有効期限 {new Date(guestExpiresAt).toLocaleString("ja-JP")}</span>}
       {error && <span className="text-red-600">{error}</span>}
     </span>
   );

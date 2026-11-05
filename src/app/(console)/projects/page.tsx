@@ -184,10 +184,10 @@ export default async function ProjectsPage({
     return qs ? `/projects?${qs}` : "/projects";
   };
   const chip = (active: boolean) =>
-    `rounded-full border px-3 py-1 text-xs ${active ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"}`;
+    `rounded-full border px-3 py-1 text-xs ${active ? "border-orange-700 bg-orange-700 text-white" : "border-stone-300 bg-white text-stone-600 hover:bg-stone-50"}`;
 
-  const select = "rounded border border-slate-300 bg-white px-2 py-1.5 text-sm";
-  const label = "w-20 shrink-0 text-xs text-slate-600";
+  const select = "rounded border border-stone-300 bg-white px-2 py-1.5 text-sm";
+  const label = "w-20 shrink-0 text-xs text-stone-600";
 
   // 状態バッジ（テーブル表示とモバイルのカード表示で共用）
   const statusBadges = (p: (typeof projects)[number]) => (
@@ -202,10 +202,10 @@ export default async function ProjectsPage({
         <span
           className={`rounded px-1.5 py-0.5 text-xs ${
             p.workflowStatus === "RECRUITING"
-              ? "bg-blue-50 text-blue-700"
+              ? "bg-orange-50 text-orange-800"
               : p.workflowStatus === "CONTRACTED"
                 ? "bg-emerald-50 text-emerald-700"
-                : "bg-slate-100 text-slate-600"
+                : "bg-stone-100 text-stone-600"
           }`}
         >
           {PROJECT_WORKFLOW_LABELS[p.workflowStatus]}
@@ -229,7 +229,7 @@ export default async function ProjectsPage({
         action={
           <Link
             href="/projects/new"
-            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="rounded bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800"
           >
             案件を登録
           </Link>
@@ -245,7 +245,7 @@ export default async function ProjectsPage({
       />
 
       {/* 検索条件 */}
-      <form method="GET" action="/projects" className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <form method="GET" action="/projects" className="mb-4 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
           <span className={label}>キーワード</span>
           <input
@@ -295,7 +295,7 @@ export default async function ProjectsPage({
 
         {/* 詳細条件（いずれかが指定されていれば開いた状態にする） */}
         <details open={advancedUsed} className="mb-3">
-          <summary className="cursor-pointer text-sm font-medium text-slate-600 hover:text-slate-800">
+          <summary className="cursor-pointer text-sm font-medium text-stone-600 hover:text-stone-800">
             詳細条件
           </summary>
           <div className="mt-3 space-y-3">
@@ -307,9 +307,9 @@ export default async function ProjectsPage({
               <span className="flex items-center gap-2">
                 <span className={label}>単価</span>
                 <input type="number" name="rateMin" min={0} defaultValue={sp.rateMin ?? ""} className={`${select} w-20`} />
-                <span className="text-xs text-slate-500">万円 〜</span>
+                <span className="text-xs text-stone-500">万円 〜</span>
                 <input type="number" name="rateMax" min={0} defaultValue={sp.rateMax ?? ""} className={`${select} w-20`} />
-                <span className="text-xs text-slate-500">万円</span>
+                <span className="text-xs text-stone-500">万円</span>
               </span>
               <span className="flex items-center gap-2">
                 <span className={label}>勤務形態</span>
@@ -343,10 +343,10 @@ export default async function ProjectsPage({
         </details>
 
         <div className="flex gap-2">
-          <button type="submit" className="rounded bg-slate-800 px-4 py-1.5 text-sm font-medium text-white hover:bg-slate-700">
+          <button type="submit" className="rounded bg-stone-800 px-4 py-1.5 text-sm font-medium text-white hover:bg-stone-700">
             検索
           </button>
-          <Link href="/projects" className="rounded border border-slate-300 bg-white px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-50">
+          <Link href="/projects" className="rounded border border-stone-300 bg-white px-4 py-1.5 text-sm text-stone-600 hover:bg-stone-50">
             条件をクリア
           </Link>
         </div>
@@ -372,8 +372,8 @@ export default async function ProjectsPage({
 
       {/* 対象人材選択時: 対象の表示とマッチ条件チップ */}
       {targetEngineer && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5">
-          <span className="text-sm font-medium text-blue-900">
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2.5">
+          <span className="text-sm font-medium text-orange-950">
             対象人材：{targetEngineer.code}
             {targetEngineer.name ? ` ${targetEngineer.name}` : ""}
           </span>
@@ -384,7 +384,7 @@ export default async function ProjectsPage({
         </div>
       )}
 
-      <p className="mb-3 text-xs text-slate-500">{filtered.length}件が該当</p>
+      <p className="mb-3 text-xs text-stone-500">{filtered.length}件が該当</p>
 
       {/* モバイル: カード表示（md 未満） */}
       <div className="space-y-3 md:hidden">
@@ -392,28 +392,28 @@ export default async function ProjectsPage({
           <Link
             key={p.id}
             href={`/projects/${p.id}`}
-            className="flex gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm active:bg-slate-50"
+            className="flex gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm active:bg-stone-50"
           >
             <ProjectImage kind={imageKindOf(p)} size={44} className="mt-0.5" />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="font-medium text-blue-700">{p.code}</span>
+                <span className="font-medium text-orange-800">{p.code}</span>
                 {isNew(p.createdAt) && (
                   <NewBadge />
                 )}
-                <span className={`rounded px-1.5 py-0.5 text-xs ${p.own ? "bg-blue-50 text-blue-700" : p.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                <span className={`rounded px-1.5 py-0.5 text-xs ${p.own ? "bg-orange-50 text-orange-800" : p.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-600"}`}>
                   {p.own ? "自社" : (p.partnerCompanyName ?? "他社")}
                 </span>
                 {statusBadges(p)}
               </div>
-              <p className="mt-1.5 text-sm font-medium text-slate-800">{p.name}</p>
-              <p className="mt-2 text-xs text-slate-500">
+              <p className="mt-1.5 text-sm font-medium text-stone-800">{p.name}</p>
+              <p className="mt-2 text-xs text-stone-500">
                 開始 {new Date(p.startDate).toLocaleDateString("ja-JP")} ／ 単価上限{" "}
                 {(p.rateMaxYen / 10_000).toLocaleString()}万円 ／ {REMOTE_LEVEL_LABELS[p.remoteLevel]} ／ 登録{" "}
                 {new Date(p.createdAt).toLocaleDateString("ja-JP")}
               </p>
               {p.requiredSkills.length > 0 && (
-                <p className="mt-1 truncate text-xs text-slate-500">
+                <p className="mt-1 truncate text-xs text-stone-500">
                   必須: {p.requiredSkills.map((s) => s.name).join(", ")}
                 </p>
               )}
@@ -421,16 +421,16 @@ export default async function ProjectsPage({
           </Link>
         ))}
         {projects.length === 0 && (
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400 shadow-sm">
+          <div className="rounded-xl border border-stone-200 bg-white px-4 py-8 text-center text-sm text-stone-400 shadow-sm">
             該当する案件がありません
           </div>
         )}
       </div>
 
       {/* PC: テーブル表示 */}
-      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm md:block">
+      <div className="hidden overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm md:block">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs text-slate-500">
+          <thead className="bg-stone-50 text-left text-xs text-stone-500">
             <tr>
               <th className="whitespace-nowrap px-4 py-3">案件ID</th>
               <th className="whitespace-nowrap px-4 py-3">掲載元</th>
@@ -445,9 +445,9 @@ export default async function ProjectsPage({
           </thead>
           <tbody>
             {projects.map((p) => (
-              <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50">
+              <tr key={p.id} className="border-t border-stone-100 hover:bg-stone-50">
                 <td className="whitespace-nowrap px-4 py-3">
-                  <Link href={`/projects/${p.id}`} className="font-medium text-blue-700 hover:underline">
+                  <Link href={`/projects/${p.id}`} className="font-medium text-orange-800 hover:underline">
                     {p.code}
                   </Link>
                   {isNew(p.createdAt) && (
@@ -455,7 +455,7 @@ export default async function ProjectsPage({
                   )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3">
-                  <span className={`rounded px-1.5 py-0.5 text-xs ${p.own ? "bg-blue-50 text-blue-700" : p.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                  <span className={`rounded px-1.5 py-0.5 text-xs ${p.own ? "bg-orange-50 text-orange-800" : p.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-600"}`}>
                     {p.own ? "自社" : (p.partnerCompanyName ?? "他社")}
                   </span>
                 </td>
@@ -478,7 +478,7 @@ export default async function ProjectsPage({
             ))}
             {projects.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={9} className="px-4 py-8 text-center text-stone-400">
                   該当する案件がありません
                 </td>
               </tr>

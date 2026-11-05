@@ -83,10 +83,10 @@ function counterpartOf(e: EntryRow): string {
 
 function statusBadgeClass(key: string): string {
   if (key === "PENDING_OWN") return "bg-amber-100 text-amber-800";
-  if (key === "PROPOSING") return "bg-blue-50 text-blue-700";
+  if (key === "PROPOSING") return "bg-orange-50 text-orange-800";
   if (key === "CONTRACTED") return "bg-emerald-50 text-emerald-700";
-  if (key === "DECLINED" || key === "WITHDRAWN") return "bg-slate-100 text-slate-500";
-  return "bg-indigo-50 text-indigo-700";
+  if (key === "DECLINED" || key === "WITHDRAWN") return "bg-stone-100 text-stone-500";
+  return "bg-orange-50 text-orange-800";
 }
 
 // エントリー一覧（§20.1）: 自社案件・自社人材ごとにグループ化して表示する
@@ -193,20 +193,20 @@ export default async function EntriesPage({
     return qs ? `/entries?${qs}` : "/entries";
   };
 
-  const select = "rounded border border-slate-300 bg-white px-2 py-1.5 text-sm";
-  const label = "text-xs text-slate-600";
+  const select = "rounded border border-stone-300 bg-white px-2 py-1.5 text-sm";
+  const label = "text-xs text-stone-600";
 
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">商談一覧</h1>
       {auth.plan !== "FREE" && (
         <p className="-mt-4 mb-4 text-xs">
-          <Link href="/entries/scouts" className="text-blue-700 hover:underline">一斉スカウトの送信履歴と反応率（PRO）</Link>
+          <Link href="/entries/scouts" className="text-orange-800 hover:underline">一斉スカウトの送信履歴と反応率（PRO）</Link>
         </p>
       )}
 
       {/* 検索条件 */}
-      <form method="GET" action="/entries" className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <form method="GET" action="/entries" className="mb-4 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
         {tab !== "all" && <input type="hidden" name="tab" value={tab} />}
         <div className="mb-3 flex items-center gap-2">
           <span className={label}>キーワード</span>
@@ -263,15 +263,15 @@ export default async function EntriesPage({
           <span className="flex items-center gap-2">
             <span className={label}>更新日</span>
             <input type="date" name="from" defaultValue={from} className={select} />
-            <span className="text-slate-400">〜</span>
+            <span className="text-stone-400">〜</span>
             <input type="date" name="to" defaultValue={to} className={select} />
           </span>
         </div>
         <div className="flex gap-2">
-          <button type="submit" className="rounded bg-slate-800 px-4 py-1.5 text-sm font-medium text-white hover:bg-slate-700">
+          <button type="submit" className="rounded bg-stone-800 px-4 py-1.5 text-sm font-medium text-white hover:bg-stone-700">
             検索
           </button>
-          <Link href="/entries" className="rounded border border-slate-300 bg-white px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-50">
+          <Link href="/entries" className="rounded border border-stone-300 bg-white px-4 py-1.5 text-sm text-stone-600 hover:bg-stone-50">
             条件をクリア
           </Link>
         </div>
@@ -283,7 +283,7 @@ export default async function EntriesPage({
           <Link
             key={k}
             href={tabHref(k)}
-            className={`rounded px-3 py-1.5 text-sm ${tab === k ? "bg-slate-800 text-white" : "border border-slate-300 bg-white"}`}
+            className={`rounded px-3 py-1.5 text-sm ${tab === k ? "bg-stone-800 text-white" : "border border-stone-300 bg-white"}`}
           >
             {v}
           </Link>
@@ -292,34 +292,34 @@ export default async function EntriesPage({
 
       {/* 自社案件・自社人材ごとのグループ */}
       {pageGroups.map((g) => (
-        <div key={g.key} className="mb-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 bg-slate-50 px-4 py-2.5">
-            <span className={`mr-2 rounded px-2 py-0.5 text-xs ${g.kind === "自社案件" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"}`}>
+        <div key={g.key} className="mb-5 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+          <div className="border-b border-stone-200 bg-stone-50 px-4 py-2.5">
+            <span className={`mr-2 rounded px-2 py-0.5 text-xs ${g.kind === "自社案件" ? "bg-orange-100 text-orange-900" : "bg-purple-100 text-purple-800"}`}>
               {g.kind}
             </span>
-            <Link href={g.href} className="font-bold text-slate-800 hover:underline">
+            <Link href={g.href} className="font-bold text-stone-800 hover:underline">
               {g.code}{g.name ? `：${g.name}` : ""}
             </Link>
           </div>
           {/* モバイル: 明細を縦積みで表示（md 未満） */}
-          <ul className="divide-y divide-slate-100 md:hidden">
+          <ul className="divide-y divide-stone-100 md:hidden">
             {g.rows.map((e) => {
               const ds = displayStatusOf(e);
               return (
                 <li key={e.id}>
-                  <Link href={`/entries/${e.id}`} className="block px-4 py-3 active:bg-slate-50">
+                  <Link href={`/entries/${e.id}`} className="block px-4 py-3 active:bg-stone-50">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className={`rounded px-2 py-0.5 text-xs ${statusBadgeClass(ds.key)}`}>{ds.label}</span>
-                      <span className="text-xs text-slate-400">{formatUpdated(e.updatedAt)}</span>
+                      <span className="text-xs text-stone-400">{formatUpdated(e.updatedAt)}</span>
                     </div>
-                    <p className="mt-1.5 text-sm text-slate-800">
+                    <p className="mt-1.5 text-sm text-stone-800">
                       <span className="mr-1.5">
                         <DirectionIcon own={e.createdByOwn} />
                       </span>
                       {counterpartOf(e)}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      商談先: {e.counterpartCompanyName ?? <span className="text-slate-400">非公開</span>}
+                    <p className="mt-0.5 text-xs text-stone-500">
+                      商談先: {e.counterpartCompanyName ?? <span className="text-stone-400">非公開</span>}
                     </p>
                   </Link>
                 </li>
@@ -329,7 +329,7 @@ export default async function EntriesPage({
 
           {/* PC: テーブル表示 */}
           <table className="hidden w-full text-sm md:table">
-            <thead className="text-left text-xs text-slate-500">
+            <thead className="text-left text-xs text-stone-500">
               <tr>
                 <th className="px-4 py-2 w-32">状況</th>
                 <th className="px-4 py-2">案件・人材</th>
@@ -343,7 +343,7 @@ export default async function EntriesPage({
                 const ds = displayStatusOf(e);
                 const counterpart = counterpartOf(e);
                 return (
-                  <tr key={e.id} className="border-t border-slate-100 hover:bg-slate-50">
+                  <tr key={e.id} className="border-t border-stone-100 hover:bg-stone-50">
                     <td className="px-4 py-2.5">
                       <span className={`rounded px-2 py-0.5 text-xs ${statusBadgeClass(ds.key)}`}>{ds.label}</span>
                     </td>
@@ -354,11 +354,11 @@ export default async function EntriesPage({
                       {counterpart}
                     </td>
                     <td className="px-4 py-2.5 text-xs">
-                      {e.counterpartCompanyName ?? <span className="text-slate-400">非公開</span>}
+                      {e.counterpartCompanyName ?? <span className="text-stone-400">非公開</span>}
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-slate-500">{formatUpdated(e.updatedAt)}</td>
+                    <td className="px-4 py-2.5 text-xs text-stone-500">{formatUpdated(e.updatedAt)}</td>
                     <td className="px-4 py-2.5">
-                      <Link href={`/entries/${e.id}`} className="text-sm font-medium text-blue-700 hover:underline">
+                      <Link href={`/entries/${e.id}`} className="text-sm font-medium text-orange-800 hover:underline">
                         詳細
                       </Link>
                     </td>
@@ -370,13 +370,13 @@ export default async function EntriesPage({
         </div>
       ))}
       {groups.length === 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-slate-400 shadow-sm">
+        <div className="rounded-xl border border-stone-200 bg-white px-4 py-10 text-center text-stone-400 shadow-sm">
           条件に一致する商談はありません
         </div>
       )}
 
       <Pager total={groups.length} page={page} basePath="/entries" params={{ ...filterParams, tab: tab !== "all" ? tab : undefined }} />
-      <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
+      <p className="mt-3 flex items-center gap-1.5 text-xs text-stone-400">
         <DirectionIcon own={true} />：自社が提案を開始 ／ <DirectionIcon own={false} />：他社が提案を開始 ／ {auth.plan === "FREE" ? "商談先の企業名は双方合意後に表示されます" : "PRO 版のため商談先の掲載企業名を表示しています（担当者名・人材氏名は双方合意後）"}
       </p>
     </div>

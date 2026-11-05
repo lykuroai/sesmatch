@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const input = "w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm";
+const input = "w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm";
 
 // 編集対象として取得する最新の契約内容（GET /api/v1/contracts/:id の応答から使用する項目）
 type LatestContract = {
@@ -97,7 +97,7 @@ export function ContractEditForm({ contractId }: { contractId: string }) {
         <button
           onClick={openForm}
           disabled={fetching}
-          className="rounded border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="rounded border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50"
         >
           {fetching ? "最新の内容を取得中..." : "契約内容を修正"}
         </button>
@@ -131,7 +131,7 @@ export function ContractEditForm({ contractId }: { contractId: string }) {
       )}
       <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
         <div>
-          <label className="mb-1 block text-xs text-slate-600">契約形態</label>
+          <label className="mb-1 block text-xs text-stone-600">契約形態</label>
           <select name="contractType" className={input} defaultValue={latest.contractType}>
             <option value="準委任">準委任</option>
             <option value="請負">請負</option>
@@ -139,39 +139,39 @@ export function ContractEditForm({ contractId }: { contractId: string }) {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">月額契約金額（円・税抜）</label>
+          <label className="mb-1 block text-xs text-stone-600">月額契約金額（円・税抜）</label>
           <input type="number" name="monthlyRateYen" required min={1} defaultValue={latest.monthlyRateYen} className={input} />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">契約開始日</label>
+          <label className="mb-1 block text-xs text-stone-600">契約開始日</label>
           <input type="date" name="startDate" required defaultValue={latest.startDate.slice(0, 10)} className={input} />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">業務指示責任者・経路</label>
+          <label className="mb-1 block text-xs text-stone-600">業務指示責任者・経路</label>
           <input name="instructionManager" required defaultValue={latest.commandChecklist.instructionManager ?? ""} className={input} />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">勤怠・休暇管理主体</label>
+          <label className="mb-1 block text-xs text-stone-600">勤怠・休暇管理主体</label>
           <input name="attendanceManager" required defaultValue={latest.commandChecklist.attendanceManager ?? ""} className={input} />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">配置決定主体</label>
+          <label className="mb-1 block text-xs text-stone-600">配置決定主体</label>
           <input name="assignmentDecider" required defaultValue={latest.commandChecklist.assignmentDecider ?? ""} className={input} />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">成果・役務の検収方法</label>
+          <label className="mb-1 block text-xs text-stone-600">成果・役務の検収方法</label>
           <input name="acceptanceMethod" required defaultValue={latest.commandChecklist.acceptanceMethod ?? ""} className={input} />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">再委託承認</label>
+          <label className="mb-1 block text-xs text-stone-600">再委託承認</label>
           <input name="resubcontractApproval" required defaultValue={latest.commandChecklist.resubcontractApproval ?? ""} className={input} />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">契約終了日（任意）</label>
+          <label className="mb-1 block text-xs text-stone-600">契約終了日（任意）</label>
           <input type="date" name="endDate" defaultValue={latest.endDate ? latest.endDate.slice(0, 10) : ""} className={input} />
         </div>
         <div className="sm:col-span-3">
-          <label className="mb-1 block text-xs text-slate-600">備考（任意）</label>
+          <label className="mb-1 block text-xs text-stone-600">備考（任意）</label>
           <textarea name="notes" rows={3} maxLength={2000} defaultValue={latest.notes} className={input} />
         </div>
       </div>
@@ -186,7 +186,7 @@ export function ContractEditForm({ contractId }: { contractId: string }) {
         <button
           type="button"
           onClick={() => setLatest(null)}
-          className="rounded border border-slate-300 bg-white px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+          className="rounded border border-stone-300 bg-white px-4 py-2 text-sm text-stone-600 hover:bg-stone-50"
         >
           キャンセル
         </button>

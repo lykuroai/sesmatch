@@ -116,34 +116,34 @@ export default async function SupportPage() {
   return (
     <div className="max-w-3xl">
       <h1 className="mb-2 text-2xl font-bold">お問合せ</h1>
-      <p className="mb-6 text-xs text-slate-500">
+      <p className="mb-6 text-xs text-stone-500">
         まずは下のよくある質問（Q&amp;A）をご確認ください。解決しない場合はフォームからお問合せいただけます。
         操作手順の全体は{" "}
-        <Link href="/manual" className="text-blue-600 hover:underline">
+        <Link href="/manual" className="text-orange-700 hover:underline">
           操作マニュアル
         </Link>{" "}
         をご覧ください。
       </p>
 
       {/* Q&A集 */}
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="mb-8 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
         <h2 className="mb-3 font-bold">よくある質問（Q&amp;A）</h2>
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-stone-100">
           {FAQ.map((f) => (
             <details key={f.q} className="group py-2">
-              <summary className="cursor-pointer text-sm font-medium text-slate-800 hover:text-blue-700">
+              <summary className="cursor-pointer text-sm font-medium text-stone-800 hover:text-orange-800">
                 Q. {f.q}
               </summary>
-              <p className="mt-2 pl-4 text-sm leading-relaxed text-slate-600">{f.a}</p>
+              <p className="mt-2 pl-4 text-sm leading-relaxed text-stone-600">{f.a}</p>
             </details>
           ))}
         </div>
       </section>
 
       {/* 問い合わせフォーム */}
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="mb-8 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
         <h2 className="mb-1 font-bold">運営へのお問合せ</h2>
-        <p className="mb-4 text-xs text-slate-500">
+        <p className="mb-4 text-xs text-stone-500">
           Q&amp;Aで解決しない場合はこちらからご連絡ください。内容を確認のうえ、運営からご登録のメールアドレス宛にご連絡します。
         </p>
         <InquiryForm />
@@ -151,42 +151,42 @@ export default async function SupportPage() {
 
       {/* 自社のお問合せ履歴 */}
       {inquiries.length > 0 && (
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">お問合せ履歴</h2>
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-stone-100">
             {inquiries.map((q) => (
               <li key={q.id} className="py-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-slate-700">{q.code}</span>
-                  <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{q.category}</span>
+                  <span className="text-sm font-medium text-stone-700">{q.code}</span>
+                  <span className="rounded bg-stone-100 px-2 py-0.5 text-xs text-stone-600">{q.category}</span>
                   <span
                     className={`rounded px-2 py-0.5 text-xs ${
                       q.status === "RESOLVED"
                         ? "bg-emerald-50 text-emerald-700"
                         : q.status === "REVIEWING"
-                          ? "bg-blue-50 text-blue-700"
+                          ? "bg-orange-50 text-orange-800"
                           : "bg-amber-50 text-amber-700"
                     }`}
                   >
                     {STATUS_LABELS[q.status] ?? q.status}
                   </span>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-stone-400">
                     {new Date(q.createdAt).toLocaleString("ja-JP")}
                   </span>
                 </div>
-                <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{q.body}</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-stone-700">{q.body}</p>
                 {/* スレッド（運営の回答・自社の追記） */}
                 {q.messages.length > 0 && (
-                  <div className="mt-2 space-y-2 border-l-2 border-slate-200 pl-3">
+                  <div className="mt-2 space-y-2 border-l-2 border-stone-200 pl-3">
                     {q.messages.map((m) => (
                       <div
                         key={m.id}
-                        className={`rounded-lg p-2.5 text-sm ${m.fromOperator ? "bg-blue-50" : "bg-slate-50"}`}
+                        className={`rounded-lg p-2.5 text-sm ${m.fromOperator ? "bg-orange-50" : "bg-stone-50"}`}
                       >
-                        <p className="mb-1 text-xs text-slate-500">
+                        <p className="mb-1 text-xs text-stone-500">
                           {m.fromOperator ? "運営" : "自社"} ・ {new Date(m.createdAt).toLocaleString("ja-JP")}
                         </p>
-                        <p className="whitespace-pre-wrap text-slate-700">{m.body}</p>
+                        <p className="whitespace-pre-wrap text-stone-700">{m.body}</p>
                       </div>
                     ))}
                   </div>

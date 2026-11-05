@@ -54,7 +54,7 @@ export function IssueTokenForm() {
           今すぐコピーしてローカルサーバ等の設定に保存してください。
         </p>
         <div className="flex items-center gap-2">
-          <code className="block flex-1 overflow-x-auto rounded border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-xs">
+          <code className="block flex-1 overflow-x-auto rounded border border-stone-300 bg-stone-50 px-3 py-2 font-mono text-xs">
             {issued}
           </code>
           <button
@@ -62,12 +62,12 @@ export function IssueTokenForm() {
               await navigator.clipboard.writeText(issued);
               setCopied(true);
             }}
-            className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="rounded bg-orange-700 px-3 py-2 text-sm font-medium text-white hover:bg-orange-800"
           >
             {copied ? "コピーしました" : "コピー"}
           </button>
         </div>
-        <button onClick={() => setIssued(null)} className="text-sm text-blue-600 hover:underline">
+        <button onClick={() => setIssued(null)} className="text-sm text-orange-700 hover:underline">
           閉じる（保存済みであることを確認してください）
         </button>
       </div>
@@ -78,20 +78,20 @@ export function IssueTokenForm() {
     <form onSubmit={submit} className="flex flex-wrap items-end gap-3 text-sm">
       {error && <p className="w-full rounded bg-red-50 p-2 text-red-700">{error}</p>}
       <div>
-        <label className="mb-1 block text-xs text-slate-500">用途名</label>
+        <label className="mb-1 block text-xs text-stone-500">用途名</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="例: 本社ローカルサーバ"
-          className="w-64 rounded border border-slate-300 px-2 py-1.5"
+          className="w-64 rounded border border-stone-300 px-2 py-1.5"
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-slate-500">権限スコープ</label>
+        <label className="mb-1 block text-xs text-stone-500">権限スコープ</label>
         <select
           value={scope}
           onChange={(e) => setScope(e.target.value)}
-          className="rounded border border-slate-300 px-2 py-1.5"
+          className="rounded border border-stone-300 px-2 py-1.5"
         >
           {Object.entries(SCOPE_LABELS).map(([v, label]) => (
             <option key={v} value={v}>
@@ -101,11 +101,11 @@ export function IssueTokenForm() {
         </select>
       </div>
       <div>
-        <label className="mb-1 block text-xs text-slate-500">有効期限</label>
+        <label className="mb-1 block text-xs text-stone-500">有効期限</label>
         <select
           value={expires}
           onChange={(e) => setExpires(e.target.value)}
-          className="rounded border border-slate-300 px-2 py-1.5"
+          className="rounded border border-stone-300 px-2 py-1.5"
         >
           <option value="90">90日</option>
           <option value="365">1年</option>
@@ -114,7 +114,7 @@ export function IssueTokenForm() {
       </div>
       <button
         disabled={loading || !name.trim()}
-        className="rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="rounded bg-orange-700 px-4 py-2 font-medium text-white hover:bg-orange-800 disabled:opacity-50"
       >
         発行
       </button>

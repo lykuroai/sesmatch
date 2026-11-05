@@ -8,15 +8,15 @@ export default async function GuestMeetingPage({ params }: { params: Promise<{ t
   const { token } = await params;
   const info = await peekGuestMeeting(token);
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
+    <main className="min-h-screen bg-stone-50 px-4 py-8">
       <div className="mx-auto max-w-4xl">
-        <h1 className="text-xl font-bold text-slate-900">SES DirectMatch — Web 会議</h1>
+        <h1 className="text-xl font-bold text-stone-900">SES DirectMatch — Web 会議</h1>
         {!info ? (
-          <p className="mt-4 rounded bg-white p-4 text-sm text-slate-700 shadow-sm">この参加 URL は無効です。送付元の企業にご確認ください。</p>
+          <p className="mt-4 rounded bg-white p-4 text-sm text-stone-700 shadow-sm">この参加 URL は無効です。送付元の企業にご確認ください。</p>
         ) : (
           <GuestJoin token={token} scheduledAt={info.scheduledAt.toISOString()} validFrom={info.validFrom.toISOString()} validTo={info.validTo.toISOString()} open={info.open} available={info.available} />
         )}
-        <p className="mt-6 text-xs text-slate-500">録画・文字起こしは行わず、会話内容は保存されません。この会議は本プラットフォーム利用企業との面談のために提供されています。</p>
+        <p className="mt-6 text-xs text-stone-500">録画・文字起こしは行わず、会話内容は保存されません。この会議は本プラットフォーム利用企業との面談のために提供されています。</p>
       </div>
     </main>
   );

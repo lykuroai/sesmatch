@@ -70,7 +70,7 @@ function MenuLink({ item }: { item: { href: string; label: string; icon: string 
   return (
     <Link
       href={item.href}
-      className="flex items-center gap-2.5 rounded px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+      className="flex items-center gap-2.5 rounded px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
     >
       <svg
         aria-hidden="true"
@@ -80,7 +80,7 @@ function MenuLink({ item }: { item: { href: string; label: string; icon: string 
         strokeWidth={1.5}
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="h-[18px] w-[18px] flex-none text-slate-400"
+        className="h-[18px] w-[18px] flex-none text-stone-400"
       >
         <path d={item.icon} />
       </svg>
@@ -103,16 +103,16 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:px-6 print:hidden">
+      <header className="flex items-center justify-between border-b border-stone-200 bg-white px-4 py-3 md:px-6 print:hidden">
         <div className="flex min-w-0 items-center gap-2">
           <MobileNav items={MOBILE_MENU} footer={[MANUAL_ITEM]} />
           {/* ロゴの遷移先: モバイルは案件一覧（ホームは案内しない）、PCはホーム */}
-          <Link href="/projects" className="flex items-center gap-2 text-sm font-bold text-slate-800 md:hidden">
+          <Link href="/projects" className="flex items-center gap-2 text-sm font-bold text-stone-800 md:hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo-mark.svg" alt="" className="h-6 w-6" />
             SES DirectMatch
           </Link>
-          <Link href="/" className="hidden items-center gap-2 text-sm font-bold text-slate-800 md:flex">
+          <Link href="/" className="hidden items-center gap-2 text-sm font-bold text-stone-800 md:flex">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo-mark.svg" alt="" className="h-6 w-6" />
             SES DirectMatch
@@ -123,7 +123,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
           <Link
             href="/support"
             title="お問合せ（Q&A・問い合わせフォーム）"
-            className="flex shrink-0 items-center gap-1 text-sm text-slate-600 hover:text-blue-700"
+            className="flex shrink-0 items-center gap-1 text-sm text-stone-600 hover:text-orange-800"
           >
             <svg
               aria-hidden="true"
@@ -139,17 +139,17 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
             </svg>
             <span className="hidden sm:inline">お問合せ</span>
           </Link>
-          <p className="min-w-0 truncate text-right text-sm text-slate-700">
+          <p className="min-w-0 truncate text-right text-sm text-stone-700">
             <Link href="/company" className="font-bold hover:underline" title="会社マイページ">
               {auth.companyName}
             </Link>
             {/* PRO 版（お試し含む）の印。判定はサーバ側の実効プラン（PRO版仕様書 §5） */}
             {auth.plan !== "FREE" && (
-              <span className="ml-2 rounded bg-emerald-600 px-1.5 py-0.5 align-middle text-[10px] font-bold tracking-wide text-white">
+              <span className="ml-2 rounded bg-amber-600 px-1.5 py-0.5 align-middle text-[10px] font-bold tracking-wide text-white">
                 PRO
               </span>
             )}
-            <span className="ml-3 hidden text-slate-500 sm:inline">{auth.userName}</span>
+            <span className="ml-3 hidden text-stone-500 sm:inline">{auth.userName}</span>
           </p>
         </div>
       </header>
@@ -163,7 +163,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
             </nav>
             {/* 画面最下部に操作マニュアルとログアウトを固定（お問合せはヘッダー常設） */}
             <div className="mt-auto p-2">
-              <div className="border-t border-slate-100 pt-2">
+              <div className="border-t border-stone-100 pt-2">
                 <MenuLink item={MANUAL_ITEM} />
               </div>
             </div>

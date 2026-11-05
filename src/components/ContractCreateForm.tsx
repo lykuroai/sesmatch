@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const input = "w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm";
+const input = "w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm";
 
 // 条件確認書の作成（§22）。案件提供側（需要側企業）のみ。指揮命令・検収の確認事項は必須。
 export function ContractCreateForm({
@@ -55,16 +55,16 @@ export function ContractCreateForm({
   }
 
   return (
-    <form onSubmit={submit} className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 p-5">
-      <h2 className="mb-1 font-bold text-indigo-900">条件確認書を作成（§22）</h2>
-      <p className="mb-4 text-xs text-indigo-700">
+    <form onSubmit={submit} className="mt-6 rounded-xl border border-orange-200 bg-orange-50 p-5">
+      <h2 className="mb-1 font-bold text-orange-950">条件確認書を作成（§22）</h2>
+      <p className="mb-4 text-xs text-orange-800">
         準委任・請負では案件保有企業から本人への直接指揮命令を禁止します。労働者派遣では供給側企業の
         派遣事業許可（番号・有効期限・派遣元責任者）と直接雇用を自動チェックします。以下の確認事項は必須です。
       </p>
       {error && <p className="mb-3 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
       <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
         <div>
-          <label className="mb-1 block text-xs text-slate-600">契約形態</label>
+          <label className="mb-1 block text-xs text-stone-600">契約形態</label>
           <select name="contractType" className={input} defaultValue={defaultContractType ?? "準委任"}>
             <option value="準委任">準委任</option>
             <option value="請負">請負</option>
@@ -72,39 +72,39 @@ export function ContractCreateForm({
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">月額契約金額（円・税抜）</label>
+          <label className="mb-1 block text-xs text-stone-600">月額契約金額（円・税抜）</label>
           <input type="number" name="monthlyRateYen" required min={1} defaultValue={defaultRateYen} className={input} />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">契約開始日</label>
+          <label className="mb-1 block text-xs text-stone-600">契約開始日</label>
           <input type="date" name="startDate" required className={input} />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">業務指示責任者・経路</label>
+          <label className="mb-1 block text-xs text-stone-600">業務指示責任者・経路</label>
           <input name="instructionManager" required className={input} placeholder="供給側PMを通じて指示" />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">勤怠・休暇管理主体</label>
+          <label className="mb-1 block text-xs text-stone-600">勤怠・休暇管理主体</label>
           <input name="attendanceManager" required className={input} placeholder="供給側企業" />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">配置決定主体</label>
+          <label className="mb-1 block text-xs text-stone-600">配置決定主体</label>
           <input name="assignmentDecider" required className={input} placeholder="供給側企業" />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">成果・役務の検収方法</label>
+          <label className="mb-1 block text-xs text-stone-600">成果・役務の検収方法</label>
           <input name="acceptanceMethod" required className={input} placeholder="月次作業報告書の確認" />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">再委託承認</label>
+          <label className="mb-1 block text-xs text-stone-600">再委託承認</label>
           <input name="resubcontractApproval" required className={input} placeholder="再委託なし" />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">契約終了日（任意）</label>
+          <label className="mb-1 block text-xs text-stone-600">契約終了日（任意）</label>
           <input type="date" name="endDate" className={input} />
         </div>
         <div className="sm:col-span-3">
-          <label className="mb-1 block text-xs text-slate-600">備考（任意）</label>
+          <label className="mb-1 block text-xs text-stone-600">備考（任意）</label>
           <textarea
             name="notes"
             rows={3}
@@ -117,7 +117,7 @@ export function ContractCreateForm({
       <button
         type="submit"
         disabled={loading}
-        className="mt-4 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+        className="mt-4 rounded bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800 disabled:opacity-50"
       >
         {loading ? "作成中..." : "条件確認書を作成（商談は契約調整中へ）"}
       </button>

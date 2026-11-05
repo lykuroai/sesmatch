@@ -34,13 +34,13 @@ export default async function DashboardPage() {
         {cards.map((c) => {
           const inner = (
             <>
-              <p className="text-sm text-slate-500">{c.label}</p>
+              <p className="text-sm text-stone-500">{c.label}</p>
               <p className={`mt-2 text-3xl font-bold ${c.warn ? "text-amber-600" : ""}`}>{c.value}</p>
             </>
           );
-          const className = `block rounded-xl border bg-white p-5 shadow-sm ${c.warn ? "border-amber-300" : "border-slate-200"}`;
+          const className = `block rounded-xl border bg-white p-5 shadow-sm ${c.warn ? "border-amber-300" : "border-stone-200"}`;
           return c.href ? (
-            <Link key={c.label} href={c.href} className={`${className} transition hover:bg-slate-50 hover:shadow`}>
+            <Link key={c.label} href={c.href} className={`${className} transition hover:bg-stone-50 hover:shadow`}>
               {inner}
             </Link>
           ) : (

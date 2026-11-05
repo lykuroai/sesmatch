@@ -34,11 +34,11 @@ export function ConsentForm({ engineerId }: { engineerId: string }) {
   return (
     <form onSubmit={submit} className="flex items-end gap-4 text-sm">
       <div>
-        <label className="mb-1 block text-xs text-slate-500">同意方法</label>
+        <label className="mb-1 block text-xs text-stone-500">同意方法</label>
         <select
           value={method}
           onChange={(e) => setMethod(e.target.value)}
-          className="rounded border border-slate-300 px-2 py-1.5"
+          className="rounded border border-stone-300 px-2 py-1.5"
         >
           <option>メール</option>
           <option>書面</option>
@@ -46,21 +46,21 @@ export function ConsentForm({ engineerId }: { engineerId: string }) {
         </select>
       </div>
       <div>
-        <label className="mb-1 block text-xs text-slate-500">有効期限（任意）</label>
+        <label className="mb-1 block text-xs text-stone-500">有効期限（任意）</label>
         <input
           type="date"
           value={validUntil}
           onChange={(e) => setValidUntil(e.target.value)}
-          className="rounded border border-slate-300 px-2 py-1.5"
+          className="rounded border border-stone-300 px-2 py-1.5"
         />
       </div>
       <button
         type="submit"
-        className="rounded bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700"
+        className="rounded bg-orange-700 px-3 py-1.5 font-medium text-white hover:bg-orange-800"
       >
         同意を登録
       </button>
-      {msg && <span className="text-xs text-slate-500">{msg}</span>}
+      {msg && <span className="text-xs text-stone-500">{msg}</span>}
     </form>
   );
 }

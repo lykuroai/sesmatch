@@ -2,7 +2,7 @@ import Link from "next/link";
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
 
-// 料金ページ（PRO版仕様書 §2, §3, §11）。未ログインで閲覧可能。
+// 料金ページ（PRO版仕様書 §2, §3, §11）。未ログインで閲覧可能。配色は秋色（基調: オレンジ／焦げ茶、PRO: 琥珀、無彩色は stone。2026-11-05 郭指示）。
 // 基本版は現行機能をすべて無料で提供し続け、PRO 版は上乗せ機能を月額固定で提供する。
 // PRO の申込は新規登録画面のプラン選択・会社マイページ「プラン」・お問合せの3経路（2026-12-04 受付開始。運営が承認して有効化）。価格は税別・月払いのみ（年払いは 2026-11-05 廃止）。
 
@@ -68,61 +68,61 @@ const GROUPS: Group[] = [
 ];
 
 function Cell({ value }: { value: string }) {
-  if (value === "○") return <span className="text-xl font-bold leading-none text-emerald-600">〇</span>;
-  if (value === "−") return <span className="text-slate-400">−</span>;
+  if (value === "○") return <span className="text-xl font-bold leading-none text-amber-700">〇</span>;
+  if (value === "−") return <span className="text-stone-400">−</span>;
   return <span>{value}</span>;
 }
 
 export default function PricingPage() {
   return (
-    <main className="min-h-screen bg-white text-slate-900">
+    <main className="min-h-screen bg-white text-stone-900">
       <PublicHeader />
-      <section className="relative overflow-hidden bg-gradient-to-b from-sky-50 via-white to-white">
-        <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-blue-200/40 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -right-20 top-40 h-96 w-96 rounded-full bg-emerald-200/40 blur-3xl" />
+      <section className="relative overflow-hidden bg-gradient-to-b from-orange-50 via-white to-white">
+        <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-orange-200/40 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -right-20 top-40 h-96 w-96 rounded-full bg-amber-200/50 blur-3xl" />
         <div className="relative mx-auto max-w-5xl px-4 py-10 lg:px-6 lg:py-16">
           <div className="text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-600">Pricing</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-700">Pricing</p>
             <h1 className="mt-2 text-2xl font-bold sm:text-3xl">料金</h1>
-            <p className="mt-3 text-sm text-slate-600">
+            <p className="mt-3 text-sm text-stone-600">
               基本版は今後も無料のまま。もっと速く・多く・自動で動かしたい企業向けに PRO 版をご用意しました。
             </p>
           </div>
 
           {/* プランカード */}
           <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-bold">基本版</h2>
-              <p className="mt-1 text-sm text-slate-500">登録から成約・稼働管理まで、すべての基本機能</p>
+              <p className="mt-1 text-sm text-stone-500">登録から成約・稼働管理まで、すべての基本機能</p>
               <p className="mt-4 flex items-baseline gap-1">
-                <span className="text-4xl font-black text-blue-700">0</span>
-                <span className="text-sm font-bold text-blue-700">円</span>
-                <span className="ml-2 text-xs text-slate-500">掲載料・月額費用・成約手数料すべて</span>
+                <span className="text-4xl font-black text-orange-800">0</span>
+                <span className="text-sm font-bold text-orange-800">円</span>
+                <span className="ml-2 text-xs text-stone-500">掲載料・月額費用・成約手数料すべて</span>
               </p>
-              <ul className="mt-5 space-y-2 text-sm text-slate-600">
+              <ul className="mt-5 space-y-2 text-sm text-stone-600">
                 <li>・担当者数、取込件数、公開中件数に制限なし</li>
                 <li>・AI マッチング、商談、双方承認、契約、稼働確認</li>
                 <li>・企業間関係に登録した取引先の掲載企業名を表示</li>
               </ul>
               <Link
                 href="/apply"
-                className="mt-6 inline-flex w-full items-center justify-center rounded-full border border-blue-600 px-6 py-3 text-sm font-bold text-blue-700 hover:bg-blue-50"
+                className="mt-6 inline-flex w-full items-center justify-center rounded-full border border-orange-700 px-6 py-3 text-sm font-bold text-orange-800 hover:bg-orange-50"
               >
                 無料で企業登録
               </Link>
             </section>
 
-            <section className="relative rounded-2xl border-2 border-emerald-500 bg-white p-6 shadow-md shadow-emerald-500/10">
-              <span className="absolute -top-3 left-6 rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white">PRO</span>
+            <section className="relative rounded-2xl border-2 border-amber-500 bg-white p-6 shadow-md shadow-amber-500/10">
+              <span className="absolute -top-3 left-6 rounded-full bg-amber-600 px-3 py-1 text-xs font-bold text-white">PRO</span>
               <h2 className="text-lg font-bold">PRO 版</h2>
-              <p className="mt-1 text-sm text-slate-500">基本版のすべて ＋ 量・速さ・自動化・分析・統制の上乗せ機能</p>
+              <p className="mt-1 text-sm text-stone-500">基本版のすべて ＋ 量・速さ・自動化・分析・統制の上乗せ機能</p>
               <p className="mt-4 flex flex-wrap items-baseline gap-1">
-                <span className="text-xs text-slate-500">月額</span>
-                <span className="text-4xl font-black text-emerald-700">39,800</span>
-                <span className="text-sm font-bold text-emerald-700">円</span>
-                <span className="ml-1 text-xs text-slate-500">（税別・1社）</span>
+                <span className="text-xs text-stone-500">月額</span>
+                <span className="text-4xl font-black text-amber-700">39,800</span>
+                <span className="text-sm font-bold text-amber-700">円</span>
+                <span className="ml-1 text-xs text-stone-500">（税別・1社）</span>
               </p>
-              <ul className="mt-5 space-y-2 text-sm text-slate-600">
+              <ul className="mt-5 space-y-2 text-sm text-stone-600">
                 <li>・担当者5名まで含む（6名以降は 1名 4,000円/月）</li>
                 <li>・月払いのみ（年払い・割引はありません）</li>
                 <li>・30日間のお試し期間あり。開始当月は無料、翌月分から請求</li>
@@ -130,30 +130,30 @@ export default function PricingPage() {
               </ul>
               <Link
                 href="/apply"
-                className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700"
+                className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-amber-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-amber-600/30 hover:bg-amber-700"
               >
                 企業登録して PRO 版を申し込む
               </Link>
-              <p className="mt-2 text-center text-xs text-slate-500">
+              <p className="mt-2 text-center text-xs text-stone-500">
                 PRO 版のお申込は 2026年12月4日 から受け付けます。企業登録画面でのプラン選択、またはご登録済みの企業は会社マイページの「プラン」からお申込みください。
               </p>
             </section>
           </div>
 
           {/* 機能比較 */}
-          <section className="mt-10 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+          <section className="mt-10 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
             <h2 className="text-base font-bold">機能比較</h2>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-stone-500">
               「準備中」の機能は順次提供します。人材本人の氏名・実額単価は、プランにかかわらず双方承認後にのみ開示されます。
             </p>
             <div className="mt-4 overflow-x-auto">
-              {/* 枠線は罫線をはっきり出す（2026-11-05 郭指摘: 薄くて見にくい）。行・列ともに slate-300 の罫線、PRO 列は薄い緑地 */}
-              <table className="w-full min-w-[560px] border-collapse border border-slate-300 text-sm">
+              {/* 枠線は罫線をはっきり出す（2026-11-05 郭指摘: 薄くて見にくい）。行・列ともに stone-300 の罫線、PRO 列は薄い緑地 */}
+              <table className="w-full min-w-[560px] border-collapse border border-stone-300 text-sm">
                 <thead>
-                  <tr className="bg-slate-100 text-left text-xs font-bold text-slate-700">
-                    <th className="border border-slate-300 px-3 py-2">機能</th>
-                    <th className="w-36 border border-slate-300 px-3 py-2">基本版</th>
-                    <th className="w-44 border border-slate-300 bg-emerald-100 px-3 py-2 text-emerald-800">PRO 版</th>
+                  <tr className="bg-stone-100 text-left text-xs font-bold text-stone-700">
+                    <th className="border border-stone-300 px-3 py-2">機能</th>
+                    <th className="w-36 border border-stone-300 px-3 py-2">基本版</th>
+                    <th className="w-44 border border-stone-300 bg-amber-100 px-3 py-2 text-amber-900">PRO 版</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -166,8 +166,8 @@ export default function PricingPage() {
           </section>
 
           {/* 注記 */}
-          <section className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-xs leading-relaxed text-slate-600">
-            <h2 className="text-sm font-bold text-slate-800">ご利用条件</h2>
+          <section className="mt-6 rounded-2xl border border-stone-200 bg-stone-50 p-5 text-xs leading-relaxed text-stone-600">
+            <h2 className="text-sm font-bold text-stone-800">ご利用条件</h2>
             <ul className="mt-2 space-y-1">
               <li>・表示価格はすべて税別です。消費税は請求時の税率で加算します。</li>
               <li>・追加担当者の料金は前月末時点の有効な担当者数で算定します。日割り計算は行いません。</li>
@@ -178,10 +178,10 @@ export default function PricingPage() {
           </section>
 
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Link href="/apply/rules" className="px-4 py-3 text-sm font-medium text-slate-600 hover:text-blue-700">
+            <Link href="/apply/rules" className="px-4 py-3 text-sm font-medium text-stone-600 hover:text-orange-700">
               企業登録のルール
             </Link>
-            <Link href="/login" className="px-4 py-3 text-sm font-medium text-slate-600 hover:text-blue-700">
+            <Link href="/login" className="px-4 py-3 text-sm font-medium text-stone-600 hover:text-orange-700">
               ログイン画面へ戻る
             </Link>
           </div>
@@ -195,21 +195,21 @@ export default function PricingPage() {
 function GroupRows({ group }: { group: Group }) {
   return (
     <>
-      <tr className="bg-slate-50">
-        <td colSpan={3} className="border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700">
+      <tr className="bg-stone-50">
+        <td colSpan={3} className="border border-stone-300 px-3 py-1.5 text-xs font-bold text-stone-700">
           {group.title}
         </td>
       </tr>
       {group.rows.map((r) => (
         <tr key={r.label}>
-          <td className="border border-slate-300 px-3 py-2 text-slate-700">
+          <td className="border border-stone-300 px-3 py-2 text-stone-700">
             {r.label}
-            {r.soon && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">準備中</span>}
+            {r.soon && <span className="ml-2 rounded bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-500">準備中</span>}
           </td>
-          <td className="border border-slate-300 px-3 py-2">
+          <td className="border border-stone-300 px-3 py-2">
             <Cell value={r.free} />
           </td>
-          <td className="border border-slate-300 bg-emerald-50/60 px-3 py-2 font-medium text-slate-800">
+          <td className="border border-stone-300 bg-amber-50/70 px-3 py-2 font-medium text-stone-800">
             <Cell value={r.pro} />
           </td>
         </tr>

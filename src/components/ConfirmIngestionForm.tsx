@@ -11,8 +11,8 @@ import {
 import { RemoteLevelSelect } from "./RemoteLevelSelect";
 import { LocationInput } from "./LocationInput";
 
-const input = "w-full rounded border border-slate-300 px-2 py-1.5 text-sm";
-const label = "mb-1 block text-xs text-slate-500";
+const input = "w-full rounded border border-stone-300 px-2 py-1.5 text-sm";
+const label = "mb-1 block text-xs text-stone-500";
 
 type EngineerDraft = {
   kind: "ENGINEER_SHEET";
@@ -220,7 +220,7 @@ export function ConfirmIngestionForm({
         <button
           type="submit"
           disabled={loading}
-          className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800 disabled:opacity-50"
         >
           {loading ? "確定中..." : "この内容で確定（人材を作成）"}
         </button>
@@ -284,7 +284,7 @@ export function ConfirmIngestionForm({
       <button
         type="submit"
         disabled={loading}
-        className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="rounded bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800 disabled:opacity-50"
       >
         {loading ? "確定中..." : "この内容で確定（案件を作成）"}
       </button>

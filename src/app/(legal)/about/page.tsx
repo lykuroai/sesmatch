@@ -62,13 +62,13 @@ const COMPARE: [string, string, string][] = [
 
 export default function AboutPage() {
   return (
-    <article className="text-sm leading-relaxed text-slate-700">
+    <article className="text-sm leading-relaxed text-stone-700">
       {/* ヒーロー */}
-      <p className="inline-block rounded-full border border-blue-600 px-3 py-0.5 text-xs font-bold tracking-wider text-blue-700">
+      <p className="inline-block rounded-full border border-orange-700 px-3 py-0.5 text-xs font-bold tracking-wider text-orange-800">
         AI人材・案件ダイレクトマッチングプラットフォーム
       </p>
-      <p className="mt-4 text-2xl font-extrabold text-blue-700">SES DirectMatch</p>
-      <h1 className="mt-1 text-2xl font-extrabold leading-snug text-slate-900 sm:text-3xl">
+      <p className="mt-4 text-2xl font-extrabold text-orange-800">SES DirectMatch</p>
+      <h1 className="mt-1 text-2xl font-extrabold leading-snug text-stone-900 sm:text-3xl">
         案件と人材を、余計な商流なしで直接つなぐ。
       </h1>
       <p className="mt-4 max-w-2xl">
@@ -78,45 +78,45 @@ export default function AboutPage() {
       </p>
 
       {/* お悩み */}
-      <h2 className="mt-10 text-lg font-extrabold text-slate-900">SESの営業現場、こうなっていませんか</h2>
+      <h2 className="mt-10 text-lg font-extrabold text-stone-900">SESの営業現場、こうなっていませんか</h2>
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {PAINS.map((p) => (
-          <div key={p.title} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="font-bold text-slate-900">{p.title}</p>
-            <p className="mt-1 text-xs text-slate-500">{p.body}</p>
+          <div key={p.title} className="rounded-lg border border-stone-200 bg-stone-50 p-4">
+            <p className="font-bold text-stone-900">{p.title}</p>
+            <p className="mt-1 text-xs text-stone-500">{p.body}</p>
           </div>
         ))}
       </div>
 
       {/* DirectMatch */}
-      <h2 className="mt-10 text-lg font-extrabold text-slate-900">探す・商談する・成約する。全部ここで</h2>
+      <h2 className="mt-10 text-lg font-extrabold text-stone-900">探す・商談する・成約する。全部ここで</h2>
       <div className="mt-4 overflow-x-auto">
         <div className="flex min-w-[640px] items-stretch gap-2">
           {JOURNEY.map((s, i) => (
             <div key={s.title} className="flex flex-1 items-center gap-2">
-              <div className="flex-1 rounded-lg border border-slate-200 bg-white p-3 text-center">
-                <p className="font-bold text-slate-900">{s.title}</p>
-                <p className="mt-0.5 text-xs leading-snug text-slate-500">{s.body}</p>
+              <div className="flex-1 rounded-lg border border-stone-200 bg-white p-3 text-center">
+                <p className="font-bold text-stone-900">{s.title}</p>
+                <p className="mt-0.5 text-xs leading-snug text-stone-500">{s.body}</p>
               </div>
-              {i < JOURNEY.length - 1 && <span className="shrink-0 font-extrabold text-slate-400">→</span>}
+              {i < JOURNEY.length - 1 && <span className="shrink-0 font-extrabold text-stone-400">→</span>}
             </div>
           ))}
         </div>
       </div>
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {FEATURES.map((f) => (
-          <div key={f.title} className="rounded-lg border border-slate-200 bg-white p-4">
-            <span className="inline-block rounded bg-blue-50 px-2 py-0.5 text-[10px] font-bold tracking-wider text-blue-700">
+          <div key={f.title} className="rounded-lg border border-stone-200 bg-white p-4">
+            <span className="inline-block rounded bg-orange-50 px-2 py-0.5 text-[10px] font-bold tracking-wider text-orange-800">
               {f.tag}
             </span>
-            <p className="mt-2 font-bold text-slate-900">{f.title}</p>
-            <p className="mt-1 text-xs text-slate-500">{f.body}</p>
+            <p className="mt-2 font-bold text-stone-900">{f.title}</p>
+            <p className="mt-1 text-xs text-stone-500">{f.body}</p>
           </div>
         ))}
       </div>
 
       {/* SES-Connector */}
-      <h2 className="mt-10 text-lg font-extrabold text-slate-900">
+      <h2 className="mt-10 text-lg font-extrabold text-stone-900">
         SES-Connector — データを自社に置いたまま使う選択肢
       </h2>
       <p className="mt-2">
@@ -126,7 +126,7 @@ export default function AboutPage() {
       <div className="mt-4 grid grid-cols-1 items-stretch gap-3 sm:grid-cols-[1fr_auto_1fr]">
         <div className="rounded-xl border-2 border-emerald-700 bg-emerald-50 p-4">
           <p className="font-extrabold text-emerald-800">自社環境（SES-Connector）</p>
-          <p className="text-xs text-slate-500">お使いのPC・社内サーバで動作 — データはここに残ります</p>
+          <p className="text-xs text-stone-500">お使いのPC・社内サーバで動作 — データはここに残ります</p>
           <ul className="mt-2 space-y-1.5 text-xs">
             <li className="rounded bg-white p-2">書類を取込（アップロード・貼り付け・フォルダ投入）</li>
             <li className="rounded bg-white p-2">個人情報を自動マスキングしてから自社契約のAIで整理</li>
@@ -134,14 +134,14 @@ export default function AboutPage() {
             <li className="rounded bg-white p-2">公開案件・公開人材の検索とマッチ度表示もローカル画面から</li>
           </ul>
         </div>
-        <div className="flex items-center justify-center px-1 font-bold tracking-widest text-slate-700 sm:flex-col">
+        <div className="flex items-center justify-center px-1 font-bold tracking-widest text-stone-700 sm:flex-col">
           <span className="sm:rotate-0">→</span>
           <span className="mx-1 text-xs sm:mx-0 sm:my-1 sm:[writing-mode:vertical-rl]">公開送信</span>
           <span>→</span>
         </div>
-        <div className="rounded-xl border-2 border-blue-600 bg-blue-50 p-4">
-          <p className="font-extrabold text-blue-700">SES DirectMatch</p>
-          <p className="text-xs text-slate-500">商談に出すと決めた分だけが、ここに掲載されます</p>
+        <div className="rounded-xl border-2 border-orange-700 bg-orange-50 p-4">
+          <p className="font-extrabold text-orange-800">SES DirectMatch</p>
+          <p className="text-xs text-stone-500">商談に出すと決めた分だけが、ここに掲載されます</p>
           <ul className="mt-2 space-y-1.5 text-xs">
             <li className="rounded bg-white p-2">匿名で掲載・検索（氏名・単価実額は非公開）</li>
             <li className="rounded bg-white p-2">人材提案・案件紹介で商談を申込み</li>
@@ -150,14 +150,14 @@ export default function AboutPage() {
           </ul>
         </div>
       </div>
-      <p className="mt-3 text-xs text-slate-500">
+      <p className="mt-3 text-xs text-stone-500">
         公開前に内容を画面で確認・修正できるので、意図しない情報が外に出ることはありません。
         無料・オープンソース（MITライセンス）で、ソースコードは{" "}
         <a
           href="https://github.com/lykuroai/lykuro-connector"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-700 underline"
+          className="text-orange-800 underline"
         >
           GitHub
         </a>
@@ -165,16 +165,16 @@ export default function AboutPage() {
       </p>
 
       {/* 使い方比較 */}
-      <h2 className="mt-10 text-lg font-extrabold text-slate-900">使い方は2通り</h2>
+      <h2 className="mt-10 text-lg font-extrabold text-stone-900">使い方は2通り</h2>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse text-xs">
           <thead>
             <tr>
-              <th className="w-28 border border-slate-200 bg-slate-50 p-2"></th>
-              <th className="border border-slate-200 bg-slate-50 p-2 text-left font-bold text-blue-700">
+              <th className="w-28 border border-stone-200 bg-stone-50 p-2"></th>
+              <th className="border border-stone-200 bg-stone-50 p-2 text-left font-bold text-orange-800">
                 Webコンソールだけで使う
               </th>
-              <th className="border border-slate-200 bg-slate-50 p-2 text-left font-bold text-emerald-800">
+              <th className="border border-stone-200 bg-stone-50 p-2 text-left font-bold text-emerald-800">
                 SES-Connector と組み合わせる
               </th>
             </tr>
@@ -182,11 +182,11 @@ export default function AboutPage() {
           <tbody>
             {COMPARE.map(([label, a, b]) => (
               <tr key={label}>
-                <th className="whitespace-nowrap border border-slate-200 bg-slate-50 p-2 text-left font-bold">
+                <th className="whitespace-nowrap border border-stone-200 bg-stone-50 p-2 text-left font-bold">
                   {label}
                 </th>
-                <td className="border border-slate-200 p-2">{a}</td>
-                <td className="border border-slate-200 p-2">{b}</td>
+                <td className="border border-stone-200 p-2">{a}</td>
+                <td className="border border-stone-200 p-2">{b}</td>
               </tr>
             ))}
           </tbody>
@@ -194,44 +194,44 @@ export default function AboutPage() {
       </div>
 
       {/* 安心設計 */}
-      <h2 className="mt-10 text-lg font-extrabold text-slate-900">個人情報は、段階開示とテナント分離で守ります</h2>
+      <h2 className="mt-10 text-lg font-extrabold text-stone-900">個人情報は、段階開示とテナント分離で守ります</h2>
       <ol className="mt-3 list-decimal space-y-1 pl-5">
         <li>
-          <b className="text-blue-700">掲載・検索</b> —
+          <b className="text-orange-800">掲載・検索</b> —
           年代・スキル・単価帯などの匿名情報のみ。氏名・単価実額・企業名は非公開
         </li>
         <li>
-          <b className="text-blue-700">双方承認</b> —
+          <b className="text-orange-800">双方承認</b> —
           商談をお互いが承認したときに初めて、氏名・実額・企業名を同時に相互開示
         </li>
         <li>
-          <b className="text-blue-700">成約</b> — 条件確認書の締結から稼働確認までプラットフォームが記録
+          <b className="text-orange-800">成約</b> — 条件確認書の締結から稼働確認までプラットフォームが記録
         </li>
       </ol>
-      <p className="mt-3 text-xs text-slate-500">
+      <p className="mt-3 text-xs text-stone-500">
         このほか、企業データの行レベル分離（他社からは見えない）、AI解析前の個人情報匿名化、参加企業の登録審査（重複・実在性の自動チェック）、
         再転載・無承認再仲介の通報窓口など、企業間取引を安全に保つ仕組みを備えています。
         商流は最大一社下までに制限し、多重下請けを防ぎます。
       </p>
 
       {/* 料金 */}
-      <h2 className="mt-10 text-lg font-extrabold text-slate-900">基本版は完全無料です</h2>
+      <h2 className="mt-10 text-lg font-extrabold text-stone-900">基本版は完全無料です</h2>
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border-2 border-blue-600 bg-white p-5">
-          <p className="font-extrabold text-slate-900">SES DirectMatch 基本版</p>
-          <p className="text-3xl font-extrabold text-blue-700">完全無料</p>
-          <p className="text-xs text-slate-500">登録・掲載・検索・商談から成約・稼働管理まで、すべて0円</p>
-          <ul className="mt-2 list-disc pl-5 text-xs text-slate-500">
+        <div className="rounded-xl border-2 border-orange-700 bg-white p-5">
+          <p className="font-extrabold text-stone-900">SES DirectMatch 基本版</p>
+          <p className="text-3xl font-extrabold text-orange-800">完全無料</p>
+          <p className="text-xs text-stone-500">登録・掲載・検索・商談から成約・稼働管理まで、すべて0円</p>
+          <ul className="mt-2 list-disc pl-5 text-xs text-stone-500">
             <li>掲載料・月額費用・成約手数料はすべて0円</li>
             <li>成約しても稼働が始まっても、費用は発生しません</li>
             <li>現在提供中の全機能を基本版としてご利用いただけます</li>
           </ul>
         </div>
         <div className="rounded-xl border-2 border-emerald-700 bg-white p-5">
-          <p className="font-extrabold text-slate-900">SES-Connector</p>
+          <p className="font-extrabold text-stone-900">SES-Connector</p>
           <p className="text-3xl font-extrabold text-emerald-700">¥0</p>
-          <p className="text-xs text-slate-500">無料・オープンソース（MITライセンス）</p>
-          <ul className="mt-2 list-disc pl-5 text-xs text-slate-500">
+          <p className="text-xs text-stone-500">無料・オープンソース（MITライセンス）</p>
+          <ul className="mt-2 list-disc pl-5 text-xs text-stone-500">
             <li>ソースコードは GitHub で全公開</li>
             <li>利用台数・件数の制限なし</li>
             <li>AI利用料（自社契約分）のみ各社負担</li>
@@ -240,7 +240,7 @@ export default function AboutPage() {
       </div>
 
       {/* 導入の流れ */}
-      <h2 className="mt-10 text-lg font-extrabold text-slate-900">今日申し込んで、今日から使えます</h2>
+      <h2 className="mt-10 text-lg font-extrabold text-stone-900">今日申し込んで、今日から使えます</h2>
       <ol className="mt-3 space-y-2">
         {[
           ["企業登録を申込み", "企業情報を入力し、メールアドレス確認のうえ登録（審査は自動・その場で完了）", false],
@@ -249,28 +249,28 @@ export default function AboutPage() {
         ].map(([title, body, optional], i) => (
           <li key={String(title)} className="flex gap-3">
             <span
-              className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${optional ? "bg-emerald-700" : "bg-blue-600"}`}
+              className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${optional ? "bg-emerald-700" : "bg-orange-700"}`}
             >
               {i + 1}
             </span>
             <div>
-              <p className="font-bold text-slate-900">{title}</p>
-              <p className="text-xs text-slate-500">{body}</p>
+              <p className="font-bold text-stone-900">{title}</p>
+              <p className="text-xs text-stone-500">{body}</p>
             </div>
           </li>
         ))}
       </ol>
 
       {/* CTA */}
-      <div className="mt-10 rounded-xl bg-slate-900 p-6 text-slate-100">
+      <div className="mt-10 rounded-xl bg-stone-900 p-6 text-stone-100">
         <p className="text-lg font-extrabold text-white">埋まらない案件と待機人材に、新しい出会いを</p>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-stone-400">
           登録から商談まで無料です。まずは自社の案件・人材を掲載して、どんな商談が来るかお確かめください。
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Link
             href="/apply"
-            className="rounded bg-blue-600 px-5 py-2 text-sm font-bold text-white hover:bg-blue-700"
+            className="rounded bg-orange-700 px-5 py-2 text-sm font-bold text-white hover:bg-orange-800"
           >
             企業登録を申し込む（無料）
           </Link>
@@ -278,14 +278,14 @@ export default function AboutPage() {
             href="https://github.com/lykuroai/lykuro-connector"
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded border border-slate-500 px-5 py-2 text-sm font-bold text-slate-100 hover:bg-slate-800"
+            className="rounded border border-stone-500 px-5 py-2 text-sm font-bold text-stone-100 hover:bg-stone-800"
           >
             SES-Connector（GitHub）
           </a>
         </div>
       </div>
 
-      <p className="mt-6 text-center text-xs text-slate-400">
+      <p className="mt-6 text-center text-xs text-stone-400">
         SES DirectMatch（ses.lykuro.ai）／ SES-Connector ｜ 運営: 株式会社ｅビジネスソリューション
       </p>
     </article>

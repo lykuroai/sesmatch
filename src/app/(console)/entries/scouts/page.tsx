@@ -12,7 +12,7 @@ export default async function ScoutBatchesPage() {
     return (
       <div>
         <h1 className="mb-4 text-2xl font-bold">一斉スカウト</h1>
-        <p className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-5 text-sm text-slate-700">
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-5 text-sm text-stone-700">
           一斉スカウト（最大20名/回）・AI 下書き・既読表示・反応率は PRO 版の機能です。
           <Link href="/pricing" className="ml-2 text-emerald-700 hover:underline">料金を見る →</Link>
         </p>
@@ -32,11 +32,11 @@ export default async function ScoutBatchesPage() {
         </Link>
       </div>
       {batches.length === 0 ? (
-        <p className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-400 shadow-sm">送信履歴はまだありません。人材一覧で他社人材を選択して送信できます。</p>
+        <p className="rounded-xl border border-stone-200 bg-white p-6 text-sm text-stone-400 shadow-sm">送信履歴はまだありません。人材一覧で他社人材を選択して送信できます。</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs text-slate-500">
+            <thead className="bg-stone-50 text-left text-xs text-stone-500">
               <tr>
                 <th className="px-4 py-3">送信日時</th>
                 <th className="px-4 py-3">案件</th>
@@ -50,21 +50,21 @@ export default async function ScoutBatchesPage() {
             </thead>
             <tbody>
               {batches.map((b) => (
-                <tr key={b.id} className="border-t border-slate-100 hover:bg-slate-50">
+                <tr key={b.id} className="border-t border-stone-100 hover:bg-stone-50">
                   <td className="px-4 py-2">
-                    <Link href={`/entries/scouts/${b.id}`} className="text-blue-700 hover:underline">
+                    <Link href={`/entries/scouts/${b.id}`} className="text-orange-800 hover:underline">
                       {new Date(b.createdAt).toLocaleString("ja-JP")}
                     </Link>
                   </td>
                   <td className="px-4 py-2">
-                    {b.project.code} <span className="text-xs text-slate-500">{b.project.name}</span>
+                    {b.project.code} <span className="text-xs text-stone-500">{b.project.name}</span>
                   </td>
                   <td className="px-4 py-2">{b.stats.sent}</td>
                   <td className="px-4 py-2">{b.stats.approved}</td>
                   <td className="px-4 py-2">{b.stats.declined}</td>
                   <td className="px-4 py-2">{b.stats.pending}</td>
                   <td className="px-4 py-2 font-medium">{pct(b.stats.approvalRate)}</td>
-                  <td className="px-4 py-2 text-xs text-slate-500">{b.skippedCount}</td>
+                  <td className="px-4 py-2 text-xs text-stone-500">{b.skippedCount}</td>
                 </tr>
               ))}
             </tbody>

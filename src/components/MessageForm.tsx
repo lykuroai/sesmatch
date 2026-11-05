@@ -37,13 +37,13 @@ export function MessageForm({ entryId }: { entryId: string }) {
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={2}
-          className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
+          className="flex-1 rounded border border-stone-300 px-3 py-2 text-sm"
           placeholder="メッセージを入力..."
         />
         <button
           type="submit"
           disabled={loading || !body.trim()}
-          className="self-end rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="self-end rounded bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800 disabled:opacity-50"
         >
           送信
         </button>

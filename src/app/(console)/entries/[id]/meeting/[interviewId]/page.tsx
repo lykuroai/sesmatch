@@ -14,7 +14,7 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
     if (r.error?.code === "NOT_FOUND") notFound();
     return (
       <div>
-        <Link href={`/entries/${id}`} className="text-sm text-blue-700 hover:underline">← 商談に戻る</Link>
+        <Link href={`/entries/${id}`} className="text-sm text-orange-800 hover:underline">← 商談に戻る</Link>
         <p className="mt-4 rounded bg-amber-50 p-3 text-sm text-amber-800">{r.error?.message ?? "参加できません"}。外部の会議ツールをご利用ください。</p>
       </div>
     );
@@ -22,8 +22,8 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <Link href={`/entries/${id}`} className="text-sm text-blue-700 hover:underline">← 商談に戻る</Link>
-        <p className="text-xs text-slate-500">録画・文字起こしは行いません。会話内容は保存されません。</p>
+        <Link href={`/entries/${id}`} className="text-sm text-orange-800 hover:underline">← 商談に戻る</Link>
+        <p className="text-xs text-stone-500">録画・文字起こしは行いません。会話内容は保存されません。</p>
       </div>
       <JitsiRoom domain={r.domain} room={r.room} token={r.token} />
     </div>

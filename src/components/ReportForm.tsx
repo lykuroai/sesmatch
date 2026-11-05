@@ -35,23 +35,23 @@ export function ReportForm() {
       {error && <p className="text-xs text-red-600">{error}</p>}
       <div className="flex gap-3">
         <div>
-          <label className="mb-1 block text-xs text-slate-500">区分</label>
-          <select name="category" className="rounded border border-slate-300 px-2 py-1.5">
+          <label className="mb-1 block text-xs text-stone-500">区分</label>
+          <select name="category" className="rounded border border-stone-300 px-2 py-1.5">
             {REPORT_CATEGORIES.map((c) => (
               <option key={c}>{c}</option>
             ))}
           </select>
         </div>
         <div className="flex-1">
-          <label className="mb-1 block text-xs text-slate-500">対象（商談ID・企業名等、任意）</label>
-          <input name="targetRef" className="w-full rounded border border-slate-300 px-2 py-1.5" />
+          <label className="mb-1 block text-xs text-stone-500">対象（商談ID・企業名等、任意）</label>
+          <input name="targetRef" className="w-full rounded border border-stone-300 px-2 py-1.5" />
         </div>
       </div>
       <div>
-        <label className="mb-1 block text-xs text-slate-500">内容</label>
-        <textarea name="body" rows={3} required className="w-full rounded border border-slate-300 px-2 py-1.5" />
+        <label className="mb-1 block text-xs text-stone-500">内容</label>
+        <textarea name="body" rows={3} required className="w-full rounded border border-stone-300 px-2 py-1.5" />
       </div>
-      <button type="submit" className="rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
+      <button type="submit" className="rounded bg-orange-700 px-4 py-2 font-medium text-white hover:bg-orange-800">
         通報を送信
       </button>
     </form>

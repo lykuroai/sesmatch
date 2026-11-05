@@ -15,7 +15,7 @@ export default async function CompanySettingsPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">企業情報</h1>
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
         {canManage ? (
           <CompanyProfileForm
             company={{
@@ -33,25 +33,25 @@ export default async function CompanySettingsPage() {
         ) : (
           <dl className="max-w-lg space-y-3 text-sm">
             <div>
-              <dt className="text-xs text-slate-500">企業名</dt>
+              <dt className="text-xs text-stone-500">企業名</dt>
               <dd className="mt-0.5 font-medium">{company.name}</dd>
             </div>
             <div>
-              <dt className="text-xs text-slate-500">事業者種別</dt>
+              <dt className="text-xs text-stone-500">事業者種別</dt>
               <dd className="mt-0.5">
                 {company.companyType === "CORPORATION" ? "法人" : "個人事業主"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-slate-500">法人番号</dt>
+              <dt className="text-xs text-stone-500">法人番号</dt>
               <dd className="mt-0.5">{company.corporateNumber ?? "未登録"}</dd>
             </div>
             <div>
-              <dt className="text-xs text-slate-500">所在地</dt>
+              <dt className="text-xs text-stone-500">所在地</dt>
               <dd className="mt-0.5">{company.address ?? "未登録"}</dd>
             </div>
             <div>
-              <dt className="text-xs text-slate-500">労働者派遣事業許可</dt>
+              <dt className="text-xs text-stone-500">労働者派遣事業許可</dt>
               <dd className="mt-0.5">
                 {company.dispatchLicenseNumber
                   ? `${company.dispatchLicenseNumber}（有効期限: ${
@@ -66,7 +66,7 @@ export default async function CompanySettingsPage() {
         )}
       </section>
       {!canManage && (
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-stone-500">
           企業情報の修正は代表・企業管理者のみ行えます。
         </p>
       )}

@@ -54,12 +54,12 @@ export function RelationshipTable({ items, canManage }: { items: RelationshipIte
     else setError("削除に失敗しました");
   }
 
-  const input = "rounded border border-slate-300 px-2 py-1 text-sm";
+  const input = "rounded border border-stone-300 px-2 py-1 text-sm";
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
       {error && <p className="px-4 pt-3 text-xs text-red-600">{error}</p>}
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-left text-xs text-slate-500">
+        <thead className="bg-stone-50 text-left text-xs text-stone-500">
           <tr>
             <th className="px-4 py-3">相手企業</th>
             <th className="px-4 py-3">種別</th>
@@ -74,7 +74,7 @@ export function RelationshipTable({ items, canManage }: { items: RelationshipIte
             editingId === r.id ? (
               // key を表示行と変えて行ごと再マウントする。同一 key だと React が「修正」ボタンの
               // DOM 要素を「保存(type=submit)」に書き換え、クリックのデフォルト動作で即時送信されてしまう
-              <tr key={`${r.id}-edit`} className="border-t border-slate-100 bg-blue-50/40">
+              <tr key={`${r.id}-edit`} className="border-t border-stone-100 bg-orange-50/40">
                 {/* 行内修正フォーム（form 属性で行外のフォームに紐付け） */}
                 <td className="px-4 py-2">
                   <form id={`rel-edit-${r.id}`} onSubmit={(e) => saveEdit(r.id, e)} />
@@ -96,7 +96,7 @@ export function RelationshipTable({ items, canManage }: { items: RelationshipIte
                 <td className="px-4 py-2">
                   <input name="note" form={`rel-edit-${r.id}`} defaultValue={r.note ?? ""} className={`${input} w-full`} />
                 </td>
-                <td className="px-4 py-2 text-xs text-slate-500">
+                <td className="px-4 py-2 text-xs text-stone-500">
                   {new Date(r.createdAt).toLocaleDateString("ja-JP")}
                 </td>
                 <td className="whitespace-nowrap px-4 py-2">
@@ -104,28 +104,28 @@ export function RelationshipTable({ items, canManage }: { items: RelationshipIte
                     type="submit"
                     form={`rel-edit-${r.id}`}
                     disabled={busy}
-                    className="rounded bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                    className="rounded bg-orange-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-orange-800 disabled:opacity-50"
                   >
                     保存
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditingId(null)}
-                    className="ml-2 rounded border border-slate-300 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                    className="ml-2 rounded border border-stone-300 px-2.5 py-1 text-xs text-stone-600 hover:bg-stone-50"
                   >
                     キャンセル
                   </button>
                 </td>
               </tr>
             ) : (
-              <tr key={r.id} className="border-t border-slate-100">
+              <tr key={r.id} className="border-t border-stone-100">
                 <td className="px-4 py-3 font-medium">{r.partnerName}</td>
                 <td className="px-4 py-3">{RELATIONSHIP_TYPE_LABELS[r.type]}</td>
                 <td className="px-4 py-3">
                   {r.contractConfirmed ? "✓ 確認済み" : <span className="text-amber-600">未確認</span>}
                 </td>
-                <td className="px-4 py-3 text-xs text-slate-500">{r.note ?? "-"}</td>
-                <td className="px-4 py-3 text-xs text-slate-500">
+                <td className="px-4 py-3 text-xs text-stone-500">{r.note ?? "-"}</td>
+                <td className="px-4 py-3 text-xs text-stone-500">
                   {new Date(r.createdAt).toLocaleDateString("ja-JP")}
                 </td>
                 {canManage && (
@@ -133,7 +133,7 @@ export function RelationshipTable({ items, canManage }: { items: RelationshipIte
                     <button
                       type="button"
                       onClick={() => { setError(null); setEditingId(r.id); }}
-                      className="rounded border border-slate-300 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                      className="rounded border border-stone-300 px-2.5 py-1 text-xs text-stone-600 hover:bg-stone-50"
                     >
                       修正
                     </button>
@@ -152,7 +152,7 @@ export function RelationshipTable({ items, canManage }: { items: RelationshipIte
           )}
           {items.length === 0 && (
             <tr>
-              <td colSpan={canManage ? 6 : 5} className="px-4 py-8 text-center text-slate-400">
+              <td colSpan={canManage ? 6 : 5} className="px-4 py-8 text-center text-stone-400">
                 登録された企業間関係はありません
               </td>
             </tr>
@@ -194,12 +194,12 @@ export function RelationshipForm() {
     <form onSubmit={submit} className="flex flex-wrap items-end gap-3 text-sm">
       {error && <p className="text-xs text-red-600">{error}</p>}
       <div>
-        <label className="mb-1 block text-xs text-slate-500">相手企業名</label>
-        <input name="partnerName" required className="rounded border border-slate-300 px-2 py-1.5" />
+        <label className="mb-1 block text-xs text-stone-500">相手企業名</label>
+        <input name="partnerName" required className="rounded border border-stone-300 px-2 py-1.5" />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-slate-500">種別</label>
-        <select name="type" className="rounded border border-slate-300 px-2 py-1.5">
+        <label className="mb-1 block text-xs text-stone-500">種別</label>
+        <select name="type" className="rounded border border-stone-300 px-2 py-1.5">
           {Object.entries(RELATIONSHIP_TYPE_LABELS).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
@@ -210,10 +210,10 @@ export function RelationshipForm() {
         直接契約を確認済み
       </label>
       <div className="flex-1">
-        <label className="mb-1 block text-xs text-slate-500">備考</label>
-        <input name="note" className="w-full rounded border border-slate-300 px-2 py-1.5" />
+        <label className="mb-1 block text-xs text-stone-500">備考</label>
+        <input name="note" className="w-full rounded border border-stone-300 px-2 py-1.5" />
       </div>
-      <button type="submit" className="rounded bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700">
+      <button type="submit" className="rounded bg-orange-700 px-3 py-1.5 font-medium text-white hover:bg-orange-800">
         登録
       </button>
     </form>

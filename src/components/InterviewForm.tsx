@@ -35,25 +35,25 @@ export function InterviewForm({ entryId, webMeeting = false }: { entryId: string
     <form onSubmit={submit} className="flex items-end gap-3 text-sm">
       {error && <p className="text-xs text-red-600">{error}</p>}
       <div>
-        <label className="mb-1 block text-xs text-slate-500">日時</label>
-        <input type="datetime-local" name="scheduledAt" required className="rounded border border-slate-300 px-2 py-1.5" />
+        <label className="mb-1 block text-xs text-stone-500">日時</label>
+        <input type="datetime-local" name="scheduledAt" required className="rounded border border-stone-300 px-2 py-1.5" />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-slate-500">方法</label>
-        <select name="method" className="rounded border border-slate-300 px-2 py-1.5">
+        <label className="mb-1 block text-xs text-stone-500">方法</label>
+        <select name="method" className="rounded border border-stone-300 px-2 py-1.5">
           {webMeeting && <option>Web会議（組込み）</option>}
           <option>オンライン</option>
           <option>対面</option>
         </select>
       </div>
       <div className="flex-1">
-        <label className="mb-1 block text-xs text-slate-500">メモ</label>
-        <input name="note" className="w-full rounded border border-slate-300 px-2 py-1.5" />
+        <label className="mb-1 block text-xs text-stone-500">メモ</label>
+        <input name="note" className="w-full rounded border border-stone-300 px-2 py-1.5" />
       </div>
       <button
         type="submit"
         disabled={loading}
-        className="rounded bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="rounded bg-orange-700 px-3 py-1.5 font-medium text-white hover:bg-orange-800 disabled:opacity-50"
       >
         面談を設定
       </button>

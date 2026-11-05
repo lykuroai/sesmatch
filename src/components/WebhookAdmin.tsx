@@ -72,30 +72,30 @@ export function WebhookAdmin() {
   }
   return (
     <div className="space-y-6">
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
         <h2 className="mb-1 font-bold">通知先一覧（{items.length}/5）</h2>
-        <p className="mb-3 text-xs text-slate-500">通知には件名・匿名情報・コンソールへのリンクのみ含まれ、人材の氏名・実額単価・メッセージ本文は送られません。連続10回失敗すると停止します。</p>
+        <p className="mb-3 text-xs text-stone-500">通知には件名・匿名情報・コンソールへのリンクのみ含まれ、人材の氏名・実額単価・メッセージ本文は送られません。連続10回失敗すると停止します。</p>
         {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
         {info && <p className="mb-2 text-xs text-emerald-700">{info}</p>}
         {items.length === 0 ? (
-          <p className="text-sm text-slate-400">通知先はまだありません</p>
+          <p className="text-sm text-stone-400">通知先はまだありません</p>
         ) : (
-          <ul className="divide-y divide-slate-100 text-sm">
+          <ul className="divide-y divide-stone-100 text-sm">
             {items.map((h) => (
               <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div>
                   <span className="font-medium">{h.name}</span>
-                  <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">{h.provider}</span>
-                  <span className="ml-2 text-xs text-slate-500">{h.urlHint}</span>
+                  <span className="ml-2 rounded bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-600">{h.provider}</span>
+                  <span className="ml-2 text-xs text-stone-500">{h.urlHint}</span>
                   {h.status === "SUSPENDED" && <span className="ml-2 rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-700">停止中</span>}
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-stone-500">
                     {h.events.map((e) => EVENT_LABELS[e] ?? e).join("・")}
                     {h.lastDeliveredAt && ` ／ 最終送信 ${new Date(h.lastDeliveredAt).toLocaleString("ja-JP")}`}
                     {h.lastError && ` ／ 直近の失敗: ${h.lastError}（${h.failCount}回連続）`}
                   </p>
                 </div>
                 <div className="flex gap-2 text-xs">
-                  <button type="button" onClick={() => test(h.id)} className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50">テスト送信</button>
+                  <button type="button" onClick={() => test(h.id)} className="rounded border border-stone-300 px-2 py-1 hover:bg-stone-50">テスト送信</button>
                   {h.status === "SUSPENDED" && (
                     <button type="button" onClick={() => resume(h.id)} className="rounded border border-emerald-300 px-2 py-1 text-emerald-700 hover:bg-emerald-50">再開</button>
                   )}
@@ -110,24 +110,24 @@ export function WebhookAdmin() {
         <h2 className="mb-3 font-bold">通知先を追加</h2>
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block text-xs">
-            <span className="mb-1 block text-slate-600">名前</span>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required maxLength={50} className="w-full rounded border border-slate-300 bg-white px-2 py-1" />
+            <span className="mb-1 block text-stone-600">名前</span>
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required maxLength={50} className="w-full rounded border border-stone-300 bg-white px-2 py-1" />
           </label>
           <label className="block text-xs">
-            <span className="mb-1 block text-slate-600">種別</span>
-            <select value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value as Hook["provider"] })} className="w-full rounded border border-slate-300 bg-white px-2 py-1">
+            <span className="mb-1 block text-stone-600">種別</span>
+            <select value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value as Hook["provider"] })} className="w-full rounded border border-stone-300 bg-white px-2 py-1">
               <option value="SLACK">Slack（Incoming Webhook）</option>
               <option value="TEAMS">Microsoft Teams（Incoming Webhook）</option>
               <option value="GENERIC">汎用（JSON POST）</option>
             </select>
           </label>
           <label className="block text-xs sm:col-span-3">
-            <span className="mb-1 block text-slate-600">Webhook URL（https）</span>
-            <input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} required type="url" placeholder="https://hooks.slack.com/services/..." className="w-full rounded border border-slate-300 bg-white px-2 py-1" />
+            <span className="mb-1 block text-stone-600">Webhook URL（https）</span>
+            <input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} required type="url" placeholder="https://hooks.slack.com/services/..." className="w-full rounded border border-stone-300 bg-white px-2 py-1" />
           </label>
         </div>
         <fieldset className="mt-3">
-          <legend className="text-xs text-slate-600">通知するイベント</legend>
+          <legend className="text-xs text-stone-600">通知するイベント</legend>
           <div className="mt-1 flex flex-wrap gap-3 text-xs">
             {Object.entries(EVENT_LABELS).map(([k, label]) => (
               <label key={k} className="flex items-center gap-1">

@@ -55,7 +55,7 @@ export function ResizableColumns({
         title="ドラッグで幅を調整"
         className="group hidden w-6 shrink-0 cursor-col-resize items-center justify-center md:flex"
       >
-        <div className="h-16 w-1 rounded-full bg-slate-300 group-hover:bg-blue-400" />
+        <div className="h-16 w-1 rounded-full bg-stone-300 group-hover:bg-orange-500" />
       </div>
       <div className="min-w-0 md:flex-1">{right}</div>
     </div>

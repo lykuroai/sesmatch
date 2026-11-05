@@ -28,7 +28,7 @@ export function RemoteLevelSelect({
           </option>
         ))}
       </select>
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-1 text-xs text-stone-500">
         {daysLabel}: 週{remoteLevelToOnsiteDays(level)}日（自動設定）
       </p>
     </>

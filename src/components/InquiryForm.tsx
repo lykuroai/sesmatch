@@ -49,11 +49,11 @@ export function InquiryForm() {
       {error && <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
       {info && <p className="rounded bg-emerald-50 p-2 text-sm text-emerald-700">{info}</p>}
       <div>
-        <label className="mb-1 block text-xs text-slate-600">分類</label>
+        <label className="mb-1 block text-xs text-stone-600">分類</label>
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
+          className="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
         >
           {INQUIRY_CATEGORIES.map((cg) => (
             <option key={cg} value={cg}>
@@ -63,21 +63,21 @@ export function InquiryForm() {
         </select>
       </div>
       <div>
-        <label className="mb-1 block text-xs text-slate-600">お問合せ内容</label>
+        <label className="mb-1 block text-xs text-stone-600">お問合せ内容</label>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={6}
           maxLength={5000}
           required
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
           placeholder={"お困りの内容をできるだけ具体的にご記入ください。\n（発生した画面、操作の手順、表示されたエラーメッセージなど）"}
         />
       </div>
       <button
         type="submit"
         disabled={loading || !body.trim()}
-        className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="rounded bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800 disabled:opacity-50"
       >
         {loading ? "送信中..." : "送信する"}
       </button>

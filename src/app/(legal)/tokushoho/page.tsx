@@ -2,8 +2,8 @@
 // 【 】内は運営者が確定させる項目。公開前に内容を確認すること
 import Link from "next/link";
 
-const th = "w-40 shrink-0 py-2 pr-4 align-top text-sm font-bold text-slate-700";
-const td = "py-2 text-sm leading-relaxed text-slate-700";
+const th = "w-40 shrink-0 py-2 pr-4 align-top text-sm font-bold text-stone-700";
+const td = "py-2 text-sm leading-relaxed text-stone-700";
 
 export const metadata = {
   title: "特定商取引法に基づく表記",
@@ -24,7 +24,7 @@ const ROWS: { label: string; body: React.ReactNode }[] = [
       <>
         基本版: 無料（掲載料・月額費用・成約手数料すべて0円）<br />
         PRO版: 月額 39,800円（税別・税込 43,780円）。担当者5名まで含み、6名以降は1名につき月額 4,000円（税別）。月払いのみ<br />
-        詳細は <Link href="/pricing" className="text-blue-700 hover:underline">料金ページ</Link> をご覧ください。
+        詳細は <Link href="/pricing" className="text-orange-800 hover:underline">料金ページ</Link> をご覧ください。
       </>
     ),
   },
@@ -43,12 +43,12 @@ const ROWS: { label: string; body: React.ReactNode }[] = [
 export default function TokushohoPage() {
   return (
     <article>
-      <h1 className="text-xl font-bold text-slate-900">特定商取引法に基づく表記</h1>
-      <p className="mt-2 text-xs text-slate-400">最終更新日: 2026年11月5日</p>
-      <table className="mt-6 w-full border-t border-slate-200">
+      <h1 className="text-xl font-bold text-stone-900">特定商取引法に基づく表記</h1>
+      <p className="mt-2 text-xs text-stone-400">最終更新日: 2026年11月5日</p>
+      <table className="mt-6 w-full border-t border-stone-200">
         <tbody>
           {ROWS.map((r) => (
-            <tr key={r.label} className="border-b border-slate-200">
+            <tr key={r.label} className="border-b border-stone-200">
               <th scope="row" className={th}>
                 {r.label}
               </th>

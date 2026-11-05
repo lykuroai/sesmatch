@@ -57,11 +57,11 @@ export default async function IngestionsPage({
         : "未分類";
 
   const jobCard = (job: JobWithRelations) => (
-    <div key={job.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div key={job.id} className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="break-all font-medium">{job.sourceDocument.filename}</p>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-stone-500">
             {new Date(job.createdAt).toLocaleString("ja-JP")} / {kindLabel(job)}
             {job.batchId && (
               <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700" title={`一括取込 ${job.batchId}`}>
@@ -79,7 +79,7 @@ export default async function IngestionsPage({
                   ? "bg-emerald-50 text-emerald-700"
                   : job.status === "FAILED"
                     ? "bg-red-50 text-red-700"
-                    : "bg-slate-100 text-slate-600"
+                    : "bg-stone-100 text-stone-600"
             }`}
           >
             {INGESTION_STATUS_LABELS[job.status]}
@@ -112,14 +112,14 @@ export default async function IngestionsPage({
         )}
       {job.extraction && (
         <details className="mt-3">
-          <summary className="cursor-pointer text-xs text-slate-500">
+          <summary className="cursor-pointer text-xs text-stone-500">
             取込テキスト・抽出値を表示
           </summary>
           <div className="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <pre className="overflow-x-auto rounded bg-slate-50 p-3 text-xs">
+            <pre className="overflow-x-auto rounded bg-stone-50 p-3 text-xs">
               {job.extraction.maskedText}
             </pre>
-            <pre className="overflow-x-auto rounded bg-slate-50 p-3 text-xs">
+            <pre className="overflow-x-auto rounded bg-stone-50 p-3 text-xs">
               {JSON.stringify(job.extraction.extractedJson, null, 2)}
             </pre>
           </div>
@@ -133,11 +133,11 @@ export default async function IngestionsPage({
       {/* 解析中のジョブがある間は自動更新して完了を反映する */}
       <AutoRefresh active={processingCount > 0} />
       <h1 className="mb-2 text-2xl font-bold">取込履歴</h1>
-      <p className="mb-6 text-xs text-slate-500">
+      <p className="mb-6 text-xs text-stone-500">
         取込の実行（貼り付け・ファイル・カメラ撮影）は、案件・人材画面の「取込」ボタンから行えます。
       </p>
       {processingCount > 0 && (
-        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+        <div className="mb-6 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">
           解析中の取込が {processingCount} 件あります（OCR・AI解析に1分ほどかかります。完了すると自動でここに表示されます）
         </div>
       )}
@@ -153,14 +153,14 @@ export default async function IngestionsPage({
       </h2>
       <div className="mb-8 space-y-4">
         {pending.map(jobCard)}
-        {pending.length === 0 && <p className="text-sm text-slate-400">人手確認待ちの取込はありません</p>}
+        {pending.length === 0 && <p className="text-sm text-stone-400">人手確認待ちの取込はありません</p>}
       </div>
 
       {/* 取込履歴（確認待ち以外） */}
       <h2 className="mb-3 text-lg font-bold">取込履歴</h2>
       <div className="space-y-4">
         {jobs.map(jobCard)}
-        {jobs.length === 0 && <p className="text-sm text-slate-400">取込履歴はありません</p>}
+        {jobs.length === 0 && <p className="text-sm text-stone-400">取込履歴はありません</p>}
       </div>
       <Pager total={total} page={page} basePath="/ingestions" />
     </div>

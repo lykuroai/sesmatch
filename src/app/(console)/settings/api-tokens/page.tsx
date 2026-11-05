@@ -17,18 +17,18 @@ export default async function ApiTokensPage() {
   return (
     <div>
       <h1 className="mb-2 text-2xl font-bold">APIトークン</h1>
-      <p className="mb-6 text-sm text-slate-500">
+      <p className="mb-6 text-sm text-stone-500">
         ローカルサーバ等の外部連携がAPIを利用するためのトークンです。トークンの権限は
         スコープと発行者本人の権限の両方に含まれる操作に限定されます。
         {companyWide ? "（管理権限があるため自社の全トークンを表示しています）" : ""}
       </p>
-      <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="mb-6 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
         <h2 className="mb-3 font-bold">トークンを発行</h2>
         <IssueTokenForm />
       </section>
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs text-slate-500">
+          <thead className="bg-stone-50 text-left text-xs text-stone-500">
             <tr>
               <th className="px-4 py-3">用途名</th>
               <th className="px-4 py-3">スコープ</th>
@@ -42,7 +42,7 @@ export default async function ApiTokensPage() {
           <tbody>
             {items.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-6 text-center text-stone-400">
                   トークンはまだ発行されていません
                 </td>
               </tr>
@@ -50,7 +50,7 @@ export default async function ApiTokensPage() {
             {items.map((t) => {
               const expired = t.expiresAt && new Date(t.expiresAt) < new Date();
               return (
-                <tr key={t.id} className="border-t border-slate-100">
+                <tr key={t.id} className="border-t border-stone-100">
                   <td className="px-4 py-3 font-medium">{t.name}</td>
                   <td className="px-4 py-3">{SCOPE_LABELS[t.scope] ?? t.scope}</td>
                   <td className="px-4 py-3">{t.issuerName}</td>
@@ -58,7 +58,7 @@ export default async function ApiTokensPage() {
                   <td className="px-4 py-3">{t.expiresAt ? fmt(t.expiresAt) : "無期限"}</td>
                   <td className="px-4 py-3">
                     {t.revokedAt ? (
-                      <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500">失効済み</span>
+                      <span className="rounded bg-stone-100 px-2 py-0.5 text-xs text-stone-500">失効済み</span>
                     ) : expired ? (
                       <span className="rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">期限切れ</span>
                     ) : (

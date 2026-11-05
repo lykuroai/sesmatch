@@ -34,7 +34,7 @@ export function ResizableSidebar({ children }: { children: ReactNode }) {
   return (
     // モバイル（md未満）ではサイドバーを出さずドロワーメニュー（MobileNav）を使う
     <div className="relative hidden shrink-0 md:flex print:hidden" style={{ width }}>
-      <aside className="min-w-0 flex-1 overflow-x-hidden border-r border-slate-200 bg-white">
+      <aside className="min-w-0 flex-1 overflow-x-hidden border-r border-stone-200 bg-white">
         {children}
       </aside>
       <div
@@ -42,7 +42,7 @@ export function ResizableSidebar({ children }: { children: ReactNode }) {
         title="ドラッグで幅を調整"
         className="group absolute inset-y-0 -right-1.5 z-10 flex w-3 cursor-col-resize items-center justify-center"
       >
-        <div className="h-16 w-1 rounded-full bg-transparent group-hover:bg-blue-400" />
+        <div className="h-16 w-1 rounded-full bg-transparent group-hover:bg-orange-500" />
       </div>
     </div>
   );

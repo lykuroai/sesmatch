@@ -63,25 +63,25 @@ const SECTIONS: { title: string; items: React.ReactNode[] }[] = [
 
 export default function ApplyRulesPage() {
   return (
-    <main className="min-h-screen bg-white text-slate-900">
+    <main className="min-h-screen bg-white text-stone-900">
       <PublicHeader />
-      <section className="relative overflow-hidden bg-gradient-to-b from-sky-50 via-white to-white">
-        <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-blue-200/40 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -right-20 top-40 h-96 w-96 rounded-full bg-emerald-200/40 blur-3xl" />
+      <section className="relative overflow-hidden bg-gradient-to-b from-orange-50 via-white to-white">
+        <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-orange-200/40 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -right-20 top-40 h-96 w-96 rounded-full bg-amber-200/40 blur-3xl" />
         <div className="relative mx-auto max-w-3xl px-4 py-10 lg:px-6 lg:py-16">
           <div className="text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-600">Rules</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-700">Rules</p>
             <h1 className="mt-2 text-2xl font-bold sm:text-3xl">企業登録のルール</h1>
-            <p className="mt-3 text-sm text-slate-600">企業申込の前にご確認ください。</p>
+            <p className="mt-3 text-sm text-stone-600">企業申込の前にご確認ください。</p>
           </div>
           <div className="mt-8 space-y-4">
             {SECTIONS.map((sec) => (
-              <section key={sec.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="text-base font-bold text-slate-900">{sec.title}</h2>
-                <ul className="mt-3 space-y-2 text-sm leading-relaxed text-slate-600">
+              <section key={sec.title} className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+                <h2 className="text-base font-bold text-stone-900">{sec.title}</h2>
+                <ul className="mt-3 space-y-2 text-sm leading-relaxed text-stone-600">
                   {sec.items.map((item, i) => (
                     <li key={i} className="flex gap-2">
-                      <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+                      <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-orange-600" />
                       <span>{item}</span>
                     </li>
                   ))}
@@ -92,12 +92,12 @@ export default function ApplyRulesPage() {
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
               href="/apply"
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-700 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-orange-700/30 transition hover:bg-orange-800"
             >
               企業登録を申し込む
               <span aria-hidden>→</span>
             </Link>
-            <Link href="/login" className="px-4 py-3 text-sm font-medium text-slate-600 hover:text-blue-700">
+            <Link href="/login" className="px-4 py-3 text-sm font-medium text-stone-600 hover:text-orange-800">
               ログイン画面へ戻る
             </Link>
           </div>

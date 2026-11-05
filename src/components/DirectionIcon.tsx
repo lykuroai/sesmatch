@@ -7,7 +7,7 @@ export function DirectionIcon({ own }: { own: boolean }) {
       viewBox="0 0 18 18"
       role="img"
       aria-label={title}
-      className={`inline-block h-[18px] w-[18px] rounded-full align-[-4px] ${own ? "bg-blue-100 text-blue-600" : "bg-emerald-100 text-emerald-600"}`}
+      className={`inline-block h-[18px] w-[18px] rounded-full align-[-4px] ${own ? "bg-orange-100 text-orange-700" : "bg-emerald-100 text-emerald-600"}`}
     >
       <title>{title}</title>
       {own ? (

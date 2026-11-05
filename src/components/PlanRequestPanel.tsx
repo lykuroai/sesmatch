@@ -72,16 +72,16 @@ export function PlanRequestPanel({ canManage, proSignupOpen, effectivePlan, hasE
           )}
         </div>
       ) : !canManage ? (
-        <p className="text-xs text-slate-500">プランの申込・解約申請は請求管理権限（billing.manage）をもつ担当者が行えます。</p>
+        <p className="text-xs text-stone-500">プランの申込・解約申請は請求管理権限（billing.manage）をもつ担当者が行えます。</p>
       ) : !proSignupOpen ? (
-        <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+        <p className="rounded-lg border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">
           PRO 版の申込受付は <span className="font-bold">2026年12月4日</span> からです。それまでは「お問合せ」からご相談ください。
         </p>
       ) : (
         <div>
-          <label className="block text-xs text-slate-500">
+          <label className="block text-xs text-stone-500">
             備考（任意。ご要望や連絡事項）
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} rows={2} className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm" />
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} rows={2} className="mt-1 w-full rounded border border-stone-300 px-2 py-1 text-sm" />
           </label>
           <div className="mt-2 flex flex-wrap gap-2">
             {effectivePlan !== "PRO" && (

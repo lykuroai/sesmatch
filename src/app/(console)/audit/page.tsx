@@ -21,7 +21,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
     return (
       <div>
         <h1 className="mb-4 text-2xl font-bold">監査</h1>
-        <p className="text-sm text-slate-500">監査ログの閲覧権限がありません（audit.read）。</p>
+        <p className="text-sm text-stone-500">監査ログの閲覧権限がありません（audit.read）。</p>
       </div>
     );
   }
@@ -42,9 +42,9 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
     <div>
       <h1 className="mb-6 text-2xl font-bold">監査ログ</h1>
       <AuditExportPanel pro={hasFeature(auth, "audit_export")} monthly={monthly} />
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs text-slate-500">
+          <thead className="bg-stone-50 text-left text-xs text-stone-500">
             <tr>
               <th className="px-4 py-3">日時</th>
               <th className="px-4 py-3">操作者</th>
@@ -55,8 +55,8 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
           </thead>
           <tbody>
             {events.map((ev) => (
-              <tr key={ev.id} className="border-t border-slate-100">
-                <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+              <tr key={ev.id} className="border-t border-stone-100">
+                <td className="px-4 py-3 text-xs text-stone-500 whitespace-nowrap">
                   {new Date(ev.createdAt).toLocaleString("ja-JP")}
                 </td>
                 <td className="px-4 py-3 text-xs">
@@ -72,14 +72,14 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
                     <span title={ev.targetId ?? undefined}>
                       {AUDIT_TARGET_LABELS[ev.targetType] ?? ev.targetType}
                       {ev.targetId && (
-                        <span className="ml-1 text-slate-400">#{ev.targetId.slice(0, 8)}</span>
+                        <span className="ml-1 text-stone-400">#{ev.targetId.slice(0, 8)}</span>
                       )}
                     </span>
                   ) : (
                     "-"
                   )}
                 </td>
-                <td className="px-4 py-3 text-xs text-slate-500">
+                <td className="px-4 py-3 text-xs text-stone-500">
                   {formatAuditMetadata(ev.metadata).length > 0
                     ? formatAuditMetadata(ev.metadata).map((line) => (
                         <div key={line}>{line}</div>
@@ -90,7 +90,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
             ))}
             {events.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={5} className="px-4 py-8 text-center text-stone-400">
                   監査イベントはありません
                 </td>
               </tr>

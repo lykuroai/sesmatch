@@ -1,7 +1,7 @@
 // プライバシーポリシー（ドラフト）。【 】内は運営者が確定させる項目。公開前に弁護士等の確認を受けること
-const h2 = "mt-8 mb-2 text-base font-bold text-slate-800";
-const p = "mb-2 text-sm leading-relaxed text-slate-700";
-const li = "mb-1 text-sm leading-relaxed text-slate-700";
+const h2 = "mt-8 mb-2 text-base font-bold text-stone-800";
+const p = "mb-2 text-sm leading-relaxed text-stone-700";
+const li = "mb-1 text-sm leading-relaxed text-stone-700";
 
 export const metadata = {
   title: "プライバシーポリシー",
@@ -14,8 +14,8 @@ export const metadata = {
 export default function PrivacyPage() {
   return (
     <article>
-      <h1 className="text-xl font-bold text-slate-900">プライバシーポリシー</h1>
-      <p className="mt-2 text-xs text-slate-400">制定日: 2026年7月31日／最終改定日: 2026年11月4日（PRO版利用企業への掲載企業名表示の追記）</p>
+      <h1 className="text-xl font-bold text-stone-900">プライバシーポリシー</h1>
+      <p className="mt-2 text-xs text-stone-400">制定日: 2026年7月31日／最終改定日: 2026年11月4日（PRO版利用企業への掲載企業名表示の追記）</p>
       <p className={p + " mt-4"}>
         株式会社ｅビジネスソリューション（以下「当社」といいます）は、AI人材・案件ダイレクトマッチングプラットフォーム「SES DirectMatch」
         （以下「本サービス」といいます）における個人情報その他の情報の取扱いについて、

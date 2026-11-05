@@ -95,11 +95,11 @@ export function SavedSearchPanel({
   return (
     <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/40 px-4 py-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <button type="button" onClick={() => setOpen(!open)} className="flex items-center gap-2 font-medium text-slate-800">
+        <button type="button" onClick={() => setOpen(!open)} className="flex items-center gap-2 font-medium text-stone-800">
           <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">PRO</span>
           保存した検索条件と新着アラート
-          <span className="text-xs text-slate-500">（{count}件）</span>
-          <span className="text-xs text-slate-400">{open ? "▲ 閉じる" : "▼ 開く"}</span>
+          <span className="text-xs text-stone-500">（{count}件）</span>
+          <span className="text-xs text-stone-400">{open ? "▲ 閉じる" : "▼ 開く"}</span>
         </button>
         <form onSubmit={save} className="flex flex-wrap items-center gap-2">
           <input
@@ -107,7 +107,7 @@ export function SavedSearchPanel({
             onChange={(e) => setName(e.target.value)}
             placeholder={currentQuery ? "この条件の名前（例: 東京 Java 80万以下）" : "条件なし（すべての新着）の名前"}
             maxLength={100}
-            className="w-56 rounded border border-slate-300 bg-white px-2 py-1 text-xs"
+            className="w-56 rounded border border-stone-300 bg-white px-2 py-1 text-xs"
           />
           <button
             type="submit"
@@ -122,9 +122,9 @@ export function SavedSearchPanel({
       {open && (
         <div className="mt-3">
           {items === null ? (
-            <p className="text-xs text-slate-500">読み込み中...</p>
+            <p className="text-xs text-stone-500">読み込み中...</p>
           ) : items.length === 0 ? (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-stone-500">
               保存した検索条件はまだありません。検索条件を指定して「現在の条件を保存」を押すと、条件に合う他社の新着
               {kind === "PROJECT" ? "案件" : "人材"}をメールでお知らせします（15分間隔で確認。10件/社まで）。
             </p>
@@ -133,10 +133,10 @@ export function SavedSearchPanel({
               {items.map((s) => (
                 <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                   <div className="min-w-0">
-                    <Link href={s.query ? `${basePath}?${s.query}` : basePath} className="font-medium text-blue-700 hover:underline">
+                    <Link href={s.query ? `${basePath}?${s.query}` : basePath} className="font-medium text-orange-800 hover:underline">
                       {s.name}
                     </Link>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-stone-500">
                       {s.description}
                       {s.lastNotifiedAt && ` / 最終通知 ${new Date(s.lastNotifiedAt).toLocaleString("ja-JP")}`}
                     </p>
@@ -145,7 +145,7 @@ export function SavedSearchPanel({
                     <select
                       value={s.notify}
                       onChange={(e) => setNotify(s.id, e.target.value as Saved["notify"])}
-                      className="rounded border border-slate-300 bg-white px-2 py-1"
+                      className="rounded border border-stone-300 bg-white px-2 py-1"
                     >
                       {(Object.keys(NOTIFY_LABELS) as Saved["notify"][]).map((k) => (
                         <option key={k} value={k}>
@@ -161,7 +161,7 @@ export function SavedSearchPanel({
               ))}
             </ul>
           )}
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-stone-500">
             通知の宛先は条件を保存した担当者のメールアドレスです。通知には掲載企業名と匿名情報のみ含まれ、人材の氏名・実額単価は含まれません。
           </p>
         </div>

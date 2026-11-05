@@ -106,19 +106,19 @@ export function BulkScoutPanel({ projects }: { projects: { id: string; label: st
   if (result) {
     return (
       <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/40 px-4 py-3 text-sm">
-        <p className="font-medium text-slate-800">
+        <p className="font-medium text-stone-800">
           一斉スカウトを送信しました: {result.created.length}件作成、{result.skipped.length}件スキップ
         </p>
         {result.skipped.length > 0 && (
-          <ul className="mt-1 text-xs text-slate-600">
+          <ul className="mt-1 text-xs text-stone-600">
             {result.skipped.map((s) => (
               <li key={s.engineerCode}>・{s.engineerCode}: {s.reason}</li>
             ))}
           </ul>
         )}
         <p className="mt-2 text-xs">
-          <Link href={`/entries/scouts/${result.batchId}`} className="text-blue-700 hover:underline">反応状況を見る</Link>
-          <button type="button" onClick={() => setResult(null)} className="ml-3 text-slate-500 hover:underline">閉じる</button>
+          <Link href={`/entries/scouts/${result.batchId}`} className="text-orange-800 hover:underline">反応状況を見る</Link>
+          <button type="button" onClick={() => setResult(null)} className="ml-3 text-stone-500 hover:underline">閉じる</button>
         </p>
       </div>
     );
@@ -127,20 +127,20 @@ export function BulkScoutPanel({ projects }: { projects: { id: string; label: st
   return (
     <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/40 px-4 py-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="flex items-center gap-2 font-medium text-slate-800">
+        <p className="flex items-center gap-2 font-medium text-stone-800">
           <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">PRO</span>
           一斉スカウト
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-stone-500">
             {ids.length === 0 ? "一覧のチェックで他社人材を選択（最大20名/回、50件/日）" : `${ids.length}名を選択中: ${codes.join("、")}`}
           </span>
         </p>
-        <Link href="/entries/scouts" className="text-xs text-blue-700 hover:underline">送信履歴と反応率</Link>
+        <Link href="/entries/scouts" className="text-xs text-orange-800 hover:underline">送信履歴と反応率</Link>
       </div>
       {ids.length > 0 && (
         <div className="mt-3 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <label className="text-xs text-slate-600">自社案件</label>
-            <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="rounded border border-slate-300 bg-white px-2 py-1 text-xs">
+            <label className="text-xs text-stone-600">自社案件</label>
+            <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="rounded border border-stone-300 bg-white px-2 py-1 text-xs">
               <option value="">選択してください</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>{p.label}</option>
@@ -154,9 +154,9 @@ export function BulkScoutPanel({ projects }: { projects: { id: string; label: st
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={6}
-            className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs"
+            className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-xs"
           />
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-stone-500">
             変数 {"{案件名} {勤務地} {在宅} {開始時期} {単価上限}"} は送信時に案件の内容へ置き換わります。連絡先（メール・電話・URL）は書けません。送信前に内容をご確認ください。
           </p>
           {warnings.map((w) => (
@@ -168,14 +168,14 @@ export function BulkScoutPanel({ projects }: { projects: { id: string; label: st
               送信内容を確認する
             </button>
           ) : (
-            <div className="rounded border border-amber-300 bg-amber-50 p-3 text-xs text-slate-700">
+            <div className="rounded border border-amber-300 bg-amber-50 p-3 text-xs text-stone-700">
               <p className="font-medium">以下の {ids.length} 名へ、選択した案件のスカウトを送信します。本文を確認しましたか？</p>
               <p className="mt-1">{codes.join("、")}</p>
               <div className="mt-2 flex gap-2">
                 <button type="button" onClick={send} disabled={busy != null} className="rounded bg-emerald-600 px-4 py-1.5 font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
                   {busy === "send" ? "送信中..." : "確認済み・送信する"}
                 </button>
-                <button type="button" onClick={() => setConfirming(false)} className="rounded border border-slate-300 px-4 py-1.5 hover:bg-white">戻る</button>
+                <button type="button" onClick={() => setConfirming(false)} className="rounded border border-stone-300 px-4 py-1.5 hover:bg-white">戻る</button>
               </div>
             </div>
           )}

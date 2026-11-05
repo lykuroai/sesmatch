@@ -70,30 +70,30 @@ export default async function EngineerDetailPage({
                   掲載企業: {e.partnerCompanyName}
                 </span>
               ) : (
-                <span className="ml-3 rounded bg-indigo-50 px-2 py-1 text-xs text-indigo-600">他社（匿名表示）</span>
+                <span className="ml-3 rounded bg-orange-50 px-2 py-1 text-xs text-orange-700">他社（匿名表示）</span>
               ))}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-stone-500">
             {e.ageBand} / {AFFILIATION_LABELS[e.affiliationType]}
           </p>
           {/* 状態表示: 「公開状態」（自社のみ）と「稼働状況」をラベル付きで並べる */}
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             {e.own && (
               <span className="flex items-center gap-1.5">
-                <span className="shrink-0 whitespace-nowrap text-xs text-slate-500">公開状態</span>
+                <span className="shrink-0 whitespace-nowrap text-xs text-stone-500">公開状態</span>
                 <span
                   className={`rounded px-2 py-0.5 text-xs font-medium ${
                     e.status === "PUBLISHED"
                       ? "bg-emerald-50 text-emerald-700"
                       : e.status === "DRAFT"
                         ? "bg-amber-50 text-amber-700"
-                        : "bg-slate-100 text-slate-600"
+                        : "bg-stone-100 text-stone-600"
                   }`}
                 >
                   {PUBLISH_STATUS_LABELS[e.status]}
                 </span>
                 {e.status === "DRAFT" && (
-                  <span className="text-xs text-slate-400">他社には表示されません（「公開する」で公開）</span>
+                  <span className="text-xs text-stone-400">他社には表示されません（「公開する」で公開）</span>
                 )}
                 {/* 公開の取り下げ（手動で下書きへ戻す） */}
                 {e.status === "PUBLISHED" && canPublish && (
@@ -107,7 +107,7 @@ export default async function EngineerDetailPage({
               </span>
             )}
             <span className="flex items-center gap-1.5">
-              <span className="shrink-0 whitespace-nowrap text-xs text-slate-500">稼働状況</span>
+              <span className="shrink-0 whitespace-nowrap text-xs text-stone-500">稼働状況</span>
               {e.own && hasPermission(auth.roles, "engineer.create") ? (
                 <WorkflowStatusSelect
                   path={`/api/v1/engineers/${e.id}/work-status`}
@@ -117,7 +117,7 @@ export default async function EngineerDetailPage({
               ) : (
                 <span
                   className={`rounded px-2 py-0.5 text-xs ${
-                    e.workStatus === "WORKING" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
+                    e.workStatus === "WORKING" ? "bg-emerald-50 text-emerald-700" : "bg-orange-50 text-orange-800"
                   }`}
                 >
                   {ENGINEER_WORK_STATUS_LABELS[e.workStatus]}
@@ -126,7 +126,7 @@ export default async function EngineerDetailPage({
             </span>
           </div>
           {e.own && hasPermission(auth.roles, "engineer.create") && (
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-stone-400">
               稼働状況は商談開始・成約で自動更新されます。プルダウンから手動でも変更できます
             </p>
           )}
@@ -136,7 +136,7 @@ export default async function EngineerDetailPage({
           {e.own && e.skillSheetFilename && hasPermission(auth.roles, "engineer.read.pii") && (
             <a
               href={`/api/v1/engineers/${e.id}/skill-sheet`}
-              className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+              className="rounded border border-stone-300 bg-white px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
               title={e.skillSheetFilename}
             >
               職務経歴書
@@ -146,7 +146,7 @@ export default async function EngineerDetailPage({
             <>
               <a
                 href={`/engineers/${e.id}/edit`}
-                className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                className="rounded border border-stone-300 bg-white px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
               >
                 編集
               </a>
@@ -166,7 +166,7 @@ export default async function EngineerDetailPage({
       <ResizableColumns
         storageKey="engineer-detail-columns"
         left={
-          <section className="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="h-full rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">基本情報</h2>
           <dl className="space-y-2 text-sm">
             <Row label="単価帯（公開）" value={e.rateBand} />
@@ -191,16 +191,16 @@ export default async function EngineerDetailPage({
               <Row label="国籍" value={e.nationality?.trim() ? e.nationality : "日本（未指定）"} />
             )}
           </dl>
-          {e.summary && <p className="mt-4 whitespace-pre-wrap text-sm text-slate-600">{e.summary}</p>}
+          {e.summary && <p className="mt-4 whitespace-pre-wrap text-sm text-stone-600">{e.summary}</p>}
           </section>
         }
         right={
-          <section className="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="h-full rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">スキル</h2>
           {/* スキルが多い場合は高さを制限してスクロール（ヘッダー行は固定） */}
           <div className="max-h-96 overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-white text-left text-xs text-slate-500">
+              <thead className="sticky top-0 bg-white text-left text-xs text-stone-500">
                 <tr>
                   <th className="py-1">分類</th>
                   <th className="py-1">名称</th>
@@ -210,8 +210,8 @@ export default async function EngineerDetailPage({
               </thead>
               <tbody>
                 {e.skills.map((s) => (
-                  <tr key={s.name} className="border-t border-slate-100">
-                    <td className="py-1.5 text-xs text-slate-500">{SKILL_CATEGORY_LABELS[s.category]}</td>
+                  <tr key={s.name} className="border-t border-stone-100">
+                    <td className="py-1.5 text-xs text-stone-500">{SKILL_CATEGORY_LABELS[s.category]}</td>
                     <td className="py-1.5 font-medium">{s.name}</td>
                     <td className="py-1.5">{formatMonths(s.months)}</td>
                     <td className="py-1.5">
@@ -227,16 +227,16 @@ export default async function EngineerDetailPage({
       />
 
       {e.maskedSourceText && (
-        <details className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <details className="mt-6 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
           <summary className="cursor-pointer font-bold">取込原文</summary>
-          <pre className="mt-3 max-h-96 overflow-y-auto whitespace-pre-wrap rounded bg-slate-50 p-4 text-sm text-slate-700">
+          <pre className="mt-3 max-h-96 overflow-y-auto whitespace-pre-wrap rounded bg-stone-50 p-4 text-sm text-stone-700">
             {e.maskedSourceText}
           </pre>
         </details>
       )}
 
       {canConsent && (
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="mt-6 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">本人同意の登録</h2>
           <ConsentForm engineerId={e.id} />
         </section>
@@ -284,7 +284,7 @@ function formatMonths(months: number): string {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
-      <dt className="text-slate-500">{label}</dt>
+      <dt className="text-stone-500">{label}</dt>
       <dd className="text-right font-medium">{value}</dd>
     </div>
   );

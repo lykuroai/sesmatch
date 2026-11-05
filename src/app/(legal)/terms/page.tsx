@@ -1,7 +1,7 @@
 // 利用規約（ドラフト）。【 】内は運営者が確定させる項目。公開前に弁護士等の確認を受けること
-const h2 = "mt-8 mb-2 text-base font-bold text-slate-800";
-const p = "mb-2 text-sm leading-relaxed text-slate-700";
-const li = "mb-1 text-sm leading-relaxed text-slate-700";
+const h2 = "mt-8 mb-2 text-base font-bold text-stone-800";
+const p = "mb-2 text-sm leading-relaxed text-stone-700";
+const li = "mb-1 text-sm leading-relaxed text-stone-700";
 
 export const metadata = {
   title: "利用規約",
@@ -14,8 +14,8 @@ export const metadata = {
 export default function TermsPage() {
   return (
     <article>
-      <h1 className="text-xl font-bold text-slate-900">SES DirectMatch 利用規約</h1>
-      <p className="mt-2 text-xs text-slate-400">制定日: 2026年7月31日／最終改定日: 2026年11月4日（PRO版に関する第7条の改定。適用開始日: 2026年12月4日）</p>
+      <h1 className="text-xl font-bold text-stone-900">SES DirectMatch 利用規約</h1>
+      <p className="mt-2 text-xs text-stone-400">制定日: 2026年7月31日／最終改定日: 2026年11月4日（PRO版に関する第7条の改定。適用開始日: 2026年12月4日）</p>
 
       <h2 className={h2}>第1条（適用）</h2>
       <p className={p}>

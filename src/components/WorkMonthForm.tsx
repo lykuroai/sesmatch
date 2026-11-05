@@ -40,30 +40,30 @@ export function WorkMonthForm({
     <form onSubmit={submit} className="flex items-end gap-3 text-sm">
       {error && <p className="text-xs text-red-600">{error}</p>}
       <div>
-        <label className="mb-1 block text-xs text-slate-500">対象月</label>
+        <label className="mb-1 block text-xs text-stone-500">対象月</label>
         <input
           type="month"
           name="month"
           required
           defaultValue={new Date().toISOString().slice(0, 7)}
-          className="rounded border border-slate-300 px-2 py-1.5"
+          className="rounded border border-stone-300 px-2 py-1.5"
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-slate-500">確定契約金額（円・月途中は日割り額）</label>
+        <label className="mb-1 block text-xs text-stone-500">確定契約金額（円・月途中は日割り額）</label>
         <input
           type="number"
           name="amountYen"
           required
           min={1}
           defaultValue={defaultAmountYen}
-          className="w-40 rounded border border-slate-300 px-2 py-1.5"
+          className="w-40 rounded border border-stone-300 px-2 py-1.5"
         />
       </div>
       <button
         type="submit"
         disabled={loading}
-        className="rounded bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="rounded bg-orange-700 px-3 py-1.5 font-medium text-white hover:bg-orange-800 disabled:opacity-50"
       >
         月次確認・手数料計算
       </button>

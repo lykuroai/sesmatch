@@ -46,16 +46,16 @@ export function InviteMemberForm() {
       )}
       <div className="flex gap-3">
         <div className="flex-1">
-          <label className="mb-1 block text-xs text-slate-500">氏名</label>
-          <input name="name" required className="w-full rounded border border-slate-300 px-2 py-1.5" />
+          <label className="mb-1 block text-xs text-stone-500">氏名</label>
+          <input name="name" required className="w-full rounded border border-stone-300 px-2 py-1.5" />
         </div>
         <div className="flex-1">
-          <label className="mb-1 block text-xs text-slate-500">メールアドレス</label>
-          <input type="email" name="email" required className="w-full rounded border border-slate-300 px-2 py-1.5" />
+          <label className="mb-1 block text-xs text-stone-500">メールアドレス</label>
+          <input type="email" name="email" required className="w-full rounded border border-stone-300 px-2 py-1.5" />
         </div>
       </div>
       <div>
-        <p className="mb-1 text-xs text-slate-500">ロール（複数可）</p>
+        <p className="mb-1 text-xs text-stone-500">ロール（複数可）</p>
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {ASSIGNABLE.map((r) => (
             <label key={r} className="flex items-center gap-1 text-xs">
@@ -65,7 +65,7 @@ export function InviteMemberForm() {
           ))}
         </div>
       </div>
-      <button type="submit" className="rounded bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700">
+      <button type="submit" className="rounded bg-orange-700 px-3 py-1.5 font-medium text-white hover:bg-orange-800">
         招待する
       </button>
     </form>
@@ -156,13 +156,13 @@ export function MemberRow({
   }
 
   return (
-    <tr className="border-t border-slate-100">
+    <tr className="border-t border-stone-100">
       <td className="px-4 py-3 font-medium">
         {editingProfile ? (
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded border border-slate-300 px-2 py-1"
+            className="w-full rounded border border-stone-300 px-2 py-1"
           />
         ) : (
           member.name
@@ -174,7 +174,7 @@ export function MemberRow({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded border border-slate-300 px-2 py-1"
+            className="w-full rounded border border-stone-300 px-2 py-1"
           />
         ) : (
           <>
@@ -208,7 +208,7 @@ export function MemberRow({
         ) : (
           <div className="flex flex-wrap gap-1">
             {member.roles.map((r) => (
-              <span key={r} className="rounded bg-slate-100 px-2 py-0.5 text-xs">
+              <span key={r} className="rounded bg-stone-100 px-2 py-0.5 text-xs">
                 {ROLE_LABELS[r]}
               </span>
             ))}
@@ -222,22 +222,22 @@ export function MemberRow({
             {error && !editing && <span className="text-red-600">{error}</span>}
             {editingProfile ? (
               <>
-                <button onClick={saveProfile} className="rounded bg-blue-600 px-2 py-1 text-white">保存</button>
+                <button onClick={saveProfile} className="rounded bg-orange-700 px-2 py-1 text-white">保存</button>
                 <button
                   onClick={() => {
                     setEditingProfile(false);
                     setName(member.name);
                     setEmail(member.email);
                   }}
-                  className="rounded border border-slate-300 px-2 py-1"
+                  className="rounded border border-stone-300 px-2 py-1"
                 >
                   取消
                 </button>
               </>
             ) : editing ? (
               <>
-                <button onClick={save} className="rounded bg-blue-600 px-2 py-1 text-white">保存</button>
-                <button onClick={() => setEditing(false)} className="rounded border border-slate-300 px-2 py-1">
+                <button onClick={save} className="rounded bg-orange-700 px-2 py-1 text-white">保存</button>
+                <button onClick={() => setEditing(false)} className="rounded border border-stone-300 px-2 py-1">
                   取消
                 </button>
               </>
@@ -245,14 +245,14 @@ export function MemberRow({
               <>
                 <button
                   onClick={() => setEditingProfile(true)}
-                  className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50"
+                  className="rounded border border-stone-300 px-2 py-1 hover:bg-stone-50"
                 >
                   編集
                 </button>
-                <button onClick={() => setEditing(true)} className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50">
+                <button onClick={() => setEditing(true)} className="rounded border border-stone-300 px-2 py-1 hover:bg-stone-50">
                   ロール変更
                 </button>
-                <button onClick={reinvite} className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50">
+                <button onClick={reinvite} className="rounded border border-stone-300 px-2 py-1 hover:bg-stone-50">
                   再招待
                 </button>
                 {member.status === "ACTIVE" && (

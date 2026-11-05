@@ -36,7 +36,7 @@ export function AuditExportPanel({ pro, monthly }: { pro: boolean; monthly: { mo
         <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">PRO</span>
         監査ログのエクスポート
       </h2>
-      <p className="mb-3 text-xs text-slate-500">
+      <p className="mb-3 text-xs text-stone-500">
         期間を指定して CSV／JSON で出力します（自社分のみ、最大 50,000 件、1年以内）。出力した事実も監査ログに記録されます。
         毎月1日に前月分のダウンロードリンクを代表へメールします（7日間有効）。
       </p>
@@ -47,7 +47,7 @@ export function AuditExportPanel({ pro, monthly }: { pro: boolean; monthly: { mo
             <button onClick={() => download(`/api/v1/audit/export?month=${monthly.month}&token=${encodeURIComponent(monthly.token)}&format=csv`)} className="rounded bg-emerald-600 px-3 py-1 font-medium text-white hover:bg-emerald-700">
               CSV をダウンロード
             </button>
-            <button onClick={() => download(`/api/v1/audit/export?month=${monthly.month}&token=${encodeURIComponent(monthly.token)}&format=json`)} className="rounded border border-slate-300 px-3 py-1 hover:bg-slate-50">
+            <button onClick={() => download(`/api/v1/audit/export?month=${monthly.month}&token=${encodeURIComponent(monthly.token)}&format=json`)} className="rounded border border-stone-300 px-3 py-1 hover:bg-stone-50">
               JSON
             </button>
           </div>
@@ -56,16 +56,16 @@ export function AuditExportPanel({ pro, monthly }: { pro: boolean; monthly: { mo
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
       <div className="flex flex-wrap items-end gap-2 text-xs">
         <label className="block">
-          <span className="mb-1 block text-slate-600">開始日</span>
-          <input type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} disabled={!pro} className="rounded border border-slate-300 px-2 py-1" />
+          <span className="mb-1 block text-stone-600">開始日</span>
+          <input type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} disabled={!pro} className="rounded border border-stone-300 px-2 py-1" />
         </label>
         <label className="block">
-          <span className="mb-1 block text-slate-600">終了日</span>
-          <input type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} disabled={!pro} className="rounded border border-slate-300 px-2 py-1" />
+          <span className="mb-1 block text-stone-600">終了日</span>
+          <input type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} disabled={!pro} className="rounded border border-stone-300 px-2 py-1" />
         </label>
         <label className="block">
-          <span className="mb-1 block text-slate-600">形式</span>
-          <select value={format} onChange={(e) => setFormat(e.target.value as "csv" | "json")} disabled={!pro} className="rounded border border-slate-300 px-2 py-1">
+          <span className="mb-1 block text-stone-600">形式</span>
+          <select value={format} onChange={(e) => setFormat(e.target.value as "csv" | "json")} disabled={!pro} className="rounded border border-stone-300 px-2 py-1">
             <option value="csv">CSV</option>
             <option value="json">JSON</option>
           </select>
@@ -77,7 +77,7 @@ export function AuditExportPanel({ pro, monthly }: { pro: boolean; monthly: { mo
         >
           ダウンロード
         </button>
-        {!pro && <span className="text-slate-500">PRO 版の機能です。</span>}
+        {!pro && <span className="text-stone-500">PRO 版の機能です。</span>}
       </div>
     </section>
   );

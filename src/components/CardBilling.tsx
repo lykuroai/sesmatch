@@ -31,7 +31,7 @@ export function CardBillingActions({ status, canManage, currentPlanFree, checkou
   return (
     <div className="mt-3 space-y-2 text-xs">
       {checkoutResult === "success" && <p className="rounded border border-emerald-300 bg-emerald-50 p-2 text-emerald-800">カード決済のお申込を受け付けました。反映まで数十秒かかることがあります（画面を再読込してください）。</p>}
-      {checkoutResult === "cancel" && <p className="rounded border border-slate-300 bg-slate-50 p-2 text-slate-600">カード決済の手続きを中止しました。</p>}
+      {checkoutResult === "cancel" && <p className="rounded border border-stone-300 bg-stone-50 p-2 text-stone-600">カード決済の手続きを中止しました。</p>}
       {status.paymentFailedAt && (
         <p className="rounded border border-red-300 bg-red-50 p-2 text-red-700">
           カード決済に失敗しています。{status.graceUntil ? `${new Date(status.graceUntil).toLocaleDateString("ja-JP")} までに` : ""}お支払い方法を更新してください（期限を過ぎると基本版へ切り替わります）。
@@ -40,7 +40,7 @@ export function CardBillingActions({ status, canManage, currentPlanFree, checkou
       {error && <p className="text-red-600">{error}</p>}
       <div className="flex flex-wrap gap-2">
         {status.subscribed || status.hasCustomer ? (
-          <button onClick={() => go("/api/v1/billing/portal")} disabled={!canManage || busy} className="rounded border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 disabled:opacity-50">
+          <button onClick={() => go("/api/v1/billing/portal")} disabled={!canManage || busy} className="rounded border border-stone-300 bg-white px-3 py-1.5 hover:bg-stone-50 disabled:opacity-50">
             お支払い方法の管理（カード変更・解約・領収書）
           </button>
         ) : null}
@@ -52,7 +52,7 @@ export function CardBillingActions({ status, canManage, currentPlanFree, checkou
           </>
         )}
       </div>
-      {!canManage && <p className="text-slate-500">お申込・変更は billing.manage 権限（代表・経理）で行えます。</p>}
+      {!canManage && <p className="text-stone-500">お申込・変更は billing.manage 権限（代表・経理）で行えます。</p>}
     </div>
   );
 }

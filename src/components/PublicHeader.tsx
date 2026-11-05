@@ -7,23 +7,23 @@ import { reportHomeApplyClick } from "@/lib/gtag";
 
 export default function PublicHeader({ showApply = true }: { showApply?: boolean }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-100 bg-white/80 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-stone-100 bg-white/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 lg:px-6">
         <Link href="/login" className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-mark.svg" alt="SES DirectMatch ロゴ" className="h-8 w-8" />
-          <span className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">SES DirectMatch</span>
+          <span className="text-base font-bold tracking-tight text-stone-900 sm:text-lg">SES DirectMatch</span>
         </Link>
-        <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
-          <Link href="/login#flow" className="hover:text-blue-700">ご利用の流れ</Link>
-          <Link href="/login#features" className="hover:text-blue-700">選ばれる理由</Link>
-          <Link href="/about" className="hover:text-blue-700">サービス紹介</Link>
-          <Link href="/pricing" className="hover:text-blue-700">料金</Link>
+        <nav className="hidden items-center gap-6 text-sm font-medium text-stone-600 md:flex">
+          <Link href="/login#flow" className="hover:text-orange-800">ご利用の流れ</Link>
+          <Link href="/login#features" className="hover:text-orange-800">選ばれる理由</Link>
+          <Link href="/about" className="hover:text-orange-800">サービス紹介</Link>
+          <Link href="/pricing" className="hover:text-orange-800">料金</Link>
         </nav>
         <div className="flex items-center gap-2">
           <Link
             href="/login#login"
-            className="hidden rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50 sm:inline-block"
+            className="hidden rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 sm:inline-block"
           >
             ログイン
           </Link>
@@ -31,7 +31,7 @@ export default function PublicHeader({ showApply = true }: { showApply?: boolean
             <Link
               href="/apply"
               onClick={reportHomeApplyClick}
-              className="rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm shadow-blue-600/30 hover:bg-blue-700"
+              className="rounded-full bg-orange-700 px-4 py-2 text-sm font-bold text-white shadow-sm shadow-orange-700/30 hover:bg-orange-800"
             >
               無料で始める
             </Link>

@@ -32,12 +32,12 @@ function Section({
   return (
     <section
       id={id}
-      className="scroll-mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="scroll-mt-6 rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
     >
-      <h2 className="mb-3 border-b border-slate-100 pb-2 text-lg font-bold text-slate-800">
+      <h2 className="mb-3 border-b border-stone-100 pb-2 text-lg font-bold text-stone-800">
         {title}
       </h2>
-      <div className="space-y-3 text-sm leading-relaxed text-slate-700">{children}</div>
+      <div className="space-y-3 text-sm leading-relaxed text-stone-700">{children}</div>
     </section>
   );
 }
@@ -48,7 +48,7 @@ function Steps({ items }: { items: React.ReactNode[] }) {
     <ol className="ml-1 space-y-1.5">
       {items.map((it, i) => (
         <li key={i} className="flex gap-2.5">
-          <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-slate-800 text-[11px] font-bold text-white">
+          <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-stone-800 text-[11px] font-bold text-white">
             {i + 1}
           </span>
           <span>{it}</span>
@@ -73,16 +73,16 @@ export default async function ManualPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <h1 className="mb-1 text-2xl font-bold">操作マニュアル</h1>
-      <p className="mb-6 text-sm text-slate-500">
+      <p className="mb-6 text-sm text-stone-500">
         企業コンソールの使い方をメニューごとに説明します。用語は画面表示に合わせています。
       </p>
 
       {/* 目次 */}
-      <nav className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p className="mb-2 text-xs font-bold text-slate-500">目次</p>
+      <nav className="mb-6 rounded-xl border border-stone-200 bg-stone-50 p-4">
+        <p className="mb-2 text-xs font-bold text-stone-500">目次</p>
         <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
           {TOC.map((t) => (
-            <a key={t.id} href={`#${t.id}`} className="text-sky-700 hover:underline">
+            <a key={t.id} href={`#${t.id}`} className="text-orange-800 hover:underline">
               {t.label}
             </a>
           ))}
@@ -94,7 +94,7 @@ export default async function ManualPage() {
           <p>
             本サービスは、案件情報と人材情報を登録・公開し、他社との双方向マッチングから商談・契約・稼働管理までを一貫して扱います。基本版は完全無料です。基本の流れは次のとおりです。
           </p>
-          <div className="flex flex-col items-center gap-0 text-[13px] font-medium text-slate-600">
+          <div className="flex flex-col items-center gap-0 text-[13px] font-medium text-stone-600">
             {[
               "案件・人材を登録",
               "公開",
@@ -107,10 +107,10 @@ export default async function ManualPage() {
               "月次確認（稼働記録）",
             ].map((s, i, arr) => (
               <div key={s} className="flex flex-col items-center">
-                <span className="w-64 rounded-lg border border-slate-200 bg-white px-4 py-2 text-center">
+                <span className="w-64 rounded-lg border border-stone-200 bg-white px-4 py-2 text-center">
                   {s}
                 </span>
-                {i < arr.length - 1 && <span className="py-1 text-base leading-none text-slate-300">↓</span>}
+                {i < arr.length - 1 && <span className="py-1 text-base leading-none text-stone-300">↓</span>}
               </div>
             ))}
           </div>
@@ -262,15 +262,15 @@ export default async function ManualPage() {
               ["自社表示", "一覧やLevel 2開示では、自社側の企業名は「自社」と表示し、相手企業名のみ実名で表示します。"],
             ].map(([term, desc]) => (
               <div key={term} className="grid grid-cols-[8rem_1fr] gap-2">
-                <dt className="font-bold text-slate-800">{term}</dt>
-                <dd className="text-slate-600">{desc}</dd>
+                <dt className="font-bold text-stone-800">{term}</dt>
+                <dd className="text-stone-600">{desc}</dd>
               </div>
             ))}
           </dl>
         </Section>
       </div>
 
-      <p className="mt-6 text-center text-xs text-slate-400">
+      <p className="mt-6 text-center text-xs text-stone-400">
         画面や項目は改善のため変更されることがあります。ご不明な点は運営までお問い合わせください。
       </p>
     </div>

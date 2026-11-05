@@ -54,7 +54,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="text-2xl font-bold">
-            <span className={`mr-2 rounded px-2 py-1 text-sm align-middle ${e.side === "DEMAND" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"}`}>
+            <span className={`mr-2 rounded px-2 py-1 text-sm align-middle ${e.side === "DEMAND" ? "bg-orange-100 text-orange-900" : "bg-purple-100 text-purple-800"}`}>
               {e.side === "DEMAND" ? "自社案件" : "自社人材"}
             </span>
             <span className="mr-2 align-middle">
@@ -62,12 +62,12 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
             </span>
             {e.project.code} {e.project.name}
           </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            状態: <span className="font-medium text-slate-800">{ENTRY_STATUS_LABELS[e.status]}</span>
+          <p className="mt-2 text-sm text-stone-500">
+            状態: <span className="font-medium text-stone-800">{ENTRY_STATUS_LABELS[e.status]}</span>
             {" ／ 自社の立場: "}
             <span className="font-medium">{e.side === "DEMAND" ? "需要側（案件保有）" : "供給側（人材提案）"}</span>
           </p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-stone-400">
             供給側承認: {e.supplyApproved ? "✓" : "未"} ／ 需要側承認: {e.demandApproved ? "✓" : "未"}
           </p>
         </div>
@@ -119,7 +119,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
                   <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-emerald-900">
                     案件原文
                   </summary>
-                  <pre className="max-h-96 overflow-auto whitespace-pre-wrap border-t border-emerald-100 px-3 py-2 text-xs text-slate-700">
+                  <pre className="max-h-96 overflow-auto whitespace-pre-wrap border-t border-emerald-100 px-3 py-2 text-xs text-stone-700">
                     {e.disclosure.projectSourceText}
                   </pre>
                 </details>
@@ -143,7 +143,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
                   <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-emerald-900">
                     人材原文
                   </summary>
-                  <pre className="max-h-96 overflow-auto whitespace-pre-wrap border-t border-emerald-100 px-3 py-2 text-xs text-slate-700">
+                  <pre className="max-h-96 overflow-auto whitespace-pre-wrap border-t border-emerald-100 px-3 py-2 text-xs text-stone-700">
                     {e.disclosure.engineerSourceText}
                   </pre>
                 </details>
@@ -163,43 +163,43 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
           </div>
         </section>
       ) : (
-        <section className="mb-6 rounded-xl border border-slate-200 bg-slate-100 p-4 text-sm text-slate-600">
+        <section className="mb-6 rounded-xl border border-stone-200 bg-stone-100 p-4 text-sm text-stone-600">
           企業名・氏名・実額単価は双方の承認が揃い商談開始となった時点で相互に同時開示されます。現在は Level 1（匿名）表示です。
         </section>
       )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">対象案件</h2>
-          <Link href={`/projects/${e.project.id}`} className="text-sm font-medium text-blue-700 hover:underline">
+          <Link href={`/projects/${e.project.id}`} className="text-sm font-medium text-orange-800 hover:underline">
             {e.project.code} {e.project.name}
           </Link>
-          <p className="mt-2 text-sm text-slate-600">{e.project.anonymousSummary}</p>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-sm text-stone-600">{e.project.anonymousSummary}</p>
+          <p className="mt-2 text-xs text-stone-500">
             開始: {new Date(e.project.startDate).toLocaleDateString("ja-JP")} ／ 上限:{" "}
             {(e.project.rateMaxYen / 10_000).toLocaleString()}万円 ／ 必須:{" "}
             {e.project.requiredSkills.map((s) => s.name).join(", ")}
           </p>
         </section>
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">対象人材</h2>
-          <Link href={`/engineers/${e.engineer.id}`} className="text-sm font-medium text-blue-700 hover:underline">
+          <Link href={`/engineers/${e.engineer.id}`} className="text-sm font-medium text-orange-800 hover:underline">
             {e.engineer.code}
             {e.disclosure?.engineerName ? ` ${e.disclosure.engineerName}` : e.engineer.name ? ` ${e.engineer.name}` : ""}
           </Link>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-stone-500">
             {e.engineer.ageBand} ／ {e.engineer.rateBand} ／ スキル:{" "}
             {e.engineer.skills.map((s) => s.name).join(", ")}
           </p>
-          {e.note && <p className="mt-3 rounded bg-slate-50 p-2 text-sm text-slate-600">{e.note}</p>}
+          {e.note && <p className="mt-3 rounded bg-stone-50 p-2 text-sm text-stone-600">{e.note}</p>}
         </section>
       </div>
 
       {/* 契約（§22）: 双方承認後、案件提供側（需要側）の契約担当が条件確認書を作成 */}
       {e.contract ? (
-        <section className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm">
+        <section className="mt-6 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm">
           条件確認書が作成されています:{" "}
-          <Link href={`/contracts/${e.contract.id}`} className="font-medium text-indigo-700 hover:underline">
+          <Link href={`/contracts/${e.contract.id}`} className="font-medium text-orange-800 hover:underline">
             詳細を開く
           </Link>
         </section>
@@ -213,14 +213,14 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
             defaultContractType={e.project.contractType}
           />
         ) : (
-          <section className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
+          <section className="mt-6 rounded-xl border border-stone-200 bg-stone-50 p-4 text-xs text-stone-500">
             条件確認書は案件提供側（需要側企業）が作成します。
           </section>
         ))
       )}
 
       {/* 面談（§20.2: 双方承認後） */}
-      <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="mt-6 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
         <h2 className="mb-3 font-bold">面談</h2>
         {e.interviews.length > 0 && (
           <ul className="mb-4 space-y-1 text-sm">
@@ -228,8 +228,8 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
               <li key={iv.id} className="flex flex-wrap items-center gap-3">
                 <span className="font-medium">{new Date(iv.scheduledAt).toLocaleString("ja-JP")}</span>
                 <span>{iv.method}</span>
-                <span className="text-slate-500">{iv.note}</span>
-                <span className="text-xs text-slate-400">{iv.status}</span>
+                <span className="text-stone-500">{iv.note}</span>
+                <span className="text-xs text-stone-400">{iv.status}</span>
                 {/* Web 会議（PRO版仕様書 §4.8）: 作成は PRO 側、参加は両社 */}
                 {iv.status === "SCHEDULED" && (webMeetingOn || iv.meeting) && (
                   <MeetingControls
@@ -248,12 +248,12 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
         {canInterview && canScheduleInterview(e.status) ? (
           <InterviewForm entryId={e.id} webMeeting={webMeetingOn} />
         ) : (
-          <p className="text-xs text-slate-400">面談の設定は商談開始後に可能になります。</p>
+          <p className="text-xs text-stone-400">面談の設定は商談開始後に可能になります。</p>
         )}
       </section>
 
       {/* メッセージ（§21） */}
-      <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="mt-6 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
         <h2 className="mb-3 font-bold">メッセージ</h2>
         {!e.disclosure && (
           <p className="mb-3 rounded bg-amber-50 p-2 text-xs text-amber-700">
@@ -262,8 +262,8 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
         )}
         <div className="mb-4 space-y-2">
           {e.messages.map((m) => (
-            <div key={m.id} className={`max-w-xl rounded-lg p-3 text-sm ${m.own ? "ml-auto bg-blue-50" : "bg-slate-100"}`}>
-              <p className="mb-1 text-xs text-slate-500">
+            <div key={m.id} className={`max-w-xl rounded-lg p-3 text-sm ${m.own ? "ml-auto bg-orange-50" : "bg-stone-100"}`}>
+              <p className="mb-1 text-xs text-stone-500">
                 {m.senderName}（{m.own ? "自社" : "相手企業"}） {new Date(m.createdAt).toLocaleString("ja-JP")}
                 {m.own && auth.plan !== "FREE" && (
                   <span className="ml-2 text-emerald-700">{m.readAt ? `既読 ${new Date(m.readAt).toLocaleString("ja-JP")}` : "未読"}</span>
@@ -272,7 +272,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
               <p className="whitespace-pre-wrap">{m.body}</p>
             </div>
           ))}
-          {e.messages.length === 0 && <p className="text-sm text-slate-400">メッセージはまだありません</p>}
+          {e.messages.length === 0 && <p className="text-sm text-stone-400">メッセージはまだありません</p>}
         </div>
         {canMessage && <MessageForm entryId={e.id} />}
       </section>

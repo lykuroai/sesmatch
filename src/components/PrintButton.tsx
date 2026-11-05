@@ -5,7 +5,7 @@ export function PrintButton() {
   return (
     <button
       onClick={() => window.print()}
-      className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 print:hidden"
+      className="rounded bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800 print:hidden"
     >
       印刷 / PDF保存
     </button>

@@ -187,10 +187,10 @@ export default async function EngineersPage({
     return qs ? `/engineers?${qs}` : "/engineers";
   };
   const chip = (active: boolean) =>
-    `rounded-full border px-3 py-1 text-xs ${active ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"}`;
+    `rounded-full border px-3 py-1 text-xs ${active ? "border-orange-700 bg-orange-700 text-white" : "border-stone-300 bg-white text-stone-600 hover:bg-stone-50"}`;
 
-  const select = "rounded border border-slate-300 bg-white px-2 py-1.5 text-sm";
-  const label = "w-20 shrink-0 text-xs text-slate-600";
+  const select = "rounded border border-stone-300 bg-white px-2 py-1.5 text-sm";
+  const label = "w-20 shrink-0 text-xs text-stone-600";
 
   // 状態バッジ（テーブル表示とモバイルのカード表示で共用）
   const statusBadges = (e: (typeof engineers)[number]) => (
@@ -204,7 +204,7 @@ export default async function EngineersPage({
       {(e.status === "PUBLISHED" || e.workStatus !== "PROPOSING") && (
         <span
           className={`rounded px-1.5 py-0.5 text-xs ${
-            e.workStatus === "WORKING" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
+            e.workStatus === "WORKING" ? "bg-emerald-50 text-emerald-700" : "bg-orange-50 text-orange-800"
           }`}
         >
           {ENGINEER_WORK_STATUS_LABELS[e.workStatus]}
@@ -229,7 +229,7 @@ export default async function EngineersPage({
         action={
           <Link
             href="/engineers/new"
-            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="rounded bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800"
           >
             人材を登録
           </Link>
@@ -245,7 +245,7 @@ export default async function EngineersPage({
       />
 
       {/* 検索条件 */}
-      <form method="GET" action="/engineers" className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <form method="GET" action="/engineers" className="mb-4 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
           <span className={label}>キーワード</span>
           <input
@@ -294,7 +294,7 @@ export default async function EngineersPage({
 
         {/* 詳細条件（いずれかが指定されていれば開いた状態にする） */}
         <details open={advancedUsed} className="mb-3">
-          <summary className="cursor-pointer text-sm font-medium text-slate-600 hover:text-slate-800">
+          <summary className="cursor-pointer text-sm font-medium text-stone-600 hover:text-stone-800">
             詳細条件
           </summary>
           <div className="mt-3 space-y-3">
@@ -306,9 +306,9 @@ export default async function EngineersPage({
               <span className="flex items-center gap-2">
                 <span className={label}>単価</span>
                 <input type="number" name="rateMin" min={0} defaultValue={sp.rateMin ?? ""} className={`${select} w-20`} />
-                <span className="text-xs text-slate-500">万円 〜</span>
+                <span className="text-xs text-stone-500">万円 〜</span>
                 <input type="number" name="rateMax" min={0} defaultValue={sp.rateMax ?? ""} className={`${select} w-20`} />
-                <span className="text-xs text-slate-500">万円</span>
+                <span className="text-xs text-stone-500">万円</span>
               </span>
               <span className="flex items-center gap-2">
                 <span className={label}>勤務形態</span>
@@ -342,10 +342,10 @@ export default async function EngineersPage({
         </details>
 
         <div className="flex gap-2">
-          <button type="submit" className="rounded bg-slate-800 px-4 py-1.5 text-sm font-medium text-white hover:bg-slate-700">
+          <button type="submit" className="rounded bg-stone-800 px-4 py-1.5 text-sm font-medium text-white hover:bg-stone-700">
             検索
           </button>
-          <Link href="/engineers" className="rounded border border-slate-300 bg-white px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-50">
+          <Link href="/engineers" className="rounded border border-stone-300 bg-white px-4 py-1.5 text-sm text-stone-600 hover:bg-stone-50">
             条件をクリア
           </Link>
         </div>
@@ -391,7 +391,7 @@ export default async function EngineersPage({
         />
       )}
 
-      <p className="mb-3 text-xs text-slate-500">{filtered.length}件が該当</p>
+      <p className="mb-3 text-xs text-stone-500">{filtered.length}件が該当</p>
 
       {/* モバイル: カード表示（md 未満） */}
       <div className="space-y-3 md:hidden">
@@ -399,28 +399,28 @@ export default async function EngineersPage({
           <Link
             key={e.id}
             href={`/engineers/${e.id}`}
-            className="flex gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm active:bg-slate-50"
+            className="flex gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm active:bg-stone-50"
           >
             <ProjectImage kind={classifyEngineerImage(e)} size={44} className="mt-0.5" />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="font-medium text-blue-700">
+                <span className="font-medium text-orange-800">
                   {e.code}
                   {e.name ? ` ${e.name}` : ""}
                 </span>
                 {isNew(e.createdAt) && (
                   <NewBadge />
                 )}
-                <span className={`rounded px-1.5 py-0.5 text-xs ${e.own ? "bg-purple-50 text-purple-700" : e.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                <span className={`rounded px-1.5 py-0.5 text-xs ${e.own ? "bg-purple-50 text-purple-700" : e.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-600"}`}>
                   {e.own ? "自社" : (e.partnerCompanyName ?? "他社")}
                 </span>
                 {statusBadges(e)}
               </div>
-              <p className="mt-2 text-xs text-slate-500">
+              <p className="mt-2 text-xs text-stone-500">
                 {e.ageBand} ／ {AFFILIATION_LABELS[e.affiliationType]} ／ 単価帯 {e.rateBand} ／{" "}
                 {REMOTE_LEVEL_LABELS[e.remotePreference]}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-stone-500">
                 稼働可能日 {e.availableFrom ? new Date(e.availableFrom).toLocaleDateString("ja-JP") : "-"} ／ 登録{" "}
                 {new Date(e.createdAt).toLocaleDateString("ja-JP")}
               </p>
@@ -428,16 +428,16 @@ export default async function EngineersPage({
           </Link>
         ))}
         {engineers.length === 0 && (
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400 shadow-sm">
+          <div className="rounded-xl border border-stone-200 bg-white px-4 py-8 text-center text-sm text-stone-400 shadow-sm">
             該当する人材がありません
           </div>
         )}
       </div>
 
       {/* PC: テーブル表示 */}
-      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm md:block">
+      <div className="hidden overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm md:block">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs text-slate-500">
+          <thead className="bg-stone-50 text-left text-xs text-stone-500">
             <tr>
               {auth.plan !== "FREE" && <th className="px-3 py-3" title="一斉スカウトの対象を選択">選択</th>}
               <th className="px-4 py-3">人材ID</th>
@@ -453,7 +453,7 @@ export default async function EngineersPage({
           </thead>
           <tbody>
             {engineers.map((e) => (
-              <tr key={e.id} className="border-t border-slate-100 hover:bg-slate-50">
+              <tr key={e.id} className="border-t border-stone-100 hover:bg-stone-50">
                 {auth.plan !== "FREE" && (
                   <td className="px-3 py-2 text-center">{!e.own && e.status === "PUBLISHED" && <ScoutCheckbox id={e.id} code={e.code} />}</td>
                 )}
@@ -461,7 +461,7 @@ export default async function EngineersPage({
                   <span className="flex items-center gap-2.5">
                     <ProjectImage kind={classifyEngineerImage(e)} size={32} />
                     <span>
-                      <Link href={`/engineers/${e.id}`} className="font-medium text-blue-700 hover:underline">
+                      <Link href={`/engineers/${e.id}`} className="font-medium text-orange-800 hover:underline">
                         {e.code}
                         {e.name ? ` ${e.name}` : ""}
                       </Link>
@@ -472,7 +472,7 @@ export default async function EngineersPage({
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`rounded px-1.5 py-0.5 text-xs ${e.own ? "bg-purple-50 text-purple-700" : e.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                  <span className={`rounded px-1.5 py-0.5 text-xs ${e.own ? "bg-purple-50 text-purple-700" : e.partnerCompanyName ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-600"}`}>
                     {e.own ? "自社" : (e.partnerCompanyName ?? "他社")}
                   </span>
                 </td>
@@ -491,7 +491,7 @@ export default async function EngineersPage({
             ))}
             {engineers.length === 0 && (
               <tr>
-                <td colSpan={auth.plan !== "FREE" ? 10 : 9} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={auth.plan !== "FREE" ? 10 : 9} className="px-4 py-8 text-center text-stone-400">
                   該当する人材がありません
                 </td>
               </tr>

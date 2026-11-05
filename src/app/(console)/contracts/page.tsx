@@ -40,7 +40,7 @@ export default async function ContractsPage({
   const auth = await getAuth();
   if (!auth) redirect("/login");
   if (!hasPermission(auth.roles, "contract.read")) {
-    return <p className="text-sm text-slate-500">成約情報の閲覧権限がありません。</p>;
+    return <p className="text-sm text-stone-500">成約情報の閲覧権限がありません。</p>;
   }
   const sp = await searchParams;
   const q = (sp.q ?? "").trim().toLowerCase();
@@ -84,15 +84,15 @@ export default async function ContractsPage({
     return qs ? `/contracts?${qs}` : "/contracts";
   };
 
-  const select = "rounded border border-slate-300 bg-white px-2 py-1.5 text-sm";
-  const label = "text-xs text-slate-600";
+  const select = "rounded border border-stone-300 bg-white px-2 py-1.5 text-sm";
+  const label = "text-xs text-stone-600";
 
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">成約・稼働</h1>
 
       {/* 検索条件 */}
-      <form method="GET" action="/contracts" className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <form method="GET" action="/contracts" className="mb-4 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
         {tab !== "all" && <input type="hidden" name="tab" value={tab} />}
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <span className="flex items-center gap-2">
@@ -116,10 +116,10 @@ export default async function ContractsPage({
               <option value="労働者派遣">労働者派遣</option>
             </select>
           </span>
-          <button type="submit" className="rounded bg-slate-800 px-4 py-1.5 text-sm font-medium text-white hover:bg-slate-700">
+          <button type="submit" className="rounded bg-stone-800 px-4 py-1.5 text-sm font-medium text-white hover:bg-stone-700">
             検索
           </button>
-          <Link href="/contracts" className="rounded border border-slate-300 bg-white px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-50">
+          <Link href="/contracts" className="rounded border border-stone-300 bg-white px-4 py-1.5 text-sm text-stone-600 hover:bg-stone-50">
             条件をクリア
           </Link>
         </div>
@@ -131,16 +131,16 @@ export default async function ContractsPage({
           <Link
             key={k}
             href={tabHref(k)}
-            className={`rounded px-3 py-1.5 text-sm ${tab === k ? "bg-slate-800 text-white" : "border border-slate-300 bg-white"}`}
+            className={`rounded px-3 py-1.5 text-sm ${tab === k ? "bg-stone-800 text-white" : "border border-stone-300 bg-white"}`}
           >
             {v}
           </Link>
         ))}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs text-slate-500">
+          <thead className="bg-stone-50 text-left text-xs text-stone-500">
             <tr>
               <th className="px-4 py-3">案件</th>
               <th className="px-4 py-3">人材</th>
@@ -154,9 +154,9 @@ export default async function ContractsPage({
           </thead>
           <tbody>
             {contracts.map((c) => (
-              <tr key={c.id} className="border-t border-slate-100 hover:bg-slate-50">
+              <tr key={c.id} className="border-t border-stone-100 hover:bg-stone-50">
                 <td className="px-4 py-3">
-                  <Link href={`/contracts/${c.id}`} className="font-medium text-blue-700 hover:underline">
+                  <Link href={`/contracts/${c.id}`} className="font-medium text-orange-800 hover:underline">
                     {c.projectCode} {c.projectName}
                   </Link>
                 </td>
@@ -164,7 +164,7 @@ export default async function ContractsPage({
                 <td className="px-4 py-3 text-xs">{c.side === "DEMAND" ? "需要側" : "供給側"}</td>
                 <td className="px-4 py-3">{c.contractType}</td>
                 <td className="px-4 py-3">{(c.monthlyRateYen / 10_000).toLocaleString()}万円</td>
-                <td className="px-4 py-3 text-xs text-slate-500">
+                <td className="px-4 py-3 text-xs text-stone-500">
                   供 {c.supplySigned ? "〇" : "未"} ／ 需 {c.demandSigned ? "〇" : "未"}
                 </td>
                 <td className="px-4 py-3 text-xs">
@@ -173,7 +173,7 @@ export default async function ContractsPage({
                 <td className="px-4 py-3">
                   <span className={`rounded px-2 py-0.5 text-xs ${
                     c.status === "ACTIVE" ? "bg-emerald-50 text-emerald-700"
-                      : c.status === "CANCELLED" || c.status === "TERMINATED" || c.status === "COMPLETED" ? "bg-slate-100 text-slate-500"
+                      : c.status === "CANCELLED" || c.status === "TERMINATED" || c.status === "COMPLETED" ? "bg-stone-100 text-stone-500"
                       : "bg-amber-50 text-amber-700"
                   }`}>
                     {CONTRACT_STATUS_LABELS[c.status]}
@@ -183,7 +183,7 @@ export default async function ContractsPage({
             ))}
             {contracts.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-stone-400">
                   {all.length === 0
                     ? "成約はまだありません。条件確認書は商談詳細（商談開始後）から作成できます。"
                     : "条件に一致する成約はありません"}

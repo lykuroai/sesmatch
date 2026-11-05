@@ -21,8 +21,8 @@ const STYLES: Record<
     ],
   },
   telecom: {
-    bg: "bg-sky-50",
-    fg: "text-sky-700",
+    bg: "bg-orange-50",
+    fg: "text-orange-800",
     paths: [
       "M12 20V11",
       "M8.5 8.5a5 5 0 0 1 7 0",
@@ -32,8 +32,8 @@ const STYLES: Record<
     ],
   },
   manufacturing: {
-    bg: "bg-slate-100",
-    fg: "text-slate-700",
+    bg: "bg-stone-100",
+    fg: "text-stone-700",
     paths: [
       "M3 20V9l5 3V9l5 3V9l5 3v8H3z",
       "M7 16h2M11 16h2M15 16h2",
@@ -56,8 +56,8 @@ const STYLES: Record<
     paths: ["M4 7h16l-1.5 12h-13L4 7z", "M9 11V6a3 3 0 0 1 6 0v5"],
   },
   public: {
-    bg: "bg-indigo-50",
-    fg: "text-indigo-700",
+    bg: "bg-orange-50",
+    fg: "text-orange-800",
     paths: [
       "M4 20h16",
       "M5 20V10M9 20V10M15 20V10M19 20V10",
@@ -106,8 +106,8 @@ const STYLES: Record<
     ],
   },
   web: {
-    bg: "bg-blue-50",
-    fg: "text-blue-700",
+    bg: "bg-orange-50",
+    fg: "text-orange-800",
     paths: [
       "M3 5h18v14H3z",
       "M3 9h18",
@@ -160,8 +160,8 @@ const STYLES: Record<
     ],
   },
   business: {
-    bg: "bg-slate-100",
-    fg: "text-slate-600",
+    bg: "bg-stone-100",
+    fg: "text-stone-600",
     paths: ["M3 7h18v12H3z", "M8 7V4h8v3", "M3 12h18", "M12 11v3"],
   },
 };

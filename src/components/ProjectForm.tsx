@@ -10,7 +10,7 @@ import {
   PROJECT_CONTRACT_TYPES,
 } from "@/lib/constants";
 
-const input = "w-full rounded border border-slate-300 px-3 py-2 text-sm";
+const input = "w-full rounded border border-stone-300 px-3 py-2 text-sm";
 const label = "mb-1 block text-sm font-medium";
 
 export type ProjectFormInitial = {
@@ -98,7 +98,7 @@ export function ProjectForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <form onSubmit={submit} className="space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
       {error && <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
       <div>
         <label className={label}>案件名</label>
@@ -208,7 +208,7 @@ export function ProjectForm({
         <input name="processes" defaultValue={initial?.processes.join(", ") ?? ""} className={input} placeholder="基本設計, 開発" />
       </div>
       {isDispatch ? (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-stone-500">
           受入所属区分: 自社社員（直接雇用）のみ／一社下不可（労働者派遣のため自動適用）
         </p>
       ) : (
@@ -245,7 +245,7 @@ export function ProjectForm({
       <button
         type="submit"
         disabled={loading}
-        className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="rounded bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800 disabled:opacity-50"
       >
         {loading ? "保存中..." : isEdit ? "更新する" : "登録する"}
       </button>

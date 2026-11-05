@@ -49,7 +49,7 @@ export function JitsiRoom({ domain, room, token, onLeave }: { domain: string; ro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [domain, room, token]);
   return (
-    <div className="h-[70vh] min-h-[480px] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-900">
+    <div className="h-[70vh] min-h-[480px] w-full overflow-hidden rounded-xl border border-stone-200 bg-stone-900">
       {error ? <p className="p-6 text-sm text-white">{error}</p> : <div ref={ref} className="h-full w-full" />}
     </div>
   );

@@ -22,9 +22,9 @@ export default async function SecuritySettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/company" className="text-sm text-blue-700 hover:underline">← 会社マイページ</Link>
+        <Link href="/company" className="text-sm text-orange-800 hover:underline">← 会社マイページ</Link>
         <h1 className="mb-2 mt-2 text-2xl font-bold">セキュリティ</h1>
-        <p className="text-sm text-slate-500">ログインの2要素認証（認証アプリ）。企業全体への必須化・IP アドレス制限・SSO は PRO 版で設定できます。</p>
+        <p className="text-sm text-stone-500">ログインの2要素認証（認証アプリ）。企業全体への必須化・IP アドレス制限・SSO は PRO 版で設定できます。</p>
       </div>
       <MfaSetup required={auth.mfaRequired} />
       {settings && overview && (

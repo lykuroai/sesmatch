@@ -83,19 +83,19 @@ export default function RegisterForm({ token, email, proSignupOpen }: { token: s
 
   if (done) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-xl shadow-slate-900/10">
+      <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center shadow-xl shadow-stone-900/10">
         <h1 className="mb-3 text-xl font-bold">企業登録が完了しました</h1>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-stone-600">
           企業コンソールが開通しました。登録したメールアドレスとパスワードでログインしてご利用ください。
         </p>
         {done.planRequested && (
-          <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
             PRO 版の申込を受け付けました。運営が確認のうえ有効化し、メールでご案内します（それまでは基本版でご利用いただけます）。
           </p>
         )}
         <Link
           href="/login"
-          className="mt-6 inline-block w-full rounded-full bg-slate-900 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+          className="mt-6 inline-block w-full rounded-full bg-stone-900 py-3 text-sm font-bold text-white transition hover:bg-stone-800"
         >
           ログインページへ
         </Link>
@@ -104,14 +104,14 @@ export default function RegisterForm({ token, email, proSignupOpen }: { token: s
   }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/10 sm:p-8">
+    <form onSubmit={submit} className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xl shadow-stone-900/10 sm:p-8">
       <h1 className="text-xl font-bold">企業登録</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <p className="mt-1 text-sm text-stone-500">
         メールアドレスの確認が完了しました。残りの項目を入力すると登録が完了し、すぐにログインできます。
       </p>
-      <p className="mb-6 mt-2 text-xs text-slate-500">
+      <p className="mb-6 mt-2 text-xs text-stone-500">
         契約主体は企業または個人事業者です（個人アカウントでの利用はできません）。
-        <Link href="/apply/rules" target="_blank" className="mx-0.5 font-medium text-blue-600 hover:underline">
+        <Link href="/apply/rules" target="_blank" className="mx-0.5 font-medium text-orange-700 hover:underline">
           企業登録のルール・運用の流れ
         </Link>
       </p>
@@ -159,10 +159,10 @@ export default function RegisterForm({ token, email, proSignupOpen }: { token: s
       <div className="space-y-4">
         <div>
           <label className={label}>メールアドレス（確認済み）</label>
-          <input type="email" value={email} readOnly className={`${input} text-slate-500`} />
-          <p className="mt-1 text-xs text-slate-500">
+          <input type="email" value={email} readOnly className={`${input} text-stone-500`} />
+          <p className="mt-1 text-xs text-stone-500">
             別のアドレスで登録する場合は
-            <Link href="/apply" className="mx-0.5 font-medium text-blue-600 hover:underline">申込画面</Link>
+            <Link href="/apply" className="mx-0.5 font-medium text-orange-700 hover:underline">申込画面</Link>
             からやり直してください。
           </p>
         </div>
@@ -216,16 +216,16 @@ export default function RegisterForm({ token, email, proSignupOpen }: { token: s
         <fieldset>
           <legend className={label}>プラン</legend>
           <div className="grid gap-2 sm:grid-cols-2">
-            <label className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm ${plan === "FREE" ? "border-blue-500 bg-blue-50" : "border-slate-200"}`}>
+            <label className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm ${plan === "FREE" ? "border-orange-600 bg-orange-50" : "border-stone-200"}`}>
               <input type="radio" name="plan" value="FREE" checked={plan === "FREE"} onChange={() => setPlan("FREE")} className="mt-0.5" />
               <span>
                 <span className="font-bold">基本プラン（無料）</span>
-                <span className="mt-0.5 block text-xs text-slate-500">掲載料・月額費用・成約手数料すべて0円。基本機能をすべて利用可能</span>
+                <span className="mt-0.5 block text-xs text-stone-500">掲載料・月額費用・成約手数料すべて0円。基本機能をすべて利用可能</span>
               </span>
             </label>
             <label
               className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${
-                !proSignupOpen ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400" : plan === "PRO" ? "cursor-pointer border-emerald-500 bg-emerald-50" : "cursor-pointer border-slate-200"
+                !proSignupOpen ? "cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400" : plan === "PRO" ? "cursor-pointer border-amber-500 bg-amber-50" : "cursor-pointer border-stone-200"
               }`}
             >
               <input
@@ -247,18 +247,18 @@ export default function RegisterForm({ token, email, proSignupOpen }: { token: s
               </span>
             </label>
           </div>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-stone-500">
             料金・機能の比較は
-            <Link href="/pricing" target="_blank" className="mx-0.5 font-medium text-blue-600 hover:underline">料金ページ</Link>
+            <Link href="/pricing" target="_blank" className="mx-0.5 font-medium text-orange-700 hover:underline">料金ページ</Link>
             をご覧ください。
           </p>
         </fieldset>
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" name="agreedToTerms" required className="mt-0.5" />
           <span>
-            <Link href="/terms" target="_blank" className="text-blue-600 hover:underline">利用規約</Link>・
-            <Link href="/agreement" target="_blank" className="text-blue-600 hover:underline">基本契約</Link>・
-            <Link href="/privacy-policy" target="_blank" className="text-blue-600 hover:underline">プライバシーポリシー</Link>
+            <Link href="/terms" target="_blank" className="text-orange-700 hover:underline">利用規約</Link>・
+            <Link href="/agreement" target="_blank" className="text-orange-700 hover:underline">基本契約</Link>・
+            <Link href="/privacy-policy" target="_blank" className="text-orange-700 hover:underline">プライバシーポリシー</Link>
             に同意します（案件・人材の再転載、無承認の再仲介、二社下以降の流通、
             直接取引の迂回は禁止されています）
           </span>
@@ -267,12 +267,12 @@ export default function RegisterForm({ token, email, proSignupOpen }: { token: s
       <button
         type="submit"
         disabled={loading}
-        className="mt-6 w-full rounded-full bg-blue-600 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700 disabled:opacity-50"
+        className="mt-6 w-full rounded-full bg-orange-700 py-3 text-sm font-bold text-white shadow-lg shadow-orange-700/30 transition hover:bg-orange-800 disabled:opacity-50"
       >
         {loading ? "送信中..." : "登録を完了する"}
       </button>
-      <p className="mt-4 text-center text-xs text-slate-500">
-        既にアカウントをお持ちの方は <Link href="/login" className="font-medium text-blue-600 hover:underline">ログイン</Link>
+      <p className="mt-4 text-center text-xs text-stone-500">
+        既にアカウントをお持ちの方は <Link href="/login" className="font-medium text-orange-700 hover:underline">ログイン</Link>
       </p>
     </form>
   );

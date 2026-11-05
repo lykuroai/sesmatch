@@ -3,13 +3,13 @@ import Link from "next/link";
 // 規約・契約・ポリシーの公開ページ共通レイアウト（未ログインで閲覧可能）
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-stone-50">
       <div className="mx-auto max-w-3xl px-6 py-10">
         <div className="mb-6 flex items-center justify-between text-sm">
-          <Link href="/" className="font-bold text-slate-800">
+          <Link href="/" className="font-bold text-stone-800">
             SES DirectMatch
           </Link>
-          <nav className="flex gap-4 text-xs text-slate-500">
+          <nav className="flex gap-4 text-xs text-stone-500">
             <Link href="/about" className="hover:underline">
               サービス紹介
             </Link>
@@ -27,8 +27,8 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             </Link>
           </nav>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">{children}</div>
-        <p className="mt-6 text-center text-xs text-slate-400">
+        <div className="rounded-xl border border-stone-200 bg-white p-8 shadow-sm">{children}</div>
+        <p className="mt-6 text-center text-xs text-stone-400">
           <Link href="/apply" className="hover:underline">
             企業登録の申込へ戻る
           </Link>

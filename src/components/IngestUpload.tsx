@@ -113,13 +113,13 @@ export function IngestUpload({
         <button
           type="submit"
           disabled={loading}
-          className="rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded bg-orange-700 px-4 py-2 font-medium text-white hover:bg-orange-800 disabled:opacity-50"
         >
           {loading ? "処理中..." : "取込開始"}
         </button>
       </form>
       {bulkEnabled ? (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-600">
           <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">PRO</span>
           <span>複数ファイルを選んだときの扱い:</span>
           <label className="flex items-center gap-1">
@@ -132,7 +132,7 @@ export function IngestUpload({
           </label>
         </div>
       ) : (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-stone-500">
           複数の画像を選ぶと1件（複数ページ）として結合します。複数の書類ファイルをまとめて取り込む一括取込は PRO 版の機能です。
         </p>
       )}
@@ -156,24 +156,24 @@ export function IngestUpload({
             type="button"
             disabled={loading}
             onClick={() => cameraRef.current?.click()}
-            className="rounded border border-blue-600 px-4 py-2 font-medium text-blue-600 hover:bg-blue-50 disabled:opacity-50"
+            className="rounded border border-orange-700 px-4 py-2 font-medium text-orange-700 hover:bg-orange-50 disabled:opacity-50"
           >
             カメラで撮影して取込
           </button>
         ) : (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-            <p className="mb-2 text-xs text-slate-600">
+          <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
+            <p className="mb-2 text-xs text-stone-600">
               撮影済み {shots.length} ページ（複数ページはこのまま続けて撮影できます）
             </p>
             <ul className="mb-3 flex flex-wrap gap-2">
               {shots.map((f, i) => (
-                <li key={i} className="flex items-center gap-1.5 rounded border border-slate-300 bg-white px-2 py-1 text-xs">
+                <li key={i} className="flex items-center gap-1.5 rounded border border-stone-300 bg-white px-2 py-1 text-xs">
                   {i + 1}ページ目
                   <button
                     type="button"
                     onClick={() => setShots(shots.filter((_, j) => j !== i))}
                     aria-label={`${i + 1}ページ目を削除`}
-                    className="text-slate-400 hover:text-red-600"
+                    className="text-stone-400 hover:text-red-600"
                   >
                     ×
                   </button>
@@ -185,7 +185,7 @@ export function IngestUpload({
                 type="button"
                 disabled={loading || shots.length >= MAX_IMAGES}
                 onClick={() => cameraRef.current?.click()}
-                className="rounded border border-blue-600 px-4 py-2 font-medium text-blue-600 hover:bg-blue-50 disabled:opacity-50"
+                className="rounded border border-orange-700 px-4 py-2 font-medium text-orange-700 hover:bg-orange-50 disabled:opacity-50"
               >
                 続けて撮影（次のページ）
               </button>
@@ -193,7 +193,7 @@ export function IngestUpload({
                 type="button"
                 disabled={loading}
                 onClick={() => upload(shots, { mergePages: true })}
-                className="rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                className="rounded bg-orange-700 px-4 py-2 font-medium text-white hover:bg-orange-800 disabled:opacity-50"
               >
                 {loading ? "処理中..." : `この${shots.length}ページで取込開始`}
               </button>
@@ -201,7 +201,7 @@ export function IngestUpload({
                 type="button"
                 disabled={loading}
                 onClick={() => setShots([])}
-                className="rounded border border-slate-300 px-4 py-2 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                className="rounded border border-stone-300 px-4 py-2 text-stone-600 hover:bg-stone-50 disabled:opacity-50"
               >
                 やり直す
               </button>

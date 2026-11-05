@@ -35,10 +35,10 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="text-2xl font-bold">条件確認書 {c.projectCode} × {c.engineerCode}</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-stone-500">
             {CONTRACT_STATUS_LABELS[c.status]} ／ 自社の立場: {c.side === "DEMAND" ? "需要側（手数料負担 §23）" : "供給側"}
           </p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-stone-400">
             供給側署名: {c.supplySigned ? "〇" : "未"} ／ 需要側署名: {c.demandSigned ? "〇" : "未"}
             ／ 第{c.version}版（最終更新: {new Date(c.updatedAt).toLocaleString("ja-JP")}）
           </p>
@@ -63,7 +63,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
       )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">契約条件（Level 3）</h2>
           <dl className="space-y-2 text-sm">
             <Row label="案件保有企業（需要側）" value={c.demandCompanyName} />
@@ -76,40 +76,40 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
             {c.terminatedAt && <Row label="終了日" value={new Date(c.terminatedAt).toLocaleDateString("ja-JP")} />}
           </dl>
           {c.notes && (
-            <div className="mt-3 rounded bg-slate-50 p-3">
-              <p className="mb-1 text-xs font-medium text-slate-600">備考</p>
-              <p className="whitespace-pre-wrap text-sm text-slate-700">{c.notes}</p>
+            <div className="mt-3 rounded bg-stone-50 p-3">
+              <p className="mb-1 text-xs font-medium text-stone-600">備考</p>
+              <p className="whitespace-pre-wrap text-sm text-stone-700">{c.notes}</p>
             </div>
           )}
-          <p className="mt-3 text-xs text-slate-400">
-            エントリー: <Link href={`/entries/${c.entryId}`} className="text-blue-600 hover:underline">詳細を見る</Link>
+          <p className="mt-3 text-xs text-stone-400">
+            エントリー: <Link href={`/entries/${c.entryId}`} className="text-orange-700 hover:underline">詳細を見る</Link>
           </p>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-bold">指揮命令・検収の確認（§22）</h2>
           <dl className="space-y-2 text-sm">
             {Object.entries(CHECKLIST_LABELS).map(([key, label]) => (
               <Row key={key} label={label} value={c.commandChecklist[key] ?? "-"} />
             ))}
           </dl>
-          <p className="mt-3 rounded bg-slate-50 p-2 text-xs text-slate-500">
+          <p className="mt-3 rounded bg-stone-50 p-2 text-xs text-stone-500">
             準委任・請負では案件保有企業から本人への直接指揮命令を禁止します（§22）。
           </p>
         </section>
       </div>
 
-      <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="mt-6 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
         {/* 手数料は需要側企業の負担（§23）のため、供給側には金額・状態を表示しない */}
         <h2 className="mb-1 font-bold">{c.side === "DEMAND" ? "月次稼働・手数料（§23）" : "月次稼働"}</h2>
         {c.side === "DEMAND" && (
-          <p className="mb-4 text-xs text-slate-500">
+          <p className="mb-4 text-xs text-stone-500">
             現在、基本版は完全無料のため成約手数料は発生しません（全稼働月0円で記録されます）。
           </p>
         )}
         <div className="mb-4 overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="text-left text-xs text-slate-500">
+          <thead className="text-left text-xs text-stone-500">
             <tr>
               <th className="py-2">対象月</th>
               <th className="py-2">確定契約金額</th>
@@ -124,7 +124,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
           </thead>
           <tbody>
             {c.workMonths.map((wm) => (
-              <tr key={wm.id} className="border-t border-slate-100">
+              <tr key={wm.id} className="border-t border-stone-100">
                 <td className="py-2 font-medium">{wm.month}</td>
                 <td className="py-2">{wm.confirmedAmountYen.toLocaleString()}円</td>
                 {c.side === "DEMAND" && (
@@ -138,7 +138,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
             ))}
             {c.workMonths.length === 0 && (
               <tr>
-                <td colSpan={c.side === "DEMAND" ? 5 : 2} className="py-4 text-center text-slate-400">
+                <td colSpan={c.side === "DEMAND" ? 5 : 2} className="py-4 text-center text-stone-400">
                   月次稼働はまだありません（稼働開始後に自動計算されます）
                 </td>
               </tr>
@@ -147,7 +147,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
         </table>
         </div>
         {c.side === "DEMAND" && c.status === "ACTIVE" && (
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-stone-400">
             月次稼働は、稼働開始月から当月分まで月額契約金額をもとに自動で記録されます。
           </p>
         )}
@@ -159,7 +159,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
-      <dt className="text-slate-500">{label}</dt>
+      <dt className="text-stone-500">{label}</dt>
       <dd className="text-right font-medium">{value}</dd>
     </div>
   );

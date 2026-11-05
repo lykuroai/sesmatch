@@ -16,7 +16,7 @@ export function PendingIngestions({
     <>
       <AutoRefresh active={processingCount > 0} />
       {processingCount > 0 && (
-        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+        <div className="mb-6 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">
           解析中の取込が {processingCount} 件あります（OCR・AI解析に1分ほどかかります。完了すると自動でここに表示されます）
         </div>
       )}

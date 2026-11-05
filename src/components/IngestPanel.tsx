@@ -30,7 +30,7 @@ export function IngestPanel({
   const toggle = (
     <button
       onClick={() => setOpen(!open)}
-      className="rounded border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
+      className="rounded border border-orange-700 px-4 py-2 text-sm font-medium text-orange-700 hover:bg-orange-50"
     >
       {open ? "取込を閉じる" : label}
     </button>
@@ -49,8 +49,8 @@ export function IngestPanel({
         toggle
       )}
       {open && (
-        <div className="mt-3 space-y-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs text-slate-500">
+        <div className="mt-3 space-y-5 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+          <p className="text-xs text-stone-500">
             {hint}
             PII匿名化 → AI正規化 → 人手確認を経て登録されます。この取込では
             {expectedKind === "PROJECT_DESCRIPTION" ? "案件" : "人材"}
@@ -69,9 +69,9 @@ export function IngestPanel({
             <h3 className="mb-2 text-sm font-bold">ファイル取込</h3>
             <IngestUpload expectedKind={expectedKind} bulkEnabled={bulkEnabled} />
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-stone-500">
             取込後の確認・確定は{" "}
-            <Link href="/ingestions" className="text-blue-600 hover:underline">
+            <Link href="/ingestions" className="text-orange-700 hover:underline">
               取込履歴
             </Link>{" "}
             から行えます。

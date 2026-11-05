@@ -46,8 +46,8 @@ export function ActionButton({
         disabled={loading}
         className={
           variant === "secondary"
-            ? "rounded border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-            : "rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            ? "rounded border border-stone-300 bg-white px-2 py-0.5 text-xs text-stone-600 hover:bg-stone-50 disabled:opacity-50"
+            : "rounded bg-orange-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-orange-800 disabled:opacity-50"
         }
       >
         {loading ? "処理中..." : label}

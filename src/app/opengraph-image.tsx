@@ -20,7 +20,7 @@ export default async function OgImage() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "72px 88px",
-          background: "linear-gradient(135deg, #1e3a8a 0%, #172554 100%)",
+          background: "linear-gradient(135deg, #7c2d12 0%, #431407 100%)",
           color: "#ffffff",
           fontFamily: "Noto Sans JP",
         }}
@@ -32,7 +32,7 @@ export default async function OgImage() {
               width: 104,
               height: 104,
               borderRadius: 24,
-              background: "linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%)",
+              background: "linear-gradient(135deg, #c2410c 0%, #7c2d12 100%)",
               alignItems: "center",
               justifyContent: "center",
             }}
@@ -49,7 +49,7 @@ export default async function OgImage() {
               <path
                 d="M48 20 L26 32 L48 44"
                 fill="none"
-                stroke="#34d399"
+                stroke="#fbbf24"
                 strokeWidth="6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -67,8 +67,8 @@ export default async function OgImage() {
               padding: "8px 24px",
               borderRadius: 9999,
               background: "rgba(52, 211, 153, 0.18)",
-              border: "2px solid #34d399",
-              color: "#a7f3d0",
+              border: "2px solid #fbbf24",
+              color: "#fde68a",
             }}
           >
             SES企業向け
@@ -76,11 +76,11 @@ export default async function OgImage() {
           <div style={{ display: "flex", fontSize: 58, fontWeight: 700, lineHeight: 1.25 }}>
             AI案件・人材ダイレクトマッチング
           </div>
-          <div style={{ display: "flex", fontSize: 30, color: "#bfdbfe", lineHeight: 1.5 }}>
+          <div style={{ display: "flex", fontSize: 30, color: "#fed7aa", lineHeight: 1.5 }}>
             案件票・スキルシートを貼り付け・取り込むだけ。AIが最適な案件・人材を提案。
           </div>
         </div>
-        <div style={{ display: "flex", fontSize: 28, color: "#93c5fd" }}>ses.lykuro.ai</div>
+        <div style={{ display: "flex", fontSize: 28, color: "#fdba74" }}>ses.lykuro.ai</div>
       </div>
     ),
     {

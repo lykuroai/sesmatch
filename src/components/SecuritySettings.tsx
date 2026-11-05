@@ -59,7 +59,7 @@ export function IpRestrictionPanel({ initial, canManage, pro }: { initial: Secur
         <ProBadge />
         IP アドレス制限
       </h2>
-      <p className="mb-3 text-xs text-slate-500">
+      <p className="mb-3 text-xs text-stone-500">
         許可した IP アドレス／CIDR からのみログイン・操作・API 呼び出しができます（20件まで）。
         空にすると制限なし。現在の接続元 IP を含まないリストは保存できません（ロックアウト防止）。
         ローカルサーバ（SES-Connector）の固定 IP も登録してください。
@@ -72,16 +72,16 @@ export function IpRestrictionPanel({ initial, canManage, pro }: { initial: Secur
       {saved && <p className="mb-2 text-xs text-emerald-700">保存しました</p>}
       <ul className="mb-3 flex flex-wrap gap-2">
         {entries.map((e) => (
-          <li key={e} className="flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 font-mono text-xs">
+          <li key={e} className="flex items-center gap-1 rounded border border-stone-300 bg-white px-2 py-1 font-mono text-xs">
             {e}
             {!disabled && (
-              <button type="button" onClick={() => setEntries(entries.filter((x) => x !== e))} className="ml-1 text-slate-400 hover:text-red-600" aria-label="削除">
+              <button type="button" onClick={() => setEntries(entries.filter((x) => x !== e))} className="ml-1 text-stone-400 hover:text-red-600" aria-label="削除">
                 ×
               </button>
             )}
           </li>
         ))}
-        {entries.length === 0 && <li className="text-xs text-slate-400">制限なし（未設定）</li>}
+        {entries.length === 0 && <li className="text-xs text-stone-400">制限なし（未設定）</li>}
       </ul>
       <div className="flex flex-wrap items-center gap-2">
         <input
@@ -95,13 +95,13 @@ export function IpRestrictionPanel({ initial, canManage, pro }: { initial: Secur
           }}
           placeholder="例: 203.0.113.10 または 203.0.113.0/24"
           disabled={disabled}
-          className="w-72 max-w-full rounded border border-slate-300 px-2 py-1 font-mono text-xs"
+          className="w-72 max-w-full rounded border border-stone-300 px-2 py-1 font-mono text-xs"
         />
-        <button type="button" onClick={add} disabled={disabled || !draft.trim()} className="rounded border border-slate-300 bg-white px-3 py-1 text-xs hover:bg-slate-50 disabled:opacity-50">
+        <button type="button" onClick={add} disabled={disabled || !draft.trim()} className="rounded border border-stone-300 bg-white px-3 py-1 text-xs hover:bg-stone-50 disabled:opacity-50">
           追加
         </button>
         {initial.currentIp && !entries.includes(initial.currentIp) && (
-          <button type="button" onClick={() => setEntries([...entries, initial.currentIp!])} disabled={disabled} className="rounded border border-slate-300 bg-white px-3 py-1 text-xs hover:bg-slate-50 disabled:opacity-50">
+          <button type="button" onClick={() => setEntries([...entries, initial.currentIp!])} disabled={disabled} className="rounded border border-stone-300 bg-white px-3 py-1 text-xs hover:bg-stone-50 disabled:opacity-50">
             現在の IP を追加
           </button>
         )}
@@ -121,7 +121,7 @@ export function IpRestrictionPanel({ initial, canManage, pro }: { initial: Secur
           </button>
         )}
       </div>
-      {!pro && <p className="mt-2 text-xs text-slate-500">PRO 版の機能です。</p>}
+      {!pro && <p className="mt-2 text-xs text-stone-500">PRO 版の機能です。</p>}
     </section>
   );
 }
@@ -165,21 +165,21 @@ export function SsoSettingsPanel({ initial, canManage, pro }: { initial: Securit
     } else setError(b?.error?.message ?? "保存に失敗しました");
   }
 
-  const input = "w-full rounded border border-slate-300 px-2 py-1 text-xs disabled:bg-slate-100";
+  const input = "w-full rounded border border-stone-300 px-2 py-1 text-xs disabled:bg-stone-100";
   return (
     <section className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-5 text-sm">
       <h2 className="mb-1 flex items-center gap-2 font-bold">
         <ProBadge />
         SSO（シングルサインオン）
       </h2>
-      <p className="mb-3 text-xs text-slate-500">
+      <p className="mb-3 text-xs text-stone-500">
         Google Workspace・Microsoft Entra ID などの IdP でログインできます（OIDC または SAML 2.0）。
         IdP のメールアドレスと一致する登録済み担当者のみログインでき、担当者の自動作成は行いません。
       </p>
       <form onSubmit={save} className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-xs">
-            <span className="mb-1 block font-medium text-slate-600">方式</span>
+            <span className="mb-1 block font-medium text-stone-600">方式</span>
             <select value={provider} onChange={(e) => setProvider(e.target.value as typeof provider)} disabled={disabled} className={input}>
               <option value="NONE">使用しない</option>
               <option value="OIDC">OIDC（OpenID Connect）</option>
@@ -187,25 +187,25 @@ export function SsoSettingsPanel({ initial, canManage, pro }: { initial: Securit
             </select>
           </label>
           <label className="block text-xs">
-            <span className="mb-1 block font-medium text-slate-600">SSO 識別子（ログイン時に入力・英小文字と数字・3〜32文字）</span>
+            <span className="mb-1 block font-medium text-stone-600">SSO 識別子（ログイン時に入力・英小文字と数字・3〜32文字）</span>
             <input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} disabled={disabled || provider === "NONE"} placeholder="例: example-inc" className={input} />
           </label>
         </div>
         {provider === "OIDC" && (
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-xs sm:col-span-2">
-              <span className="mb-1 block font-medium text-slate-600">Issuer（例: https://accounts.google.com ／ https://login.microsoftonline.com/{"{テナントID}"}/v2.0）</span>
+              <span className="mb-1 block font-medium text-stone-600">Issuer（例: https://accounts.google.com ／ https://login.microsoftonline.com/{"{テナントID}"}/v2.0）</span>
               <input value={issuer} onChange={(e) => setIssuer(e.target.value)} disabled={disabled} className={input} />
             </label>
             <label className="block text-xs">
-              <span className="mb-1 block font-medium text-slate-600">クライアント ID</span>
+              <span className="mb-1 block font-medium text-stone-600">クライアント ID</span>
               <input value={clientId} onChange={(e) => setClientId(e.target.value)} disabled={disabled} className={input} />
             </label>
             <label className="block text-xs">
-              <span className="mb-1 block font-medium text-slate-600">クライアントシークレット{initial.oidc?.hasSecret && "（設定済み。変更時のみ入力）"}</span>
+              <span className="mb-1 block font-medium text-stone-600">クライアントシークレット{initial.oidc?.hasSecret && "（設定済み。変更時のみ入力）"}</span>
               <input type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} disabled={disabled} autoComplete="new-password" className={input} />
             </label>
-            <p className="text-xs text-slate-500 sm:col-span-2">
+            <p className="text-xs text-stone-500 sm:col-span-2">
               IdP に登録するリダイレクト URI: <code className="rounded bg-white px-1">{initial.sp.redirectUri}</code>
             </p>
           </div>
@@ -213,20 +213,20 @@ export function SsoSettingsPanel({ initial, canManage, pro }: { initial: Securit
         {provider === "SAML" && (
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-xs sm:col-span-2">
-              <span className="mb-1 block font-medium text-slate-600">IdP の SSO URL（ログイン URL）</span>
+              <span className="mb-1 block font-medium text-stone-600">IdP の SSO URL（ログイン URL）</span>
               <input value={entryPoint} onChange={(e) => setEntryPoint(e.target.value)} disabled={disabled} className={input} />
             </label>
             <label className="block text-xs">
-              <span className="mb-1 block font-medium text-slate-600">IdP の Entity ID（任意）</span>
+              <span className="mb-1 block font-medium text-stone-600">IdP の Entity ID（任意）</span>
               <input value={idpIssuer} onChange={(e) => setIdpIssuer(e.target.value)} disabled={disabled} className={input} />
             </label>
             <label className="block text-xs sm:col-span-2">
-              <span className="mb-1 block font-medium text-slate-600">IdP の署名証明書（PEM）{initial.saml && "（設定済み。変更時のみ貼り付け）"}</span>
+              <span className="mb-1 block font-medium text-stone-600">IdP の署名証明書（PEM）{initial.saml && "（設定済み。変更時のみ貼り付け）"}</span>
               <textarea value={idpCert} onChange={(e) => setIdpCert(e.target.value)} disabled={disabled} rows={4} className={`${input} font-mono`} placeholder="-----BEGIN CERTIFICATE----- ..." />
             </label>
-            <p className="text-xs text-slate-500 sm:col-span-2">
+            <p className="text-xs text-stone-500 sm:col-span-2">
               IdP に登録する値 — Entity ID: <code className="rounded bg-white px-1">{initial.sp.entityId}</code> ／ ACS URL（応答先）: <code className="rounded bg-white px-1">{initial.sp.acsUrl}</code> ／
-              SP メタデータ: <a href={initial.sp.metadataUrl} className="text-blue-700 underline" target="_blank" rel="noopener noreferrer">XML</a>
+              SP メタデータ: <a href={initial.sp.metadataUrl} className="text-orange-800 underline" target="_blank" rel="noopener noreferrer">XML</a>
             </p>
           </div>
         )}
@@ -237,7 +237,7 @@ export function SsoSettingsPanel({ initial, canManage, pro }: { initial: Securit
           </label>
         )}
         {initial.sp.startUrl && initial.configured && (
-          <p className="text-xs text-slate-600">
+          <p className="text-xs text-stone-600">
             ログイン開始 URL: <code className="rounded bg-white px-1">{initial.sp.startUrl}</code>（ログイン画面の「SSO でログイン」から識別子を入力しても開始できます）
           </p>
         )}
@@ -247,7 +247,7 @@ export function SsoSettingsPanel({ initial, canManage, pro }: { initial: Securit
           <button type="submit" disabled={disabled} className="rounded bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
             保存
           </button>
-          {!pro && <span className="text-xs text-slate-500">PRO 版の機能です。</span>}
+          {!pro && <span className="text-xs text-stone-500">PRO 版の機能です。</span>}
         </div>
       </form>
     </section>

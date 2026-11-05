@@ -20,15 +20,15 @@ export default async function ApplyRegisterPage({
   if (!verification) {
     return (
       <ApplyShell>
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-900/10">
+        <div className="rounded-2xl border border-stone-200 bg-white p-8 shadow-xl shadow-stone-900/10">
           <h1 className="mb-3 text-xl font-bold">登録用URLが無効か期限切れです</h1>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-stone-600">
             登録用URLの有効期限は送信から 24 時間です。期限が切れた場合や URL が正しく開けない場合は、
             申込画面からメールアドレスをもう一度送信してください（新しい URL が届きます）。
           </p>
           <Link
             href="/apply"
-            className="mt-6 inline-block w-full rounded-full bg-blue-600 py-3 text-center text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700"
+            className="mt-6 inline-block w-full rounded-full bg-orange-700 py-3 text-center text-sm font-bold text-white shadow-lg shadow-orange-700/30 transition hover:bg-orange-800"
           >
             申込画面へ戻る
           </Link>

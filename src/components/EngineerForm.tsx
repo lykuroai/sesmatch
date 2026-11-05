@@ -6,7 +6,7 @@ import { LocationInput } from "./LocationInput";
 import { useRouter } from "next/navigation";
 import { AFFILIATION_LABELS } from "@/lib/constants";
 
-const input = "w-full rounded border border-slate-300 px-3 py-2 text-sm";
+const input = "w-full rounded border border-stone-300 px-3 py-2 text-sm";
 const label = "mb-1 block text-sm font-medium";
 
 export type EngineerFormInitial = {
@@ -151,7 +151,7 @@ export function EngineerForm({
     .join("\n");
 
   return (
-    <form onSubmit={submit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <form onSubmit={submit} className="space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
       {error && <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
@@ -238,7 +238,7 @@ export function EngineerForm({
           className={input}
           placeholder={"Java,LANGUAGE,60\nSpring Boot,FRAMEWORK,36\nAWS,CLOUD,24"}
         />
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-stone-400">
           分類: LANGUAGE / FRAMEWORK / DATABASE / CLOUD / OS / TOOL / CERTIFICATION（経験不明は 0）
         </p>
       </div>
@@ -249,7 +249,7 @@ export function EngineerForm({
       <div>
         <label className={label}>職務経歴書（スキルシート）添付（任意・Excel/Word/PDF・10MBまで）</label>
         <input type="file" name="skillSheet" accept=".pdf,.doc,.docx,.xls,.xlsx" className={input} />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-stone-500">
           内容を自動解析し、未登録のスキルをマッチング対象に追加します（既存の入力は上書きしません）。
           原本の閲覧は自社のPII権限保持者のみ。
           {currentSheetName && `現在の添付: ${currentSheetName}（新しいファイルを選ぶと差し替え）`}
@@ -259,7 +259,7 @@ export function EngineerForm({
         <button
           type="submit"
           disabled={loading || reExtracting}
-          className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800 disabled:opacity-50"
         >
           {loading ? "保存中..." : isEdit ? "更新する" : "登録する"}
         </button>

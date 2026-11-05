@@ -56,21 +56,21 @@ export function EntryCreate({
   }
 
   return (
-    <form onSubmit={submit} className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-5">
-      <h2 className="mb-3 font-bold text-blue-900">
+    <form onSubmit={submit} className="mt-6 rounded-xl border border-orange-200 bg-orange-50 p-5">
+      <h2 className="mb-3 font-bold text-orange-950">
         {type === "PROPOSAL" ? "この案件へ自社人材を提案" : "この人材に自社案件を提案する"}
       </h2>
       {error && <p className="mb-3 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
       <div className="flex flex-wrap items-end gap-3 text-sm">
         <div>
-          <label className="mb-1 block text-xs text-slate-600">
+          <label className="mb-1 block text-xs text-stone-600">
             {type === "PROPOSAL" ? "提案する人材（公開・同意済みのみ）" : "自社案件"}
           </label>
           <select
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
             required
-            className="min-w-64 rounded border border-slate-300 bg-white px-2 py-1.5"
+            className="min-w-64 rounded border border-stone-300 bg-white px-2 py-1.5"
           >
             <option value="">選択してください</option>
             {options.map((o) => (
@@ -79,24 +79,24 @@ export function EntryCreate({
           </select>
         </div>
         <div className="flex-1">
-          <label className="mb-1 block text-xs text-slate-600">申し送り（任意）</label>
+          <label className="mb-1 block text-xs text-stone-600">申し送り（任意）</label>
           <input
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="w-full rounded border border-slate-300 px-2 py-1.5"
+            className="w-full rounded border border-stone-300 px-2 py-1.5"
             placeholder="連絡先は記載しないでください"
           />
         </div>
         <button
           type="submit"
           disabled={loading || !selected}
-          className="rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded bg-orange-700 px-4 py-2 font-medium text-white hover:bg-orange-800 disabled:opacity-50"
         >
           {loading ? "送信中..." : type === "PROPOSAL" ? "提案する" : "商談を申し込む"}
         </button>
       </div>
       {needsSubtier && (
-        <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+        <label className="mt-3 flex items-center gap-2 text-sm text-stone-700">
           <input
             type="checkbox"
             checked={subtierApproved}

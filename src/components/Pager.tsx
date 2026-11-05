@@ -29,11 +29,11 @@ export function Pager({
   };
 
   const btn = "rounded border px-3 py-1 text-sm";
-  const enabled = `${btn} border-slate-300 bg-white text-slate-700 hover:bg-slate-50`;
-  const disabled = `${btn} border-slate-200 bg-slate-50 text-slate-300 pointer-events-none`;
+  const enabled = `${btn} border-stone-300 bg-white text-stone-700 hover:bg-stone-50`;
+  const disabled = `${btn} border-stone-200 bg-stone-50 text-stone-300 pointer-events-none`;
 
   return (
-    <div className="mt-3 flex items-center justify-between text-sm text-slate-500">
+    <div className="mt-3 flex items-center justify-between text-sm text-stone-500">
       <span>
         全{total.toLocaleString()}件中 {from.toLocaleString()}〜{to.toLocaleString()}件
       </span>

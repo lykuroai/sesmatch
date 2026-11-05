@@ -48,7 +48,7 @@ export function WorkControls({
             if (window.confirm("稼働前キャンセルしますか？（手数料は発生しません）"))
               post(`/api/v1/contracts/${contract.id}/cancel`);
           }}
-          className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+          className="rounded border border-stone-300 bg-white px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-50"
         >
           稼働前キャンセル
         </button>

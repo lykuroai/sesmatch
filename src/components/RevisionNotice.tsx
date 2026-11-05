@@ -5,9 +5,9 @@ import Link from "next/link";
 export function RevisionNotice({ active }: { active: boolean }) {
   if (!active) return null;
   return (
-    <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm print:hidden">
-      <h2 className="text-sm font-bold text-slate-500">お知らせ</h2>
-      <p className="mt-2 text-sm text-slate-800">
+    <section className="mb-6 rounded-xl border border-stone-200 bg-white p-5 shadow-sm print:hidden">
+      <h2 className="text-sm font-bold text-stone-500">お知らせ</h2>
+      <p className="mt-2 text-sm text-stone-800">
         <span className="font-bold">利用規約等の改定のお知らせ（2026年11月4日）：</span>
         2026年12月4日より有料プラン「PRO版」の提供を開始します。これに伴い
         <Link href="/terms" className="underline">

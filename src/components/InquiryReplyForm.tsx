@@ -37,7 +37,7 @@ export function InquiryReplyForm({ inquiryId }: { inquiryId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-2 rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-600 hover:bg-slate-50"
+        className="mt-2 rounded border border-stone-300 bg-white px-3 py-1 text-xs text-stone-600 hover:bg-stone-50"
       >
         返信する
       </button>
@@ -53,21 +53,21 @@ export function InquiryReplyForm({ inquiryId }: { inquiryId: string }) {
         maxLength={5000}
         required
         autoFocus
-        className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+        className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
         placeholder="返信内容を入力してください"
       />
       <div className="flex gap-2">
         <button
           type="submit"
           disabled={loading || !body.trim()}
-          className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded bg-orange-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-800 disabled:opacity-50"
         >
           {loading ? "送信中..." : "送信"}
         </button>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="rounded border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+          className="rounded border border-stone-300 px-3 py-1.5 text-xs text-stone-600 hover:bg-stone-50"
         >
           キャンセル
         </button>
