@@ -10,7 +10,7 @@ import { audit } from "@/server/audit";
 import type { AuthContext } from "@/server/auth/session";
 import { effectivePlan, hasFeature } from "@/server/plan/features";
 import { appBaseUrl } from "@/server/mail";
-import { guestWindow, hashGuestToken, isWithinGuestWindow, jitsiConfig, meetingUrl, newGuestToken, newRoomId, signMeetingJwt } from "@/server/meeting/jitsi";
+import { GUEST_WINDOW_MS, guestWindow, hashGuestToken, isWithinGuestWindow, jitsiConfig, meetingUrl, newGuestToken, newRoomId, signMeetingJwt } from "@/server/meeting/jitsi";
 
 async function loadInterviewForParty(auth: AuthContext, interviewId: string) {
   const iv = await prisma.interview.findUnique({ where: { id: interviewId }, include: { entry: { select: { id: true, demandCompanyId: true, supplyCompanyId: true, status: true } } } });
@@ -99,4 +99,50 @@ export async function peekGuestMeeting(guestToken: string, now = new Date()) {
 // 面談のキャンセル・日時変更に連動した無効化（entries 側から呼ぶ）
 export async function invalidateMeetingForInterview(interviewId: string) {
   await prisma.interview.updateMany({ where: { id: interviewId, meetingProvider: "JITSI" }, data: { meetingProvider: "NONE", meetingRoomId: null, guestTokenHash: null, guestExpiresAt: null } });
+}
+
+// 「Web 会議」画面（左メニュー。2026-11-05 郭指示）: 自社が当事者の面談を一覧にする。
+// 今後の面談（予定時刻の1時間前まで遡る）と、直近7日の面談。相手の名前・企業名は Level 2 開示済みの範囲のみ
+export async function listCompanyInterviews(auth: AuthContext, now = new Date()) {
+  const since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const rows = await prisma.interview.findMany({
+    where: {
+      scheduledAt: { gte: since },
+      entry: { OR: [{ demandCompanyId: auth.companyId }, { supplyCompanyId: auth.companyId }] },
+    },
+    include: {
+      entry: {
+        select: {
+          id: true,
+          demandCompanyId: true,
+          supplyCompanyId: true,
+          project: { select: { code: true, name: true } },
+          engineer: { select: { code: true } },
+          disclosure: { select: { payload: true } },
+        },
+      },
+    },
+    orderBy: { scheduledAt: "asc" },
+  });
+  const upcomingFrom = now.getTime() - GUEST_WINDOW_MS;
+  return rows.map((iv) => {
+    const side = iv.entry.demandCompanyId === auth.companyId ? ("DEMAND" as const) : ("SUPPLY" as const);
+    const payload = (iv.entry.disclosure?.payload ?? null) as { engineerName?: string; demandCompanyName?: string; supplyCompanyName?: string } | null;
+    return {
+      id: iv.id,
+      entryId: iv.entry.id,
+      scheduledAt: iv.scheduledAt,
+      method: iv.method,
+      note: iv.note,
+      status: iv.status,
+      hasMeeting: iv.meetingProvider === "JITSI" && iv.meetingRoomId != null,
+      upcoming: iv.status === "SCHEDULED" && iv.scheduledAt.getTime() >= upcomingFrom,
+      side,
+      projectCode: iv.entry.project.code,
+      projectName: iv.entry.project.name,
+      engineerCode: iv.entry.engineer.code,
+      engineerName: payload?.engineerName ?? null,
+      counterpartCompanyName: (side === "DEMAND" ? payload?.supplyCompanyName : payload?.demandCompanyName) ?? null,
+    };
+  });
 }
