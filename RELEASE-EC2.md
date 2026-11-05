@@ -104,7 +104,7 @@ PRO 版（`ses_directmatch_pro_spec_v1_0.md`）を本番に入れる最初のリ
 
 1. `.env.production` に PRO 版の環境変数が入っていることを確認（2026-11-04 追記済み。雛形 `.env.production.example`）:
    `DATA_ENCRYPTION_KEY`（hex 64桁。**一度本番に入れたら変更しない**。Webhook URL・2要素の秘密鍵・SSO 設定の暗号鍵）、`TRUSTED_PROXY_HOPS=2`（ALB + nginx。nginx は `proxy_add_x_forwarded_for` で追記しているため右端が ALB、右から2番目が接続元）。
-   `JITSI_*`・`STRIPE_*` は基盤が未準備のためコメントのまま（未設定なら該当機能は画面に出ない）
+   `STRIPE_*` はカード決済を初期版で提供しないためコメントのまま。`JITSI_*` は Web 会議基盤 `meet.lykuro.ai` が開通したら有効化する（構築・開通手順は `JITSI-EC2.md`。未設定なら Web 会議は画面に出ない）
 2. `docker-compose.ec2.yml` に上記変数の受け渡しが入っていること（2026-11-04 追記済み。compose は列挙した変数しかコンテナに渡さない）
 3. 本番 DB へ適用されるマイグレーションは 10 件（`20261104055236_add_company_plan` 〜 `20261104180633_add_stage_c_security_and_card`）。すべて追加のみ（新テーブル・既定値付き列）で、旧イメージへ戻しても動作する。
    本番のスキーマ（schema-only ダンプ＋`_prisma_migrations`）を手元に復元して `prisma migrate deploy` → `prisma migrate diff` で差分なしを確認済み（2026-11-04）

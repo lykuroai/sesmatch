@@ -1,6 +1,6 @@
 # SES DirectMatch PRO版（有料プラン）企画・仕様書 v1.9
 
-作成日: 2026-11-04 ／ 最終更新: 2026-11-04 ／ 状態: **企画確定・段階A/B/C 実装済み（§14 A-1〜C-4。2026-11-04。Jitsi 基盤の構築と Stripe・IdP の実環境接続は未）**
+作成日: 2026-11-04 ／ 最終更新: 2026-11-05 ／ 状態: **企画確定・段階A/B/C 実装済み（§14 A-1〜C-4。2026-11-04。Jitsi 基盤は 2026-11-05 に暫定ホストへ構築・DNS 開通待ち（`JITSI-EC2.md`）。Stripe は初期版で提供せず、IdP の実環境接続は未）**
 本書は `ses_matching_platform_complete_spec_v2_0.md`（本体仕様書）の追加仕様（有料プラン編）であり、**PRO版の全機能**を対象とする。契約事務（注文書 PDF・月次一括確認・外部契約台帳）と電子署名連携は 2026-11-04 の郭判断で対象外とした。本体仕様書と矛盾する場合は本体仕様書を優先する。本体仕様書への反映（§23.0 改定、§39 新設等）は実装着手時に行う。
 
 ---
@@ -266,8 +266,8 @@
 - 面談のキャンセル・日時変更で会議室とゲスト URL を無効化する。
 
 **基盤（自前 Jitsi）**
-- Jitsi Meet（docker-jitsi-meet: web／prosody／jicofo／jvb）と TURN（coturn）を**本番 EC2 とは別のインスタンス**で運用する（現本番は 4GB・単一ホストのため同居しない）。目安: 同時2〜3面談で 2vCPU／4GB、帯域は面談1件あたり上り下り各 3〜5Mbps。
-- ドメイン `meet.lykuro.ai`（案）。TLS は Let's Encrypt。UDP 10000（JVB）と TURN 用ポートを開放する。
+- Jitsi Meet（docker-jitsi-meet: web／prosody／jicofo／jvb）と TURN（coturn）を**本番 EC2 とは別のインスタンス**で運用する（現本番は 4GB・単一ホストのため同居しない）。**2026-11-05: 暫定として lykuro-prod-data-node（t4g.large、arm64）に同居で構築（郭承認）。coturn は未設置。手順は `JITSI-EC2.md`**。目安: 同時2〜3面談で 2vCPU／4GB、帯域は面談1件あたり上り下り各 3〜5Mbps。
+- ドメイン `meet.lykuro.ai`（確定）。TLS は Let's Encrypt。UDP 10000（JVB）と TURN 用ポートを開放する。
 - 認証は JWT（`JWT_APP_ID`／`JWT_APP_SECRET`）のみ許可し、匿名入室を禁止する。プラットフォーム側で面談ごとに `room`・`exp`・表示名を含む JWT を発行する。
 - 設定: `ENABLE_RECORDING=0`、`ENABLE_LOBBY=0`、`ENABLE_PREJOIN_PAGE=1`、デフォルト言語 ja。
 - 監視: JVB の稼働と TURN の到達性を本体の運営監視（§33）に追加する。障害時は面談画面に「外部の会議ツールをご利用ください」と案内する。
