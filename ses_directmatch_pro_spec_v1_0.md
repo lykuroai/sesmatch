@@ -263,7 +263,7 @@
 - 機能: 音声・映像、画面共有、通話中テキストチャット、参加者一覧、ミュート。参加者は最大6名。待機室（ロビー）は使わず、JWT またはゲスト URL を持つ者だけが入室できる。
 - 録画・文字起こし・LLM 要約は初版では行わない（2026-11-04 郭決定）。会話内容・チャットはサーバに保存しない（Jitsi の録画機能 Jibri は導入しない）。
 - 監査ログには会議の作成・開始・終了・参加者数のみ記録する。会話内容・参加者の氏名は記録しない。
-- 面談のキャンセル・日時変更で会議室とゲスト URL を無効化する。
+- 面談のキャンセル、および方法を Web 会議以外へ変えた場合は会議室とゲスト URL を無効化する。**日時のみの変更では会議室・ゲスト URL を維持し、有効時間（前後1時間）を新しい日時に合わせる**（2026-11-06 郭指示で面談の変更機能を追加。`PUT /interviews/:id`、商談詳細の面談行「編集」）。
 
 **基盤（自前 Jitsi）**
 - Jitsi Meet（docker-jitsi-meet: web／prosody／jicofo／jvb）と TURN（coturn）を**本番 EC2 とは別のインスタンス**で運用する（現本番は 4GB・単一ホストのため同居しない）。**2026-11-05: 暫定として lykuro-prod-data-node（t4g.large、arm64）に同居で構築（郭承認）。coturn は未設置。手順は `JITSI-EC2.md`**。目安: 同時2〜3面談で 2vCPU／4GB、帯域は面談1件あたり上り下り各 3〜5Mbps。
@@ -510,6 +510,7 @@
 | GET /analytics/funnel, /analytics/market-rates, /analytics/export | 分析・CSV | analytics_export |
 | POST /scouts/bulk, POST /scouts/draft, GET /scouts/batches/:id | 一斉スカウト・AI 下書き | bulk_scout |
 | GET/POST/PUT/DELETE /skill-sheet-templates, POST /engineers/:id/skill-sheet | スキルシート再生成 | skill_sheet_render |
+| PUT /interviews/:id | 面談の変更（日時・方法・メモ。予定中のみ、両社の当事者。Web 会議への変更時は会議室も作成） | interview.manage |
 | POST/DELETE /interviews/:id/meeting, GET /interviews/:id/meeting/token | Web 会議の作成・無効化・参加 JWT | web_meeting |
 | GET /m/:guestToken | 人材本人のゲスト参加ページ（公開、hash 照合） | 認証なし |
 | GET/POST/PUT/DELETE /webhooks, POST /webhooks/:id/test | Webhook | webhook_notify |

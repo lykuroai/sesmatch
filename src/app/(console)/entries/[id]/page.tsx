@@ -14,6 +14,7 @@ import { ActionButton } from "@/components/ActionButton";
 import { MessageForm } from "@/components/MessageForm";
 import { InterviewForm } from "@/components/InterviewForm";
 import { MeetingControls } from "@/components/MeetingControls";
+import { InterviewEditForm } from "@/components/InterviewEditForm";
 import { hasFeature } from "@/server/plan/features";
 import { meetingAvailable } from "@/server/services/meetings";
 import { ContractCreateForm } from "@/components/ContractCreateForm";
@@ -230,6 +231,16 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
                 <span>{iv.method}</span>
                 <span className="text-stone-500">{iv.note}</span>
                 <span className="text-xs text-stone-400">{iv.status}</span>
+                {/* 面談の変更（日時・方法・メモ）。予定中のみ、interview.manage 権限 */}
+                {iv.status === "SCHEDULED" && canInterview && (
+                  <InterviewEditForm
+                    interviewId={iv.id}
+                    scheduledAt={new Date(iv.scheduledAt).toISOString()}
+                    method={iv.method}
+                    note={iv.note ?? null}
+                    webMeeting={webMeetingOn}
+                  />
+                )}
                 {/* Web 会議（PRO版仕様書 §4.8）: 作成は PRO 側、参加は両社 */}
                 {iv.status === "SCHEDULED" && (webMeetingOn || iv.meeting) && (
                   <MeetingControls

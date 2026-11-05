@@ -22,6 +22,7 @@ import { companyNameMap } from "./companies";
 import { hasFeature } from "@/server/plan/features";
 import { dispatchWebhooks } from "./webhooks";
 import { serializeProject } from "./projects";
+import { guestWindow } from "@/server/meeting/jitsi";
 
 const ENTRY_INCLUDE = {
   project: { include: { skills: true } },
@@ -771,6 +772,47 @@ export async function scheduleInterview(
     text: `${new Date(input.scheduledAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}（${input.method}）`,
     url: `${appBaseUrl()}/entries/${entryId}`,
   });
+  return { interview };
+}
+
+// 面談の変更（日時・方法・メモ。2026-11-06 郭指示）。予定中（SCHEDULED）の面談のみ。両社の当事者が変更できる
+// - Web 会議（組込み）の会議室がある面談の日時を変えた場合は会議室・本人用 URL を維持し、有効時間（前後1時間）を新しい日時に合わせる
+// - 方法を Web 会議（組込み）以外へ変えた場合は会議室・本人用 URL を無効化する（PRO版仕様書 §4.8）
+export async function rescheduleInterview(
+  auth: AuthContext,
+  interviewId: string,
+  input: { scheduledAt?: string; method?: string; note?: string | null }
+) {
+  const iv = await prisma.interview.findUnique({ where: { id: interviewId }, include: { entry: true } });
+  if (!iv || !sideOf(iv.entry, auth.companyId)) return { error: { code: "NOT_FOUND" as const } };
+  if (iv.status !== "SCHEDULED")
+    return { error: { code: "VERSION_CONFLICT" as const, message: "キャンセル・終了した面談は変更できません" } };
+  const scheduledAt = input.scheduledAt ? new Date(input.scheduledAt) : iv.scheduledAt;
+  if (Number.isNaN(scheduledAt.getTime())) return { error: { code: "VALIDATION_ERROR" as const, message: "日時が不正です" } };
+  const method = input.method ?? iv.method;
+  const note = input.note === undefined ? iv.note : input.note;
+  const timeChanged = scheduledAt.getTime() !== iv.scheduledAt.getTime();
+  const dropMeeting = iv.meetingProvider === "JITSI" && method !== "Web会議（組込み）";
+  const data: Prisma.InterviewUpdateInput = { scheduledAt, method, note };
+  if (dropMeeting) Object.assign(data, { meetingProvider: "NONE", meetingRoomId: null, guestTokenHash: null, guestExpiresAt: null });
+  else if (iv.meetingProvider === "JITSI" && timeChanged) data.guestExpiresAt = guestWindow(scheduledAt).to;
+  const interview = await prisma.interview.update({ where: { id: iv.id }, data });
+  await audit({
+    tenantCompanyId: auth.companyId,
+    actorUserId: auth.userAccountId,
+    action: "InterviewRescheduled",
+    targetType: "Entry",
+    targetId: iv.entryId,
+    metadata: { interviewId: iv.id, scheduledAt: scheduledAt.toISOString(), previousScheduledAt: iv.scheduledAt.toISOString(), method, meetingRevoked: dropMeeting },
+  });
+  if (timeChanged || method !== iv.method) {
+    dispatchWebhooks(iv.entry.demandCompanyId === auth.companyId ? iv.entry.supplyCompanyId : iv.entry.demandCompanyId, {
+      event: "interview.scheduled",
+      title: "面談の予定が変更されました",
+      text: `${scheduledAt.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}（${method}）`,
+      url: `${appBaseUrl()}/entries/${iv.entryId}`,
+    });
+  }
   return { interview };
 }
 

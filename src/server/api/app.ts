@@ -129,6 +129,7 @@ import {
   listEntries,
   moveToConditions,
   scheduleInterview,
+  rescheduleInterview,
   sendMessage,
 } from "@/server/services/entries";
 import {
@@ -1231,6 +1232,25 @@ app.post("/webhooks/:id/test", requireFeature("webhook_notify"), requirePermissi
 });
 
 // ---- Web 会議（PRO版仕様書 §4.8）: 作成・無効化は PRO 側、参加は両社の当事者 ----
+
+// 面談の変更（日時・方法・メモ。2026-11-06）。方法を Web 会議（組込み）へ変えた場合は会議室も作成する（PRO 側のみ）
+app.put("/interviews/:id", requirePermission("interview.manage"), async (c) => {
+  const parsed = z
+    .object({ scheduledAt: z.string().optional(), method: z.string().optional(), note: z.string().nullable().optional() })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json(err("VALIDATION_ERROR"), 400);
+  const result = await rescheduleInterview(c.get("auth"), c.req.param("id"), parsed.data);
+  const er = svcError(result);
+  if (er) return c.json(err(er.code, er.message), statusFor(er.code));
+  const iv = result.interview!;
+  if (parsed.data.method === "Web会議（組込み）" && iv.meetingProvider !== "JITSI") {
+    const m = await createMeeting(c.get("auth"), iv.id);
+    const me = svcError(m);
+    if (me) return c.json({ ...iv, meetingError: me.message ?? me.code });
+    return c.json({ ...iv, meeting: m });
+  }
+  return c.json(iv);
+});
 
 app.post("/interviews/:id/meeting", requirePermission("interview.manage"), async (c) => {
   const result = await createMeeting(c.get("auth"), c.req.param("id"));

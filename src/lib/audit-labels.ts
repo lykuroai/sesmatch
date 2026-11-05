@@ -101,6 +101,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   EntryWithdrawn: "エントリーを取下げ",
   ContactInfoBlocked: "連絡先を含むメッセージを拒否",
   InterviewConfirmed: "面談を確定",
+  InterviewRescheduled: "面談の予定を変更",
   EntryMovedToConditions: "条件調整へ移行",
   // 契約・稼働・請求
   ContractCreated: "契約を作成",
