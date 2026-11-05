@@ -24,6 +24,8 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# 画面の日時表示（toLocaleString）やバッチの日付境界を日本時間にそろえる（2026-11-05 郭報告: 面談時刻が UTC で表示されていた）
+ENV TZ=Asia/Tokyo
 # ローカルOCR（§25: 原本画像を外部に送らない）: tesseract（日本語）と画像PDF変換用 poppler。
 # poppler-data（Adobe-Japan1 等の CMap）と日本語フォントは、フォント未埋め込みPDFの描画に必須
 RUN apk add --no-cache tesseract-ocr tesseract-ocr-data-jpn tesseract-ocr-data-eng poppler-utils poppler-data font-noto-cjk

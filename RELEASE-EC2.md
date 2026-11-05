@@ -185,6 +185,7 @@ docker compose -f docker-compose.ec2.yml --env-file .env.production run --rm mig
 | `exec format error` | ビルドと EC2 の CPU アーキ不一致。`PLATFORM=linux/arm64`（Graviton）を指定して再リリース |
 | 転送が遅い | イメージは gzip 済み数百MB。初回以降も全量転送のため、回線が細い場合は ECR 方式への移行を検討 |
 | ログインできない/Cookie が効かない | `https://ses.lykuro.ai`（ALB）経由でアクセスしているか確認（Secure Cookie のため HTTP 直アクセスでは不可） |
+| 画面の日時が 9 時間ずれる（UTC 表示） | app コンテナのタイムゾーン。`Dockerfile` の runner に `ENV TZ=Asia/Tokyo` を置いている（2026-11-05 追加）。`docker exec sesmatch-app-1 node -e 'console.log(new Date().toString())'` で JST になることを確認 |
 | ALB ヘルスチェックが unhealthy | EC2 で `curl -i http://127.0.0.1/api/v1/health` を確認。503 なら DB、接続不可なら nginx/app 未起動。EC2 SG が ALB の SG からの 80 を許可しているかも確認 |
 
 本番前チェックリスト（LLM ゼロデータ保持契約、MFA、監視等）は `DEPLOY.md` §5 を参照。
