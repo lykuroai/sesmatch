@@ -7,7 +7,7 @@ PRO 版の Web 会議（`ses_directmatch_pro_spec_v1_0.md` §4.8）が使う自�
 
 | 項目 | 値 |
 | --- | --- |
-| ホスト | `lykuro-prod-data-node`（`i-0e328bb3204ab8935`、t4g.large arm64、ap-northeast-1）。公開 IP `18.181.207.71`（`ec2-18-181-207-71.ap-northeast-1.compute.amazonaws.com`） |
+| ホスト | `lykuro-prod-data-node`（`i-0e328bb3204ab8935`、t4g.large arm64、ap-northeast-1）。公開 IP `18.181.207.71`（**Elastic IP**、郭確認 2026-11-05。`ec2-18-181-207-71.ap-northeast-1.compute.amazonaws.com`） |
 | SSH | `ssh -i ~/.aws/lykuro-prod-key.pem ubuntu@ec2-18-181-207-71.ap-northeast-1.compute.amazonaws.com` |
 | 配置先 | `/data/jitsi`（`.env`＝設定一式・秘密情報、`cfg/`＝各コンテナの設定と証明書、`docker-jitsi-meet-stable-11248-3/`＝公式リリースの展開物） |
 | compose | `cd /data/jitsi/docker-jitsi-meet-stable-11248-3 && docker compose --env-file /data/jitsi/.env -p jitsi <cmd>`（プロジェクト名 `jitsi`。コンテナ `jitsi-web-1` / `jitsi-prosody-1` / `jitsi-jicofo-1` / `jitsi-jvb-1`） |
