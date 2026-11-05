@@ -68,8 +68,8 @@ const GROUPS: Group[] = [
 ];
 
 function Cell({ value }: { value: string }) {
-  if (value === "○") return <span className="font-bold text-emerald-600">○</span>;
-  if (value === "−") return <span className="text-slate-300">−</span>;
+  if (value === "○") return <span className="text-xl font-bold leading-none text-emerald-600">〇</span>;
+  if (value === "−") return <span className="text-slate-400">−</span>;
   return <span>{value}</span>;
 }
 
@@ -147,12 +147,13 @@ export default function PricingPage() {
               「準備中」の機能は順次提供します。人材本人の氏名・実額単価は、プランにかかわらず双方承認後にのみ開示されます。
             </p>
             <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[560px] text-sm">
+              {/* 枠線は罫線をはっきり出す（2026-11-05 郭指摘: 薄くて見にくい）。行・列ともに slate-300 の罫線、PRO 列は薄い緑地 */}
+              <table className="w-full min-w-[560px] border-collapse border border-slate-300 text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
-                    <th className="py-2 pr-3 font-medium">機能</th>
-                    <th className="w-36 py-2 pr-3 font-medium">基本版</th>
-                    <th className="w-44 py-2 font-medium text-emerald-700">PRO 版</th>
+                  <tr className="bg-slate-100 text-left text-xs font-bold text-slate-700">
+                    <th className="border border-slate-300 px-3 py-2">機能</th>
+                    <th className="w-36 border border-slate-300 px-3 py-2">基本版</th>
+                    <th className="w-44 border border-slate-300 bg-emerald-100 px-3 py-2 text-emerald-800">PRO 版</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -195,20 +196,20 @@ function GroupRows({ group }: { group: Group }) {
   return (
     <>
       <tr className="bg-slate-50">
-        <td colSpan={3} className="px-2 py-1.5 text-xs font-bold text-slate-700">
+        <td colSpan={3} className="border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700">
           {group.title}
         </td>
       </tr>
       {group.rows.map((r) => (
-        <tr key={r.label} className="border-b border-slate-100">
-          <td className="py-2 pr-3 text-slate-700">
+        <tr key={r.label}>
+          <td className="border border-slate-300 px-3 py-2 text-slate-700">
             {r.label}
             {r.soon && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">準備中</span>}
           </td>
-          <td className="py-2 pr-3">
+          <td className="border border-slate-300 px-3 py-2">
             <Cell value={r.free} />
           </td>
-          <td className="py-2 font-medium text-slate-800">
+          <td className="border border-slate-300 bg-emerald-50/60 px-3 py-2 font-medium text-slate-800">
             <Cell value={r.pro} />
           </td>
         </tr>
