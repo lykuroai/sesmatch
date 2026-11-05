@@ -1,8 +1,9 @@
 # SESマッチングプラットフォーム 本番用イメージ
 # build:   docker compose -f docker-compose.prod.yml build
 # 3ターゲット: migrate（prisma migrate deploy 用）/ runner（アプリ本体）
+# ベースは node:22-alpine（2026-11-05 に 20 から更新。AWS SDK v3 が 2027-01 以降 Node 22 以上を要求するため）
 
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -19,7 +20,7 @@ FROM deps AS migrate
 CMD ["npx", "prisma", "migrate", "deploy"]
 
 # アプリ本体（Next.js standalone）
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
